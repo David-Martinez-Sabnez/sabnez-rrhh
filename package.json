@@ -65,11 +65,28 @@
           }
         }
       },
+      "auth": {
+        "[development]": {
+          "kind": "mocked",
+          "users": {
+            "david.martinez@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "david.martinez@sabnez.com"
+              }
+            },
+            "*": false
+          }
+        },
+        "[production]": {
+          "kind": "xsuaa"
+        }
+      },
       "attachments": {
         "kind": "db"
-      },
-      "[production]": {
-        "auth": "xsuaa"
       },
       "destinations": true,
       "html5-repo": true,
