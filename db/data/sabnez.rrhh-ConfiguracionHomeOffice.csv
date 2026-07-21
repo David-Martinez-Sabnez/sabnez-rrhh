@@ -1,0 +1,2 @@
+ID,maxDiasPorSemana,cuposPorDia,minutosReserva,semanasAnticipacion,diaRecordatorio,horaRecordatorio,diaCierre,horaCierre,zonaHoraria,activa
+DEFAULT,2,5,5,1,5,15:00:00,5,17:00:00,America/Bogota,true
