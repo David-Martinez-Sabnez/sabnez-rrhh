@@ -452,6 +452,137 @@ module.exports = cds.service.impl(function () {
       maxDiasPermitidos,
     };
   });
+
+  // ==========================================================
+  // LIBERAR UNA RESERVA TEMPORAL
+  // ==========================================================
+
+  this.on("liberarReserva", async (req) => {
+    const tokenReserva = req.data?.tokenReserva;
+
+    if (!esUUIDValido(tokenReserva)) {
+      return req.reject(400, "Debes enviar un token de reserva válido.");
+    }
+
+    const configuracion = await obtenerConfiguracion(
+      req,
+      ConfiguracionHomeOffice,
+    );
+
+    const correo = obtenerCorreoAutenticado(req);
+
+    const empleado = await buscarEmpleadoPorCorreo(Empleados, correo);
+
+    if (!empleado) {
+      return req.reject(
+        403,
+        `No existe un empleado asociado al correo corporativo ${correo}.`,
+      );
+    }
+
+    const ahora = new Date();
+
+    /*
+     * El token y el empleado se validan juntos.
+     *
+     * Aunque alguien conociera el token de otra persona,
+     * no podría cancelar esa reserva.
+     */
+    const seleccion = await SELECT.one
+      .from(SeleccionesHomeOffice)
+      .where({
+        tokenReserva,
+        empleado_ID: empleado.ID,
+      })
+      .forUpdate({
+        wait: 10,
+      });
+
+    if (!seleccion) {
+      return req.reject(
+        404,
+        "No se encontró una reserva activa asociada a este usuario.",
+      );
+    }
+
+    if (seleccion.estado !== "RESERVADA") {
+      return req.reject(
+        409,
+        "La selección ya no se encuentra en estado reservado.",
+      );
+    }
+
+    if (
+      !seleccion.reservaExpiraEn ||
+      new Date(seleccion.reservaExpiraEn).getTime() <= ahora.getTime()
+    ) {
+      return req.reject(409, "La reserva ya venció y dejó de ocupar un cupo.");
+    }
+
+    await UPDATE(SeleccionesHomeOffice)
+      .set({
+        estado: "CANCELADA",
+        tokenReserva: null,
+        reservaExpiraEn: null,
+        confirmadaEn: null,
+        canceladaEn: ahora.toISOString(),
+      })
+      .where({
+        ID: seleccion.ID,
+      });
+
+    /*
+     * Recalculamos la disponibilidad del día después de
+     * cancelar la reserva.
+     */
+    const seleccionesDelDia = await SELECT.from(SeleccionesHomeOffice).where({
+      fecha: seleccion.fecha,
+    });
+
+    const ocupacionActual = seleccionesDelDia.filter((registro) =>
+      esSeleccionActiva(registro, ahora),
+    ).length;
+
+    const diaControl = await SELECT.one.from(DiasHomeOffice).where({
+      fecha: seleccion.fecha,
+    });
+
+    const capacidad = Number(
+      diaControl?.capacidad ?? configuracion.cuposPorDia,
+    );
+
+    /*
+     * Contamos las selecciones activas que todavía conserva
+     * el empleado para la misma semana.
+     */
+    const seleccionesSemanaEmpleado = await SELECT.from(
+      SeleccionesHomeOffice,
+    ).where({
+      empleado_ID: empleado.ID,
+      semanaInicio: seleccion.semanaInicio,
+    });
+
+    const diasSeleccionados = seleccionesSemanaEmpleado.filter((registro) =>
+      esSeleccionActiva(registro, ahora),
+    ).length;
+
+    return {
+      exito: true,
+      mensaje: "La reserva fue liberada y el cupo volvió a estar disponible.",
+
+      fecha: seleccion.fecha,
+      estadoSeleccion: "CANCELADA",
+
+      tokenReserva: null,
+      reservaExpiraEn: null,
+
+      cuposDisponibles: Math.max(capacidad - ocupacionActual, 0),
+
+      diasSeleccionados,
+
+      maxDiasPermitidos: Number(configuracion.maxDiasPorSemana),
+    };
+  });
 });
 
 // ============================================================
@@ -805,22 +936,24 @@ function sumarDias(fechaISO, cantidad) {
 }
 
 function esFechaISOValida(valor) {
-  if (
-    typeof valor !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(valor)
-  ) {
+  if (typeof valor !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
     return false;
   }
 
-  const fecha = new Date(
-    `${valor}T00:00:00.000Z`
-  );
+  const fecha = new Date(`${valor}T00:00:00.000Z`);
 
   if (Number.isNaN(fecha.getTime())) {
     return false;
   }
 
-  return fecha
-    .toISOString()
-    .substring(0, 10) === valor;
+  return fecha.toISOString().substring(0, 10) === valor;
+}
+
+function esUUIDValido(valor) {
+  return (
+    typeof valor === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      valor
+    )
+  );
 }
