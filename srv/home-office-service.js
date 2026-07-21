@@ -733,6 +733,184 @@ module.exports = cds.service.impl(function () {
       maxDiasPermitidos,
     };
   });
+
+  // ==========================================================
+  // CANCELAR UN DÍA CONFIRMADO
+  // ==========================================================
+
+  this.on("cancelarDia", async (req) => {
+    const fecha = req.data?.fecha;
+
+    if (!esFechaISOValida(fecha)) {
+      return req.reject(
+        400,
+        "Debes enviar una fecha válida con formato YYYY-MM-DD.",
+      );
+    }
+
+    const configuracion = await obtenerConfiguracion(
+      req,
+      ConfiguracionHomeOffice,
+    );
+
+    const correo = obtenerCorreoAutenticado(req);
+
+    const empleado = await buscarEmpleadoPorCorreo(Empleados, correo);
+
+    if (!empleado) {
+      return req.reject(
+        403,
+        `No existe un empleado asociado al correo corporativo ${correo}.`,
+      );
+    }
+
+    const ahora = new Date();
+
+    const ciclo = calcularCicloSeleccion(ahora, configuracion);
+
+    if (!ciclo.ventanaAbierta) {
+      return req.reject(409, "La ventana semanal de selección está cerrada.");
+    }
+
+    const fechaObjetivoFin = sumarDias(ciclo.semanaObjetivoInicio, 4);
+
+    const perteneceSemanaObjetivo =
+      fecha >= ciclo.semanaObjetivoInicio && fecha <= fechaObjetivoFin;
+
+    if (!perteneceSemanaObjetivo) {
+      return req.reject(
+        400,
+        "La fecha no pertenece a la semana actualmente habilitada.",
+      );
+    }
+
+    /*
+     * Mantenemos el mismo orden de bloqueo que reservarDia:
+     *
+     * 1. Empleado
+     * 2. Día
+     * 3. Selección
+     *
+     * Esto reduce el riesgo de bloqueos cruzados.
+     */
+    const empleadoBloqueado = await SELECT.one
+      .from(Empleados)
+      .columns("ID")
+      .where({
+        ID: empleado.ID,
+      })
+      .forUpdate({
+        wait: 10,
+      });
+
+    if (!empleadoBloqueado) {
+      return req.reject(403, "El empleado asociado al usuario ya no existe.");
+    }
+
+    const diaControl = await SELECT.one
+      .from(DiasHomeOffice)
+      .where({
+        fecha,
+      })
+      .forUpdate({
+        wait: 10,
+      });
+
+    const seleccion = await SELECT.one
+      .from(SeleccionesHomeOffice)
+      .where({
+        empleado_ID: empleado.ID,
+        semanaInicio: ciclo.semanaObjetivoInicio,
+        fecha,
+      })
+      .forUpdate({
+        wait: 10,
+      });
+
+    if (!seleccion) {
+      return req.reject(
+        404,
+        "No tienes una selección registrada para esta fecha.",
+      );
+    }
+
+    if (seleccion.estado === "RESERVADA") {
+      return req.reject(
+        409,
+        "El día todavía está reservado temporalmente. Utiliza la opción de liberar reserva.",
+      );
+    }
+
+    /*
+     * La operación se comporta de forma idempotente.
+     * Un doble clic no genera un error innecesario.
+     */
+    if (seleccion.estado === "CANCELADA" || seleccion.estado === "VENCIDA") {
+      const resultadoActual = await calcularResultadoDespuesCancelacion({
+        SeleccionesHomeOffice,
+        empleadoId: empleado.ID,
+        semanaInicio: ciclo.semanaObjetivoInicio,
+        fecha,
+        ahora,
+        capacidad: Number(diaControl?.capacidad ?? configuracion.cuposPorDia),
+        maxDiasPermitidos: Number(configuracion.maxDiasPorSemana),
+      });
+
+      return {
+        exito: true,
+        mensaje: "El día ya se encontraba cancelado.",
+
+        fecha,
+        estadoSeleccion: "CANCELADA",
+        tokenReserva: null,
+        reservaExpiraEn: null,
+
+        ...resultadoActual,
+      };
+    }
+
+    if (seleccion.estado !== "CONFIRMADA") {
+      return req.reject(
+        409,
+        "La selección no se encuentra en un estado que permita cancelarla.",
+      );
+    }
+
+    await UPDATE(SeleccionesHomeOffice)
+      .set({
+        estado: "CANCELADA",
+        tokenReserva: null,
+        reservaExpiraEn: null,
+        confirmadaEn: null,
+        canceladaEn: ahora.toISOString(),
+      })
+      .where({
+        ID: seleccion.ID,
+      });
+
+    const resultado = await calcularResultadoDespuesCancelacion({
+      SeleccionesHomeOffice,
+      empleadoId: empleado.ID,
+      semanaInicio: ciclo.semanaObjetivoInicio,
+      fecha,
+      ahora,
+      capacidad: Number(diaControl?.capacidad ?? configuracion.cuposPorDia),
+      maxDiasPermitidos: Number(configuracion.maxDiasPorSemana),
+    });
+
+    return {
+      exito: true,
+      mensaje:
+        "El día confirmado fue cancelado y el cupo volvió a estar disponible.",
+
+      fecha,
+      estadoSeleccion: "CANCELADA",
+      tokenReserva: null,
+      reservaExpiraEn: null,
+
+      ...resultado,
+    };
+  });
 });
 
 // ============================================================
@@ -1106,4 +1284,40 @@ function esUUIDValido(valor) {
       valor,
     )
   );
+}
+
+async function calcularResultadoDespuesCancelacion({
+  SeleccionesHomeOffice,
+  empleadoId,
+  semanaInicio,
+  fecha,
+  ahora,
+  capacidad,
+  maxDiasPermitidos,
+}) {
+  const [seleccionesDelDia, seleccionesEmpleado] = await Promise.all([
+    SELECT.from(SeleccionesHomeOffice).where({
+      fecha,
+    }),
+
+    SELECT.from(SeleccionesHomeOffice).where({
+      empleado_ID: empleadoId,
+      semanaInicio,
+    }),
+  ]);
+
+  const ocupacionActual = seleccionesDelDia.filter((seleccion) =>
+    esSeleccionActiva(seleccion, ahora),
+  ).length;
+
+  const diasSeleccionados = seleccionesEmpleado.filter((seleccion) =>
+    esSeleccionActiva(seleccion, ahora),
+  ).length;
+
+  return {
+    cuposDisponibles: Math.max(capacidad - ocupacionActual, 0),
+
+    diasSeleccionados,
+    maxDiasPermitidos,
+  };
 }
