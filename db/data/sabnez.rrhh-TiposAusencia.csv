@@ -1,0 +1,9 @@
+codigo;descripcion;remunerada;descuentaSaldo;requiereSoporte;unidadConsumo;controlaSaldoHoras;horasAnuales;diasAnticipacion;tipoDiasAnticipacion;maximoHorasDia;maximoHorasSemana;maximoSolicitudesSemana;requiereMismoDia;permiteCruzarAnio
+VA;Vacaciones;true;true;false;DIAS;false;;0;CALENDARIO;;;;false;true
+CA;Calamidad doméstica;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
+LI;Licencia no remunerada;false;false;false;DIAS;false;;0;CALENDARIO;;;;false;true
+IN;Incapacidad médica;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
+LU;Licencia por luto;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
+PA;Licencia de paternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
+MA;Licencia de maternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
+VE;Valera emocional (horas personales);true;false;false;HORAS;true;40;3;CALENDARIO;4;4;;true;false

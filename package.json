@@ -1,0 +1,85 @@
+{
+  "name": "sabnez-rrhh",
+  "version": "1.2.1",
+  "description": "Gestión administrativa de empleados de Sabnez Consulting con SAP CAP",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@cap-js/attachments": "^3.13.1",
+    "@cap-js/postgres": "^2.3.0",
+    "@sap/cds": "^9.9.2",
+    "@sap/xssec": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^2.4.0",
+    "@sap/cds-dk": "^10",
+    "rimraf": "^5.0.5",
+    "mbt": "^1.2.29"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch": "cds watch",
+    "deploy:sqlite": "cds deploy --profile development",
+    "reset:sqlite": "node scripts/reset-sqlite.js",
+    "compile": "cdsc toCsn db/schema.cds srv/admin-service.cds srv/admin-annotations.cds",
+    "env:production": "cds env requires.db --for production",
+    "watch-empleadosui": "cds watch --open empleadosui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "undeploy": "cf undeploy sabnez-rrhh --delete-services --delete-service-keys --delete-service-brokers",
+    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "[development]": {
+          "kind": "sqlite",
+          "credentials": {
+            "url": "db.sqlite"
+          },
+          "data": [
+            "db/data",
+            "test/data"
+          ]
+        },
+        "[production]": {
+          "kind": "postgres",
+          "impl": "@cap-js/postgres",
+          "data": [
+            "db/data"
+          ],
+          "vcap": {
+            "label": "user-provided",
+            "name": "sabnez-rrhh-db"
+          },
+          "pool": {
+            "acquireTimeoutMillis": 15000,
+            "createTimeoutMillis": 10000,
+            "max": 5,
+            "min": 0
+          },
+          "client": {
+            "connectionTimeoutMillis": 10000
+          }
+        }
+      },
+      "attachments": {
+        "kind": "db"
+      },
+      "[production]": {
+        "auth": "xsuaa"
+      },
+      "destinations": true,
+      "html5-repo": true,
+      "workzone": true
+    },
+    "features": {
+      "assert_integrity": "db"
+    }
+  },
+  "sapux": [
+    "app/empleadosui"
+  ]
+}

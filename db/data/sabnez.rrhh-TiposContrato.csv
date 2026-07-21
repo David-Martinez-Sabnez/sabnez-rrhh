@@ -1,0 +1,6 @@
+codigo;descripcion;causaVacaciones
+TI;Término indefinido;true
+TF;Término fijo;true
+OL;Obra o labor;true
+PS;Prestación de servicios;false
+AP;Contrato de aprendizaje;false

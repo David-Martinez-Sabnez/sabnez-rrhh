@@ -1,0 +1,5 @@
+ID;numeroDocumento;tipoDocumento;primerNombre;segundoNombre;primerApellido;segundoApellido;fechaNacimiento;genero;correoCorporativo;telefono;ciudad;codigoInterno;fechaIngreso;cargo_ID;estado_codigo
+aaaaaaaa-0000-0000-0000-000000000001;79000001;CC;David;;Martínez;;1988-03-15;MASCULINO;david.martinez@sabnez.com;3102988186;Bogotá;SAB-001;2023-10-10;33333333-3333-3333-3333-333333333306;AC
+aaaaaaaa-0000-0000-0000-000000000002;52000002;CC;Camila;;Sabogal;;1992-07-22;FEMENINO;camila.sabogal@sabnez.com;3115550002;Bogotá;SAB-002;2023-10-10;33333333-3333-3333-3333-333333333305;AC
+aaaaaaaa-0000-0000-0000-000000000003;80000003;CC;Andrés;Felipe;Gómez;Ruiz;1995-01-10;MASCULINO;andres.gomez@sabnez.com;3125550003;Medellín;SAB-003;2024-02-01;33333333-3333-3333-3333-333333333301;AC
+aaaaaaaa-0000-0000-0000-000000000004;1020000004;CC;Laura;;Restrepo;;1997-11-05;FEMENINO;laura.restrepo@sabnez.com;3135550004;Bogotá;SAB-004;2024-05-15;33333333-3333-3333-3333-333333333302;AC

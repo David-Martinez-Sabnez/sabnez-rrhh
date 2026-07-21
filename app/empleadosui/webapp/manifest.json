@@ -1,0 +1,242 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sabnez.com.empleadosui",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.4"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:lrop",
+      "version": "1.17.5",
+      "toolsId": "a7da1c5f-00d5-425b-b48e-4709979648ac"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/admin/",
+        "type": "OData",
+        "settings": {
+          "annotations": [],
+          "odataVersion": "4.0"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "Empleados-display": {
+          "semanticObject": "Empleados",
+          "action": "display",
+          "title": "{{Empleados-display.flpTitle}}",
+          "subTitle": "{{Empleados-display.flpSubtitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.150.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.fe.templates": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "sabnez.com.empleadosui.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      },
+      "@i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "uri": "i18n/i18n.properties"
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {},
+      "routes": [
+        {
+          "pattern": ":?query:",
+          "name": "EmpleadosList",
+          "target": "EmpleadosList"
+        },
+        {
+          "pattern": "Empleados({key}):?query:",
+          "name": "EmpleadosObjectPage",
+          "target": "EmpleadosObjectPage"
+        },
+        {
+          "name": "Empleados_contratosObjectPage",
+          "pattern": "Empleados({key})/contratos({contratosKey}):?query:",
+          "target": "Empleados_contratosObjectPage"
+        },
+        {
+          "name": "Empleados_contactosEmergenciaObjectPage",
+          "pattern": "Empleados({key})/contactosEmergencia({contactosEmergenciaKey}):?query:",
+          "target": "Empleados_contactosEmergenciaObjectPage"
+        },
+        {
+          "name": "Empleados_ausenciasObjectPage",
+          "pattern": "Empleados({key})/ausencias({ausenciasKey}):?query:",
+          "target": "Empleados_ausenciasObjectPage"
+        }
+      ],
+      "targets": {
+        "EmpleadosList": {
+          "type": "Component",
+          "id": "EmpleadosList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "contextPath": "/Empleados",
+              "variantManagement": "Page",
+              "navigation": {
+                "Empleados": {
+                  "detail": {
+                    "route": "EmpleadosObjectPage"
+                  }
+                }
+              },
+              "controlConfiguration": {
+                "@com.sap.vocabularies.UI.v1.LineItem": {
+                  "tableSettings": {
+                    "type": "ResponsiveTable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "EmpleadosObjectPage": {
+          "type": "Component",
+          "id": "EmpleadosObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "editableHeaderContent": false,
+              "contextPath": "/Empleados",
+              "navigation": {
+                "contratos": {
+                  "detail": {
+                    "route": "Empleados_contratosObjectPage"
+                  }
+                },
+                "contactosEmergencia": {
+                  "detail": {
+                    "route": "Empleados_contactosEmergenciaObjectPage"
+                  }
+                },
+                "ausencias": {
+                  "detail": {
+                    "route": "Empleados_ausenciasObjectPage"
+                  }
+                }
+              },
+              "content": {
+                "body": {
+                  "sections": {
+                    "SaldosBeneficios": {
+                      "template": "sabnez.com.empleadosui.ext.fragment.SaldosResumen",
+                      "title": "{i18n>saldosBeneficiosSectionTitle}",
+                      "position": {
+                        "placement": "After",
+                        "anchor": "Afiliaciones"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Empleados_contratosObjectPage": {
+          "type": "Component",
+          "id": "Empleados_contratosObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "navigation": {},
+              "contextPath": "/Empleados/contratos"
+            }
+          }
+        },
+        "Empleados_contactosEmergenciaObjectPage": {
+          "type": "Component",
+          "id": "Empleados_contactosEmergenciaObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "navigation": {},
+              "contextPath": "/Empleados/contactosEmergencia"
+            }
+          }
+        },
+        "Empleados_ausenciasObjectPage": {
+          "type": "Component",
+          "id": "Empleados_ausenciasObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "navigation": {},
+              "contextPath": "/Empleados/ausencias"
+            }
+          }
+        }
+      }
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "sabnezrrhh.service"
+  }
+}

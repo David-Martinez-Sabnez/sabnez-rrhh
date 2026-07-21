@@ -1,0 +1,86 @@
+
+
+/* Saldos y beneficios */
+.sabnezBalancesRoot {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sabnezBalanceBlock {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 1rem;
+    border: 1px solid var(--sapGroup_ContentBorderColor);
+    border-radius: 0.75rem;
+    background: var(--sapGroup_ContentBackground);
+    box-shadow: var(--sapContent_Shadow0);
+}
+
+.sabnezBalanceBlockSpacing {
+    margin-top: 1rem;
+}
+
+.sabnezBalanceHeader {
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sabnezBalanceSubtitle {
+    margin-top: 0.25rem;
+    color: var(--sapContent_LabelColor);
+}
+
+.sabnezKpiGrid {
+    width: 100%;
+    gap: 1rem;
+}
+
+.sabnezKpiCard {
+    box-sizing: border-box;
+    min-width: 12rem;
+    flex: 1 1 12rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--sapTile_BorderColor);
+    border-radius: 0.625rem;
+    background: var(--sapTile_Background);
+}
+
+.sabnezKpiCardAvailable {
+    border-inline-start: 0.25rem solid var(--sapPositiveElementColor);
+}
+
+.sabnezKpiLabel {
+    margin-bottom: 0.5rem;
+    color: var(--sapContent_LabelColor);
+}
+
+.sabnezBenefitMeta {
+    width: 100%;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--sapGroup_ContentBorderColor);
+}
+
+.sabnezBenefitMetaItem {
+    min-width: 12rem;
+    flex: 1 1 12rem;
+    gap: 0.75rem;
+}
+
+.sabnezBenefitMetaIcon {
+    color: var(--sapContent_IconColor);
+    font-size: 1.25rem;
+}
+
+@media (max-width: 600px) {
+    .sabnezBalanceBlock {
+        padding: 0.75rem;
+    }
+
+    .sabnezKpiCard,
+    .sabnezBenefitMetaItem {
+        min-width: 100%;
+        flex-basis: 100%;
+    }
+}
