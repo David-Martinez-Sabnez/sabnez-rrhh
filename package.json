@@ -78,6 +78,51 @@
                 "email": "david.martinez@sabnez.com"
               }
             },
+            "camila.sabogal@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "camila.sabogal@sabnez.com"
+              }
+            },
+            "andres.gomez@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "andres.gomez@sabnez.com"
+              }
+            },
+            "laura.restrepo@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "laura.restrepo@sabnez.com"
+              }
+            },
+            "felipe.rojas@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "felipe.rojas@sabnez.com"
+              }
+            },
+            "natalia.torres@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "natalia.torres@sabnez.com"
+              }
+            },
             "*": false
           }
         },
