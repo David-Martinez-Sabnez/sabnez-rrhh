@@ -583,6 +583,156 @@ module.exports = cds.service.impl(function () {
       maxDiasPermitidos: Number(configuracion.maxDiasPorSemana),
     };
   });
+
+  // ==========================================================
+  // CONFIRMAR LAS RESERVAS VIGENTES DE LA SEMANA
+  // ==========================================================
+
+  this.on("confirmarSemana", async (req) => {
+    const configuracion = await obtenerConfiguracion(
+      req,
+      ConfiguracionHomeOffice,
+    );
+
+    const correo = obtenerCorreoAutenticado(req);
+
+    const empleado = await buscarEmpleadoPorCorreo(Empleados, correo);
+
+    if (!empleado) {
+      return req.reject(
+        403,
+        `No existe un empleado asociado al correo corporativo ${correo}.`,
+      );
+    }
+
+    const ahora = new Date();
+
+    const ciclo = calcularCicloSeleccion(ahora, configuracion);
+
+    if (!ciclo.ventanaAbierta) {
+      return req.reject(409, "La ventana semanal de selección está cerrada.");
+    }
+
+    /*
+     * Bloqueamos al empleado para impedir que otra pestaña
+     * reserve o confirme días simultáneamente.
+     */
+    const empleadoBloqueado = await SELECT.one
+      .from(Empleados)
+      .columns("ID")
+      .where({
+        ID: empleado.ID,
+      })
+      .forUpdate({
+        wait: 10,
+      });
+
+    if (!empleadoBloqueado) {
+      return req.reject(403, "El empleado asociado al usuario ya no existe.");
+    }
+
+    /*
+     * Bloqueamos también las selecciones de la semana para
+     * evitar que se modifiquen mientras se confirman.
+     */
+    const seleccionesSemana = await SELECT.from(SeleccionesHomeOffice)
+      .where({
+        empleado_ID: empleado.ID,
+        semanaInicio: ciclo.semanaObjetivoInicio,
+      })
+      .forUpdate({
+        wait: 10,
+      });
+
+    const seleccionesActivas = seleccionesSemana.filter((seleccion) =>
+      esSeleccionActiva(seleccion, ahora),
+    );
+
+    const seleccionesConfirmadas = seleccionesActivas.filter(
+      (seleccion) => seleccion.estado === "CONFIRMADA",
+    );
+
+    const reservasVigentes = seleccionesActivas.filter(
+      (seleccion) => seleccion.estado === "RESERVADA",
+    );
+
+    if (seleccionesActivas.length === 0) {
+      return req.reject(409, "No tienes días reservados para confirmar.");
+    }
+
+    const maxDiasPermitidos = Number(configuracion.maxDiasPorSemana);
+
+    if (seleccionesActivas.length > maxDiasPermitidos) {
+      return req.reject(
+        409,
+        `La selección supera el máximo de ${maxDiasPermitidos} días permitidos.`,
+      );
+    }
+
+    /*
+     * Si todo estaba confirmado, la operación se considera
+     * exitosa e idempotente.
+     */
+    if (reservasVigentes.length === 0) {
+      return {
+        exito: true,
+        mensaje: "Tus días de Home Office ya se encontraban confirmados.",
+
+        fecha: null,
+        estadoSeleccion: "CONFIRMADA",
+        tokenReserva: null,
+        reservaExpiraEn: null,
+        cuposDisponibles: null,
+
+        diasSeleccionados: seleccionesConfirmadas.length,
+
+        maxDiasPermitidos,
+      };
+    }
+
+    const fechaConfirmacion = ahora.toISOString();
+
+    /*
+     * La confirmación no libera ni consume cupos adicionales:
+     * las reservas ya estaban contando como ocupadas.
+     */
+    for (const reserva of reservasVigentes) {
+      await UPDATE(SeleccionesHomeOffice)
+        .set({
+          estado: "CONFIRMADA",
+          tokenReserva: null,
+          reservaExpiraEn: null,
+          confirmadaEn: fechaConfirmacion,
+          canceladaEn: null,
+        })
+        .where({
+          ID: reserva.ID,
+        });
+    }
+
+    const totalConfirmado =
+      seleccionesConfirmadas.length + reservasVigentes.length;
+
+    const textoDias =
+      reservasVigentes.length === 1
+        ? "1 día fue confirmado"
+        : `${reservasVigentes.length} días fueron confirmados`;
+
+    return {
+      exito: true,
+      mensaje: `${textoDias} correctamente para la semana seleccionada.`,
+
+      fecha: null,
+      estadoSeleccion: "CONFIRMADA",
+      tokenReserva: null,
+      reservaExpiraEn: null,
+      cuposDisponibles: null,
+
+      diasSeleccionados: totalConfirmado,
+
+      maxDiasPermitidos,
+    };
+  });
 });
 
 // ============================================================
@@ -953,7 +1103,7 @@ function esUUIDValido(valor) {
   return (
     typeof valor === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      valor
+      valor,
     )
   );
 }
