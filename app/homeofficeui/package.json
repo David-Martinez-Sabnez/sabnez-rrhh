@@ -1,6 +1,6 @@
 {
   "name": "homeofficeui",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Selección semanal de días de Home Office",
   "keywords": [
     "ui5",
@@ -8,10 +8,10 @@
     "sapui5"
   ],
   "main": "webapp/index.html",
-  "dependencies": {},
   "devDependencies": {
+    "@sap/ux-ui5-tooling": "1",
     "@ui5/cli": "^3.0.0",
-    "@sap/ux-ui5-tooling": "1"
+    "ui5-task-zipper": "^3.6.1"
   },
   "scripts": {
     "start": "fiori run --open \"test/flp.html#app-preview\"",

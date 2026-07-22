@@ -1,7 +1,7 @@
 _schema-version: 3.3.0
 ID: sabnez-rrhh
 description: Gestión administrativa de empleados de Sabnez Consulting con SAP CAP
-version: 1.3.0
+version: 1.3.1
 modules:
   - name: sabnez-rrhh-srv
     type: nodejs
@@ -32,6 +32,8 @@ modules:
           command: npm start
     requires:
       - name: sabnez-rrhh-db
+    build-parameters:
+      timeout: 20m
   - name: sabnez-rrhh-app-deployer
     type: com.sap.application.content
     path: gen
@@ -59,6 +61,10 @@ modules:
         - artifacts:
             - sabnezcomempleadosui.zip
           name: sabnezcomempleadosui
+          target-path: app/
+        - artifacts:
+            - sabnezcomhomeofficeui.zip
+          name: sabnezcomhomeofficeui
           target-path: app/
   - name: sabnez-rrhh-destinations
     type: com.sap.application.content
@@ -101,6 +107,16 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
+  - name: sabnezcomhomeofficeui
+    type: html5
+    path: app/homeofficeui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []      
 resources:
   - name: sabnez-rrhh-db
     type: org.cloudfoundry.existing-service

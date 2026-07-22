@@ -33,16 +33,26 @@ sap.ui.define(
       },
 
       onRefreshButtonPress: function () {
-        this._loadWeek();
+        this._loadWeek({
+          showGlobalBusy: true,
+          updateInPlace: true,
+        });
       },
 
       onDayActionButtonPress: function (oEvent) {
-        const oDay = oEvent.getSource().getBindingContext("view").getObject();
+        const oContext = oEvent.getSource().getBindingContext("view");
+
+        const oDay = oContext.getObject();
+        const sDayPath = oContext.getPath();
 
         if (oDay.estadoSeleccion === "RESERVADA") {
-          this._executeAction("liberarReserva", {
-            tokenReserva: oDay.tokenReserva,
-          });
+          this._executeAction(
+            "liberarReserva",
+            {
+              tokenReserva: oDay.tokenReserva,
+            },
+            sDayPath,
+          );
 
           return;
         }
@@ -52,16 +62,18 @@ sap.ui.define(
             `¿Deseas cancelar ${oDay.nombreDia.toLowerCase()} ${oDay.dateLabel}?`,
             {
               title: "Cancelar día confirmado",
-
               emphasizedAction: MessageBox.Action.OK,
-
               actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
 
               onClose: (sAction) => {
                 if (sAction === MessageBox.Action.OK) {
-                  this._executeAction("cancelarDia", {
-                    fecha: oDay.fecha,
-                  });
+                  this._executeAction(
+                    "cancelarDia",
+                    {
+                      fecha: oDay.fecha,
+                    },
+                    sDayPath,
+                  );
                 }
               },
             },
@@ -78,9 +90,13 @@ sap.ui.define(
           return;
         }
 
-        this._executeAction("reservarDia", {
-          fecha: oDay.fecha,
-        });
+        this._executeAction(
+          "reservarDia",
+          {
+            fecha: oDay.fecha,
+          },
+          sDayPath,
+        );
       },
 
       onConfirmSelectionButtonPress: function () {
@@ -108,10 +124,18 @@ sap.ui.define(
         );
       },
 
-      _executeAction: async function (sActionName, mParameters) {
+      _executeAction: async function (
+        sActionName,
+        mParameters,
+        sDayPath = null,
+      ) {
         const oViewModel = this.getView().getModel("view");
 
         oViewModel.setProperty("/busy", true);
+
+        if (sDayPath) {
+          oViewModel.setProperty(`${sDayPath}/actionBusy`, true);
+        }
 
         try {
           const oResult = await this._invokeAction(sActionName, mParameters);
@@ -122,10 +146,34 @@ sap.ui.define(
             });
           }
 
-          await this._loadWeek();
+          await this._loadWeek({
+            showGlobalBusy: false,
+            updateInPlace: true,
+          });
         } catch (oError) {
-          MessageBox.error(this._extractErrorMessage(oError));
+          const iStatus = this._getHttpStatus(oError);
+          const sMessage = this._extractErrorMessage(oError);
+
+          if (iStatus === 409) {
+            await this._loadWeek({
+              showGlobalBusy: false,
+              updateInPlace: true,
+              silentErrors: true,
+            });
+
+            MessageBox.warning(sMessage, {
+              title: "Disponibilidad actualizada",
+            });
+
+            return;
+          }
+
+          MessageBox.error(sMessage);
         } finally {
+          if (sDayPath) {
+            oViewModel.setProperty(`${sDayPath}/actionBusy`, false);
+          }
+
           oViewModel.setProperty("/busy", false);
         }
       },
@@ -144,14 +192,19 @@ sap.ui.define(
         return oBinding.getBoundContext()?.getObject() ?? {};
       },
 
-      _loadWeek: async function () {
+      _loadWeek: async function (mOptions = {}) {
+        const {
+          showGlobalBusy = true,
+          updateInPlace = false,
+          silentErrors = false,
+        } = mOptions;
         const oViewModel = this.getView().getModel("view");
-
-        this._stopReservationCountdown();
 
         const oODataModel = this.getOwnerComponent().getModel();
 
-        oViewModel.setProperty("/busy", true);
+        if (showGlobalBusy) {
+          oViewModel.setProperty("/busy", true);
+        }
         oViewModel.setProperty("/error", null);
 
         try {
@@ -182,7 +235,11 @@ sap.ui.define(
           const oFirstDay = aDays[0];
           const oLastDay = aDays[aDays.length - 1];
 
-          oViewModel.setProperty("/days", aDays);
+          if (updateInPlace) {
+            this._updateDaysInPlace(aDays);
+          } else {
+            oViewModel.setProperty("/days", aDays);
+          }
 
           oViewModel.setProperty(
             "/weekLabel",
@@ -215,11 +272,17 @@ sap.ui.define(
 
           this._startReservationCountdown();
         } catch (oError) {
+          const sMessage = this._extractErrorMessage(oError);
+
+          if (silentErrors) {
+            console.warn("No fue posible actualizar los datos:", sMessage);
+
+            return;
+          }
+
           this._stopReservationCountdown();
 
           oViewModel.setProperty("/reservationBannerText", "");
-
-          const sMessage = this._extractErrorMessage(oError);
 
           oViewModel.setProperty("/error", sMessage);
 
@@ -227,10 +290,42 @@ sap.ui.define(
 
           MessageBox.error(sMessage);
         } finally {
-          oViewModel.setProperty("/busy", false);
+          if (showGlobalBusy) {
+            oViewModel.setProperty("/busy", false);
+          }
         }
       },
 
+      _updateDaysInPlace: function (aNewDays) {
+        const oViewModel = this.getView().getModel("view");
+
+        const aCurrentDays = oViewModel.getProperty("/days") || [];
+
+        const bSameStructure =
+          aCurrentDays.length === aNewDays.length &&
+          aCurrentDays.every(
+            (oCurrentDay, iIndex) =>
+              oCurrentDay.fecha === aNewDays[iIndex].fecha,
+          );
+
+        if (!bSameStructure) {
+          oViewModel.setProperty("/days", aNewDays);
+
+          return;
+        }
+
+        aNewDays.forEach((oNewDay, iIndex) => {
+          const sBasePath = `/days/${iIndex}`;
+
+          Object.entries(oNewDay).forEach(([sProperty, vValue]) => {
+            if (sProperty === "actionBusy") {
+              return;
+            }
+
+            oViewModel.setProperty(`${sBasePath}/${sProperty}`, vValue);
+          });
+        });
+      },
       _prepareDay: function (oDay) {
         const iTotal = Number(oDay.cuposTotales) || 0;
 
@@ -252,6 +347,8 @@ sap.ui.define(
           ...oDay,
 
           dateLabel: this._formatDayDate(oDay.fecha),
+
+          actionBusy: false,
 
           occupationPercent:
             iTotal > 0 ? Math.round((iOccupied / iTotal) * 100) : 0,
@@ -476,7 +573,10 @@ sap.ui.define(
               "Una reserva temporal venció y el cupo fue liberado.",
             );
 
-            this._loadWeek().finally(() => {
+            this._loadWeek({
+              showGlobalBusy: false,
+              updateInPlace: true,
+            }).finally(() => {
               this._refreshingAfterExpiry = false;
             });
           }
@@ -570,6 +670,18 @@ sap.ui.define(
         }).format(oDate);
 
         return `Puedes modificar tu selección ` + `hasta el ${sFormatted}.`;
+      },
+
+      _getHttpStatus: function (oError) {
+        return Number(
+          oError?.status ||
+            oError?.statusCode ||
+            oError?.cause?.status ||
+            oError?.cause?.statusCode ||
+            oError?.response?.status ||
+            oError?.cause?.response?.status ||
+            0,
+        );
       },
 
       _extractErrorMessage: function (oError) {

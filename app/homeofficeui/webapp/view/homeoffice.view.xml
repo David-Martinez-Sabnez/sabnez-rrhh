@@ -7,15 +7,14 @@
 
     <Page
         id="homeOfficePage"
-        title="{i18n>appTitle}"
-        busy="{view>/busy}"
-        busyIndicatorDelay="0">
+        title="{i18n>appTitle}">
 
         <headerContent>
             <Button
                 id="refreshButton"
                 icon="sap-icon://refresh"
                 tooltip="Actualizar disponibilidad"
+                enabled="{= !${view>/busy} }"
                 press=".onRefreshButtonPress" />
         </headerContent>
 
@@ -154,8 +153,10 @@
                                 text="{view>actionText}"
                                 type="{view>actionType}"
                                 icon="{view>actionIcon}"
-                                enabled="{view>habilitado}"
+                                enabled="{= ${view>habilitado} &amp;&amp; !${view>/busy} }"
                                 visible="{view>actionVisible}"
+                                busy="{view>actionBusy}"
+                                busyIndicatorDelay="0"
                                 press=".onDayActionButtonPress"
                                 width="100%"
                                 class="sapUiSmallMarginTop" />
