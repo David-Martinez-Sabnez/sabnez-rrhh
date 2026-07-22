@@ -1,1 +1,79 @@
-/* Enter your custom styles here */
+.homeOfficeContent {
+  max-width: 86rem;
+  margin: 0 auto;
+}
+
+.homeOfficeHeader {
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.homeOfficeDeadline {
+  margin-top: 0.35rem;
+  color: var(--sapContent_LabelColor);
+}
+
+.homeOfficeSummary {
+  gap: 1rem;
+}
+
+.summaryBlock {
+  min-width: 13rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.daysContainer {
+  gap: 0.25rem;
+}
+
+.dayCard {
+  box-sizing: border-box;
+  width: 15.5rem;
+  min-height: 14rem;
+  padding: 1.25rem;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-radius: 0.85rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.dayCard:hover {
+  box-shadow: var(--sapContent_Shadow1);
+}
+
+.dayDate {
+  color: var(--sapContent_LabelColor);
+  text-transform: capitalize;
+}
+
+.dayReason {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 600px) {
+  .homeOfficeContent {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .summaryBlock,
+  .dayCard {
+    width: 100%;
+    min-width: 100%;
+    margin-right: 0 !important;
+  }
+
+  .daysContainer {
+    width: 100%;
+  }
+}
+
+.reservationCountdown {
+  font-weight: 700;
+}

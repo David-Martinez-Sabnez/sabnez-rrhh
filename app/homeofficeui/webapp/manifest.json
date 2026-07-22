@@ -14,6 +14,15 @@
       "id": "@sap/generator-fiori:basic",
       "version": "1.17.5",
       "toolsId": "7c3d383c-13b6-4ec2-9ed8-1fd33b0565a1"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/home-office/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
+      }
     }
   },
   "sap.ui": {
@@ -51,6 +60,17 @@
         "settings": {
           "bundleName": "sabnez.com.homeofficeui.i18n.i18n"
         }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true,
+          "groupId": "$direct",
+          "updateGroupId": "$direct"
+        }
       }
     },
     "resources": {
@@ -76,9 +96,7 @@
         {
           "name": "Routehomeoffice",
           "pattern": ":?query:",
-          "target": [
-            "Targethomeoffice"
-          ]
+          "target": ["Targethomeoffice"]
         }
       ],
       "targets": {
