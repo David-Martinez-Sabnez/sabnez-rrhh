@@ -139,6 +139,15 @@
           }
         }
       }
+    },
+    "extends": {
+      "extensions": {
+        "sap.ui.controllerExtensions": {
+          "sap.fe.templates.ListReport.ListReportController": {
+            "controllerName": "sabnez.com.homeofficeadminui.ext.controller.ListReportExt"
+          }
+        }
+      }
     }
   },
   "sap.fiori": {
