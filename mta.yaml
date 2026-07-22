@@ -1,161 +1,173 @@
 _schema-version: 3.3.0
 ID: sabnez-rrhh
 description: Gestión administrativa de empleados de Sabnez Consulting con SAP CAP
-version: 1.2.1
+version: 1.3.0
 modules:
-- name: sabnez-rrhh-srv
-  type: nodejs
-  path: gen/srv
-  requires:
+  - name: sabnez-rrhh-srv
+    type: nodejs
+    path: gen/srv
+    requires:
+      - name: sabnez-rrhh-db
+      - name: sabnez-rrhh-auth
+      - name: sabnez-rrhh-destination
+      - name: sabnez-rrhh-malware-scanner
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    parameters:
+      buildpack: nodejs_buildpack
+      instances: 1
+    build-parameters:
+      builder: npm-ci
+  - name: sabnez-rrhh-postgres-deployer
+    type: nodejs
+    path: gen/pg
+    parameters:
+      buildpack: nodejs_buildpack
+      no-route: true
+      no-start: true
+      tasks:
+        - name: deploy-to-postgresql
+          command: npm start
+    requires:
+      - name: sabnez-rrhh-db
+  - name: sabnez-rrhh-app-deployer
+    type: com.sap.application.content
+    path: gen
+    requires:
+      - name: srv-api
+      - name: sabnez-rrhh-html5-repo-host
+        parameters:
+          config:
+            HTML5Runtime_enabled: true
+          content-target: true
+      - name: sabnez-rrhh-auth
+    parameters:
+      config:
+        destinations:
+          - Authentication: NoAuthentication
+            DynamicDestination: true
+            ForwardAuthToken: true
+            Name: srv-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+    build-parameters:
+      build-result: app/
+      requires:
+        - artifacts:
+            - sabnezcomempleadosui.zip
+          name: sabnezcomempleadosui
+          target-path: app/
+  - name: sabnez-rrhh-destinations
+    type: com.sap.application.content
+    requires:
+      - name: sabnez-rrhh-html5-repo-host
+        parameters:
+          service-key:
+            name: sabnez-rrhh-html5-repo-host-key
+      - name: srv-api
+      - name: sabnez-rrhh-destination
+        parameters:
+          content-target: true
+      - name: sabnez-rrhh-auth
+        parameters:
+          service-key:
+            name: sabnez-rrhh-auth-key
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Name: sabnez-rrhh-html5-repository
+              ServiceInstanceName: sabnez-rrhh-html5-repo-host
+              ServiceKeyName: sabnez-rrhh-html5-repo-host-key
+              sap.cloud.service: sabnezrrhh.service
+            - Name: sabnez-rrhh-auth
+              Authentication: OAuth2UserTokenExchange
+              ServiceInstanceName: sabnez-rrhh-auth
+              ServiceKeyName: sabnez-rrhh-auth-key
+              sap.cloud.service: sabnezrrhh.service
+          existing_destinations_policy: update
+    build-parameters:
+      no-source: true
+  - name: sabnezcomempleadosui
+    type: html5
+    path: app/empleadosui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+resources:
   - name: sabnez-rrhh-db
-  - name: sabnez-rrhh-auth
-  - name: sabnez-rrhh-destination
+    type: org.cloudfoundry.existing-service
+    parameters:
+      service-name: sabnez-rrhh-db
   - name: sabnez-rrhh-malware-scanner
-  provides:
-  - name: srv-api
-    properties:
-      srv-url: ${default-url}
-  parameters:
-    buildpack: nodejs_buildpack
-    instances: 1
-  build-parameters:
-    builder: npm-ci
-- name: sabnez-rrhh-app-deployer
-  type: com.sap.application.content
-  path: gen
-  requires:
-  - name: srv-api
-  - name: sabnez-rrhh-html5-repo-host
+    type: org.cloudfoundry.existing-service
+    parameters:
+      service-name: sabnez-rrhh-malware-scanner
+  - name: sabnez-rrhh-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      config:
+        oauth2-configuration:
+          credential-types:
+            - binding-secret
+            - x509
+        role-collections:
+          - description: Editor de la app de empleados
+            name: RRHH Editor
+            role-template-references:
+              - $XSAPPNAME.Editor
+          - description: Admin de la app de empleados
+            name: RRHH Admin
+            role-template-references:
+              - $XSAPPNAME.Admin
+        tenant-mode: dedicated
+        xsappname: sabnez-rrhh
+      path: ./xs-security.json
+      service: xsuaa
+      service-plan: application
+  - name: sabnez-rrhh-destination
+    type: org.cloudfoundry.managed-service
     parameters:
       config:
         HTML5Runtime_enabled: true
-      content-target: true
-  - name: sabnez-rrhh-auth
-  parameters:
-    config:
-      destinations:
-      - Authentication: NoAuthentication
-        DynamicDestination: true
-        ForwardAuthToken: true
-        Name: srv-api
-        ProxyType: Internet
-        Type: HTTP
-        URL: ~{srv-api/srv-url}
-  build-parameters:
-    build-result: app/
+        init_data:
+          instance:
+            destinations:
+              - Name: srv-api
+                Type: HTTP
+                ProxyType: Internet
+                Authentication: NoAuthentication
+                URL: ~{srv-api/srv-url}
+                HTML5.DynamicDestination: true
+                HTML5.ForwardAuthToken: true
+              - Authentication: NoAuthentication
+                Name: ui5
+                ProxyType: Internet
+                Type: HTTP
+                URL: https://ui5.sap.com
+            existing_destinations_policy: update
+      service: destination
+      service-plan: lite
     requires:
-    - artifacts:
-      - sabnezcomempleadosui.zip
-      name: sabnezcomempleadosui
-      target-path: app/
-- name: sabnez-rrhh-destinations
-  type: com.sap.application.content
-  requires:
+      - name: srv-api
   - name: sabnez-rrhh-html5-repo-host
+    type: org.cloudfoundry.managed-service
     parameters:
-      service-key:
-        name: sabnez-rrhh-html5-repo-host-key
-  - name: srv-api
-  - name: sabnez-rrhh-destination
-    parameters:
-      content-target: true
-  - name: sabnez-rrhh-auth
-    parameters:
-      service-key:
-        name: sabnez-rrhh-auth-key
-  parameters:
-    content:
-      instance:
-        destinations:
-        - Name: sabnez-rrhh-html5-repository
-          ServiceInstanceName: sabnez-rrhh-html5-repo-host
-          ServiceKeyName: sabnez-rrhh-html5-repo-host-key
-          sap.cloud.service: sabnezrrhh.service
-        - Name: sabnez-rrhh-auth
-          Authentication: OAuth2UserTokenExchange
-          ServiceInstanceName: sabnez-rrhh-auth
-          ServiceKeyName: sabnez-rrhh-auth-key
-          sap.cloud.service: sabnezrrhh.service
-        existing_destinations_policy: update
-  build-parameters:
-    no-source: true
-- name: sabnezcomempleadosui
-  type: html5
-  path: app/empleadosui
-  build-parameters:
-    build-result: dist
-    builder: custom
-    commands:
-    - npm ci
-    - npm run build
-    supported-platforms: []
-resources:
-- name: sabnez-rrhh-db
-  type: org.cloudfoundry.existing-service
-  parameters:
-    service-name: sabnez-rrhh-db
-- name: sabnez-rrhh-malware-scanner
-  type: org.cloudfoundry.existing-service
-  parameters:
-    service-name: sabnez-rrhh-malware-scanner
-- name: sabnez-rrhh-auth
-  type: org.cloudfoundry.managed-service
-  parameters:
-    config:
-      oauth2-configuration:
-        credential-types:
-        - binding-secret
-        - x509
-      role-collections:
-      - description: Editor de la app de empleados
-        name: RRHH Editor
-        role-template-references:
-        - $XSAPPNAME.Editor
-      - description: Admin de la app de empleados
-        name: RRHH Admin
-        role-template-references:
-        - $XSAPPNAME.Admin
-      tenant-mode: dedicated
-      xsappname: sabnez-rrhh
-    path: ./xs-security.json
-    service: xsuaa
-    service-plan: application
-- name: sabnez-rrhh-destination
-  type: org.cloudfoundry.managed-service
-  parameters:
-    config:
-      HTML5Runtime_enabled: true
-      init_data:
-        instance:
-          destinations:
-          - Name: srv-api
-            Type: HTTP
-            ProxyType: Internet
-            Authentication: NoAuthentication
-            URL: ~{srv-api/srv-url}
-            HTML5.DynamicDestination: true
-            HTML5.ForwardAuthToken: true
-          - Authentication: NoAuthentication
-            Name: ui5
-            ProxyType: Internet
-            Type: HTTP
-            URL: https://ui5.sap.com
-          existing_destinations_policy: update
-    service: destination
-    service-plan: lite
-  requires:
-  - name: srv-api
-- name: sabnez-rrhh-html5-repo-host
-  type: org.cloudfoundry.managed-service
-  parameters:
-    service: html5-apps-repo
-    service-plan: app-host
+      service: html5-apps-repo
+      service-plan: app-host
 parameters:
   deploy_mode: html5-repo
   enable-parallel-deployments: true
 build-parameters:
   before-all:
-  - builder: custom
-    commands:
-    - npm ci
-    - npx cds build --production
+    - builder: custom
+      commands:
+        - npm ci
+        - npx cds build --production
