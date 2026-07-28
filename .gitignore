@@ -1,31 +1,36 @@
+# Dependencias y artefactos generados
 node_modules/
 gen/
 mta_archives/
 dist/
 coverage/
 
+# Variables y credenciales locales
 .env
 .env.*
 !.env.example
 .cdsrc-private.json
 neon-credentials.json
+default-env.json
 
+# Bases de datos y respaldos locales
 *.db
 *.sqlite
 *.sqlite3
-
-.DS_Store
-.vscode/
-.idea/
-
-default-env.json
-*.log
-
-certs/
-private/
-
-# Bases de datos y respaldos locales
 db.sqlite*
 *.bak
 *.backup
 *.antes-*
+
+# Archivos del sistema e IDE
+.DS_Store
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+
+# Certificados y claves
+certs/
+private/

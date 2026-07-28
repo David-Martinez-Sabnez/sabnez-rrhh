@@ -1,6 +1,6 @@
 {
   "name": "sabnez-rrhh",
-  "version": "1.2.1",
+  "version": "1.3.1",
   "description": "Gestión administrativa de empleados de Sabnez Consulting con SAP CAP",
   "license": "UNLICENSED",
   "private": true,
@@ -27,9 +27,11 @@
     "compile": "cdsc toCsn db/schema.cds srv/admin-service.cds srv/admin-annotations.cds",
     "env:production": "cds env requires.db --for production",
     "watch-empleadosui": "cds watch --open empleadosui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-homeofficeui": "cds watch --open homeofficeui/webapp/index.html?sap-ui-xx-viewCache=false",
     "undeploy": "cf undeploy sabnez-rrhh --delete-services --delete-service-keys --delete-service-brokers",
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
-    "deploy": "cf deploy mta_archives/archive.mtar --retries 1"
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
+    "watch-homeofficeadminui": "cds watch --open homeofficeadminui/webapp/index.html?sap-ui-xx-viewCache=false"
   },
   "cds": {
     "requires": {
@@ -65,11 +67,73 @@
           }
         }
       },
+      "auth": {
+        "[development]": {
+          "kind": "mocked",
+          "users": {
+            "david.martinez@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "david.martinez@sabnez.com"
+              }
+            },
+            "camila.sabogal@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "camila.sabogal@sabnez.com"
+              }
+            },
+            "andres.gomez@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "andres.gomez@sabnez.com"
+              }
+            },
+            "laura.restrepo@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "laura.restrepo@sabnez.com"
+              }
+            },
+            "felipe.rojas@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "felipe.rojas@sabnez.com"
+              }
+            },
+            "natalia.torres@sabnez.com": {
+              "password": "homeoffice",
+              "roles": [
+                "authenticated-user"
+              ],
+              "attr": {
+                "email": "natalia.torres@sabnez.com"
+              }
+            },
+            "*": false
+          }
+        },
+        "[production]": {
+          "kind": "xsuaa"
+        }
+      },
       "attachments": {
         "kind": "db"
-      },
-      "[production]": {
-        "auth": "xsuaa"
       },
       "destinations": true,
       "html5-repo": true,
@@ -80,6 +144,8 @@
     }
   },
   "sapux": [
-    "app/empleadosui"
+    "app/empleadosui",
+    "app/homeofficeui",
+    "app/homeofficeadminui"
   ]
 }
