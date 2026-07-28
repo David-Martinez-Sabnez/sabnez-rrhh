@@ -1,7 +1,7 @@
 using {sabnez.rrhh as db} from '../db/home-office';
 
 @path    : '/home-office-admin'
-@requires: 'Admin'
+@requires: 'Editor'
 service HomeOfficeAdminService {
 
     @readonly
