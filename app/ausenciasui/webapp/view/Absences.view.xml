@@ -1,0 +1,275 @@
+<mvc:View
+  id="absencesView"
+  controllerName="sabnez.com.ausenciasui.controller.Absences"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  displayBlock="true">
+
+  <f:DynamicPage
+    id="absencesPage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0"
+    fitContent="true"
+    preserveHeaderStateOnScroll="true"
+    showFooter="false"
+    toggleHeaderOnTitleClick="true">
+
+    <f:title>
+      <f:DynamicPageTitle id="pageTitle">
+        <f:heading>
+          <VBox id="titleBox">
+            <Title id="title" text="{i18n>appTitle}" level="H1" />
+            <Text
+              id="employeeName"
+              text="{view>/summary/nombreEmpleado}"
+              visible="{= !!${view>/summary/nombreEmpleado} }"
+              class="absenceEmployeeName" />
+          </VBox>
+        </f:heading>
+        <f:expandedContent>
+          <Text id="pageSubtitle" text="{i18n>pageSubtitle}" />
+        </f:expandedContent>
+        <f:snappedContent>
+          <Text
+            id="snappedSummary"
+            text="{= ${view>/summary/solicitudesEnCurso} + ' en curso · ' + ${view>/summary/diasVacacionesDisponibles} + ' días de vacaciones' }" />
+        </f:snappedContent>
+        <f:actions>
+          <Button
+            id="newRequestButton"
+            text="{i18n>newRequest}"
+            icon="sap-icon://add"
+            type="Emphasized"
+            enabled="{= !${view>/busy} }"
+            press=".onOpenCreate" />
+          <Button
+            id="refreshButton"
+            icon="sap-icon://refresh"
+            tooltip="{i18n>refresh}"
+            enabled="{= !${view>/busy} }"
+            press=".onRefresh" />
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:header>
+      <f:DynamicPageHeader id="summaryHeader" pinnable="true">
+        <f:content>
+          <VBox id="summaryContent" width="100%">
+            <MessageStrip
+              id="loadErrorStrip"
+              text="{view>/error}"
+              type="Error"
+              showIcon="true"
+              showCloseButton="false"
+              visible="{= !!${view>/error} }"
+              class="sapUiSmallMarginBottom" />
+
+            <FlexBox
+              id="kpiContainer"
+              wrap="Wrap"
+              alignItems="Stretch"
+              class="absenceKpiContainer">
+
+              <VBox id="inProgressCard" class="absenceKpiCard kpiWarning">
+                <HBox id="inProgressHeader" alignItems="Center" class="absenceKpiHeader">
+                  <core:Icon id="inProgressIcon" src="sap-icon://pending" decorative="true" />
+                  <Label id="inProgressLabel" text="{i18n>inProgress}" />
+                </HBox>
+                <ObjectNumber
+                  id="inProgressNumber"
+                  number="{view>/summary/solicitudesEnCurso}"
+                  unit="{i18n>requestsUnit}"
+                  state="Warning" />
+              </VBox>
+
+              <VBox id="approvedCard" class="absenceKpiCard kpiSuccess">
+                <HBox id="approvedHeader" alignItems="Center" class="absenceKpiHeader">
+                  <core:Icon id="approvedIcon" src="sap-icon://accept" decorative="true" />
+                  <Label id="approvedLabel" text="{i18n>approved}" />
+                </HBox>
+                <ObjectNumber
+                  id="approvedNumber"
+                  number="{view>/summary/solicitudesAprobadas}"
+                  unit="{i18n>requestsUnit}"
+                  state="Success" />
+              </VBox>
+
+              <VBox id="rejectedCard" class="absenceKpiCard kpiError">
+                <HBox id="rejectedHeader" alignItems="Center" class="absenceKpiHeader">
+                  <core:Icon id="rejectedIcon" src="sap-icon://decline" decorative="true" />
+                  <Label id="rejectedLabel" text="{i18n>rejected}" />
+                </HBox>
+                <ObjectNumber
+                  id="rejectedNumber"
+                  number="{view>/summary/solicitudesRechazadas}"
+                  unit="{i18n>requestsUnit}"
+                  state="Error" />
+              </VBox>
+
+              <VBox id="vacationCard" class="absenceKpiCard kpiAccent">
+                <HBox id="vacationHeader" alignItems="Center" class="absenceKpiHeader">
+                  <core:Icon id="vacationIcon" src="sap-icon://travel-expense" decorative="true" />
+                  <Label id="vacationLabel" text="{i18n>vacationBalance}" />
+                </HBox>
+                <ObjectNumber
+                  id="vacationNumber"
+                  number="{view>/summary/diasVacacionesDisponibles}"
+                  unit="{i18n>daysUnit}"
+                  state="Success" />
+                <Text id="vacationDetail" text="{view>/summary/vacationDetail}" wrapping="true" />
+              </VBox>
+
+              <VBox id="valeraCard" class="absenceKpiCard kpiAccent">
+                <HBox id="valeraHeader" alignItems="Center" class="absenceKpiHeader">
+                  <core:Icon id="valeraIcon" src="sap-icon://time-entry-request" decorative="true" />
+                  <Label id="valeraLabel" text="{i18n>valeraBalance}" />
+                </HBox>
+                <ObjectNumber
+                  id="valeraNumber"
+                  number="{view>/summary/horasValeraDisponibles}"
+                  unit="{i18n>hoursUnit}"
+                  state="Success" />
+                <Text id="valeraDetail" text="{view>/summary/valeraDetail}" wrapping="true" />
+              </VBox>
+
+              <VBox id="birthdayCard" class="absenceKpiCard kpiBirthday">
+                <HBox id="birthdayHeader" alignItems="Center" class="absenceKpiHeader">
+                  <core:Icon id="birthdayIcon" src="sap-icon://birthday" decorative="true" />
+                  <Label id="birthdayLabel" text="{i18n>birthdayBenefit}" />
+                </HBox>
+                <ObjectNumber
+                  id="birthdayNumber"
+                  number="{view>/summary/horasCumpleaniosDisponibles}"
+                  unit="{i18n>hoursUnit}"
+                  state="Success" />
+                <Text id="birthdayDetail" text="{view>/summary/birthdayDetail}" wrapping="true" />
+                <ObjectStatus
+                  id="birthdayWeek"
+                  text="{view>/summary/birthdayWeekLabel}"
+                  icon="sap-icon://calendar"
+                  state="Information"
+                  visible="{= !!${view>/summary/birthdayWeekLabel} }"
+                  class="sapUiTinyMarginTop" />
+              </VBox>
+            </FlexBox>
+          </VBox>
+        </f:content>
+      </f:DynamicPageHeader>
+    </f:header>
+
+    <f:content>
+      <VBox id="listReportContent" class="absenceListReport sapUiResponsiveContentPadding">
+        <OverflowToolbar id="listToolbar" class="absenceListToolbar">
+          <Title id="requestsTitle" text="{i18n>myRequests}" level="H2" />
+          <ObjectStatus id="requestCount" text="{view>/filteredCountLabel}" state="Information" />
+          <ToolbarSpacer id="listToolbarSpacer" />
+          <SearchField
+            id="requestSearch"
+            width="20rem"
+            placeholder="{i18n>searchPlaceholder}"
+            liveChange=".onSearch" />
+          <Select
+            id="absenceTypeFilter"
+            width="13rem"
+            selectedKey="{view>/selectedTypeFilter}"
+            change=".onTypeFilterChange"
+            tooltip="{i18n>absenceType}"
+            items="{view>/typeFilters}">
+            <core:Item id="absenceTypeFilterItem" key="{view>key}" text="{view>text}" />
+          </Select>
+        </OverflowToolbar>
+
+        <Toolbar id="stateFilterToolbar" class="absenceStateToolbar">
+          <SegmentedButton
+            id="stateFilter"
+            selectedKey="{view>/selectedStateFilter}"
+            selectionChange=".onStateFilterChange">
+            <items>
+              <SegmentedButtonItem id="allStateItem" key="TODAS" text="{i18n>all}" />
+              <SegmentedButtonItem id="courseStateItem" key="EN_CURSO" text="{i18n>inCourse}" />
+              <SegmentedButtonItem id="approvedStateItem" key="APROBADAS" text="{i18n>approvedPlural}" />
+              <SegmentedButtonItem id="rejectedStateItem" key="RECHAZADAS" text="{i18n>rejectedPlural}" />
+            </items>
+          </SegmentedButton>
+        </Toolbar>
+
+        <Table
+          id="requestsTable"
+          items="{view>/filteredRequests}"
+          growing="true"
+          growingScrollToLoad="true"
+          growingThreshold="20"
+          sticky="ColumnHeaders"
+          keyboardMode="Edit"
+          autoPopinMode="true"
+          class="absenceRequestsTable">
+          <columns>
+            <Column id="typeColumn" importance="High">
+              <Text id="typeColumnLabel" text="{i18n>type}" />
+            </Column>
+            <Column id="periodColumn" importance="High">
+              <Text id="periodColumnLabel" text="{i18n>period}" />
+            </Column>
+            <Column id="quantityColumn" importance="Medium" hAlign="End">
+              <Text id="quantityColumnLabel" text="{i18n>quantity}" />
+            </Column>
+            <Column id="stateColumn" importance="High">
+              <Text id="stateColumnLabel" text="{i18n>state}" />
+            </Column>
+            <Column id="updatedColumn" importance="Low">
+              <Text id="updatedColumnLabel" text="{i18n>updated}" />
+            </Column>
+            <Column id="actionsColumn" importance="High" hAlign="Center" width="4rem">
+              <Text id="actionsColumnLabel" text="{i18n>actions}" />
+            </Column>
+          </columns>
+          <items>
+            <ColumnListItem
+              id="requestItem"
+              type="Active"
+              vAlign="Middle"
+              press=".onOpenDetail">
+              <cells>
+                <VBox id="requestTypeCell">
+                  <ObjectIdentifier
+                    id="requestTypeIdentifier"
+                    title="{view>tipoAusenciaDescripcion}"
+                    text="{view>tipoAusenciaCodigo}" />
+                  <Text
+                    id="supportCountText"
+                    text="{view>supportCountLabel}"
+                    visible="{= ${view>cantidadSoportes} > 0 }"
+                    class="absenceSupportCount" />
+                </VBox>
+                <Text id="periodText" text="{view>periodText}" wrapping="true" />
+                <ObjectNumber id="quantityNumber" number="{view>quantityNumber}" unit="{view>quantityUnit}" />
+                <ObjectStatus
+                  id="requestState"
+                  text="{view>estadoDescripcion}"
+                  state="{view>statusState}"
+                  icon="{view>statusIcon}" />
+                <Text id="updatedText" text="{view>modifiedText}" wrapping="false" />
+                <Button
+                  id="openDetailButton"
+                  icon="sap-icon://slim-arrow-right"
+                  type="Transparent"
+                  tooltip="{i18n>viewDetail}"
+                  press=".onOpenDetail" />
+              </cells>
+            </ColumnListItem>
+          </items>
+          <noData>
+            <IllustratedMessage
+              id="noRequestsMessage"
+              illustrationType="sapIllus-NoData"
+              title="{i18n>noRequests}"
+              description="{i18n>createFirst}" />
+          </noData>
+        </Table>
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>

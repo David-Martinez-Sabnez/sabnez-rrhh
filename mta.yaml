@@ -70,6 +70,14 @@ modules:
             - sabnezcomhomeofficeadminui.zip
           name: sabnezcomhomeofficeadminui
           target-path: app/
+        - artifacts:
+            - sabnezcomausenciasui.zip
+          name: sabnezcomausenciasui
+          target-path: app/
+        - artifacts:
+            - sabnezcomaprobacionesui.zip
+          name: sabnezcomaprobacionesui
+          target-path: app/
   - name: sabnez-rrhh-destinations
     type: com.sap.application.content
     requires:
@@ -131,6 +139,26 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
+  - name: sabnezcomausenciasui
+    type: html5
+    path: app/ausenciasui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+  - name: sabnezcomaprobacionesui
+    type: html5
+    path: app/aprobacionesui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
 resources:
   - name: sabnez-rrhh-db
     type: org.cloudfoundry.existing-service
@@ -157,6 +185,10 @@ resources:
             name: RRHH Admin
             role-template-references:
               - $XSAPPNAME.Admin
+          - description: Administración de aprobaciones y delegaciones
+            name: Aprobaciones Admin
+            role-template-references:
+              - $XSAPPNAME.ApprovalAdmin
         tenant-mode: dedicated
         xsappname: sabnez-rrhh
       path: ./xs-security.json

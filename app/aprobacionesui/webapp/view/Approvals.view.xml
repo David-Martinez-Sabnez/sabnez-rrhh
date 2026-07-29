@@ -1,0 +1,397 @@
+<mvc:View
+  id="approvalsView"
+  controllerName="sabnez.com.aprobacionesui.controller.Approvals"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  displayBlock="true">
+
+  <f:DynamicPage
+    id="approvalsPage"
+    busy="{view>/busy}"
+    busyIndicatorDelay="0"
+    fitContent="true"
+    preserveHeaderStateOnScroll="true"
+    toggleHeaderOnTitleClick="true">
+
+    <f:title>
+        <f:DynamicPageTitle id="pageTitle">
+          <f:heading>
+            <Title id="title" text="{i18n>appTitle}" level="H1" />
+        </f:heading>
+        <f:expandedContent>
+          <Text id="pageSubtitle" text="{i18n>pageSubtitle}" />
+        </f:expandedContent>
+        <f:snappedContent>
+          <Text id="snappedSummary" text="{view>/snappedSummary}" />
+        </f:snappedContent>
+        <f:actions>
+          <Button
+            id="refreshButton"
+            icon="sap-icon://refresh"
+            tooltip="{i18n>refresh}"
+            enabled="{= !${view>/busy} &amp;&amp; !${view>/actionBusy} }"
+            press=".onRefresh" />
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:header>
+      <f:DynamicPageHeader id="summaryHeader" pinnable="true">
+        <f:content>
+          <VBox id="summaryContent" width="100%">
+            <MessageStrip
+              id="loadErrorStrip"
+              text="{view>/error}"
+              type="Error"
+              showIcon="true"
+              showCloseButton="true"
+              close=".onDismissError"
+              visible="{= !!${view>/error} }"
+              class="sapUiSmallMarginBottom" />
+
+            <FlexBox
+              id="kpiContainer"
+              wrap="Wrap"
+              alignItems="Stretch"
+              class="approvalKpiContainer">
+              <VBox id="pendingCard" class="approvalKpiCard approvalKpiPrimary">
+                <HBox id="pendingCardHeader" alignItems="Center" class="approvalKpiHeader">
+                  <core:Icon id="pendingCardIcon" src="sap-icon://pending" decorative="true" />
+                  <Label id="pendingCardLabel" text="{i18n>pendingDecisions}" />
+                </HBox>
+                <ObjectNumber
+                  id="pendingCardNumber"
+                  number="{view>/summary/porDecidir}"
+                  unit="{i18n>tasksUnit}"
+                  state="Warning" />
+                <Text id="pendingCardDetail" text="{i18n>pendingCardDetail}" />
+              </VBox>
+
+              <VBox id="dueSoonCard" class="approvalKpiCard approvalKpiCritical">
+                <HBox id="dueSoonCardHeader" alignItems="Center" class="approvalKpiHeader">
+                  <core:Icon id="dueSoonCardIcon" src="sap-icon://lateness" decorative="true" />
+                  <Label id="dueSoonCardLabel" text="{i18n>dueSoon}" />
+                </HBox>
+                <ObjectNumber
+                  id="dueSoonCardNumber"
+                  number="{view>/summary/vencidas}"
+                  unit="{i18n>tasksUnit}"
+                  state="Error" />
+                <Text id="dueSoonCardDetail" text="{i18n>dueSoonDetail}" />
+              </VBox>
+
+              <VBox id="backupCard" class="approvalKpiCard approvalKpiInformation">
+                <HBox id="backupCardHeader" alignItems="Center" class="approvalKpiHeader">
+                  <core:Icon id="backupCardIcon" src="sap-icon://group" decorative="true" />
+                  <Label id="backupCardLabel" text="{i18n>asBackup}" />
+                </HBox>
+                <ObjectNumber
+                  id="backupCardNumber"
+                  number="{view>/summary/comoBackup}"
+                  unit="{i18n>tasksUnit}"
+                  state="Information" />
+                <Text id="backupCardDetail" text="{i18n>backupCardDetail}" />
+              </VBox>
+
+              <VBox id="delegatedCard" class="approvalKpiCard approvalKpiDelegated">
+                <HBox id="delegatedCardHeader" alignItems="Center" class="approvalKpiHeader">
+                  <core:Icon id="delegatedCardIcon" src="sap-icon://share-2" decorative="true" />
+                  <Label id="delegatedCardLabel" text="{i18n>delegatedByMe}" />
+                </HBox>
+                <ObjectNumber
+                  id="delegatedCardNumber"
+                  number="{view>/summary/delegadasPorMi}"
+                  unit="{i18n>delegationsUnit}"
+                  state="Information" />
+                <Text id="delegatedCardDetail" text="{i18n>delegatedCardDetail}" />
+              </VBox>
+
+              <VBox id="approvedCard" class="approvalKpiCard approvalKpiSuccess">
+                <HBox id="approvedHeader" alignItems="Center" class="approvalKpiHeader">
+                  <core:Icon id="approvedIcon" src="sap-icon://accept" decorative="true" />
+                  <Label id="approvedLabel" text="{i18n>approvedDecisions}" />
+                </HBox>
+                <ObjectNumber
+                  id="approvedNumber"
+                  number="{view>/summary/aprobadas}"
+                  unit="{i18n>tasksUnit}"
+                  state="Success" />
+                <Text id="approvedDetail" text="{i18n>approvedCardDetail}" />
+              </VBox>
+
+              <VBox id="rejectedCard" class="approvalKpiCard approvalKpiRejected">
+                <HBox id="rejectedHeader" alignItems="Center" class="approvalKpiHeader">
+                  <core:Icon id="rejectedIcon" src="sap-icon://decline" decorative="true" />
+                  <Label id="rejectedLabel" text="{i18n>rejectedDecisions}" />
+                </HBox>
+                <ObjectNumber
+                  id="rejectedNumber"
+                  number="{view>/summary/rechazadas}"
+                  unit="{i18n>tasksUnit}"
+                  state="Error" />
+                <Text id="rejectedDetail" text="{i18n>rejectedCardDetail}" />
+              </VBox>
+            </FlexBox>
+          </VBox>
+        </f:content>
+      </f:DynamicPageHeader>
+    </f:header>
+
+    <f:content>
+      <VBox id="pageContent" class="approvalPageContent sapUiResponsiveContentPadding">
+        <IconTabBar
+          id="workTabs"
+          selectedKey="{view>/selectedTab}"
+          expandable="false"
+          stretchContentHeight="false"
+          select=".onTabSelect"
+          class="approvalWorkTabs">
+          <items>
+            <IconTabFilter
+              id="pendingTab"
+              key="PENDING"
+              text="{i18n>pendingTab}"
+              icon="sap-icon://inbox"
+              count="{view>/tabCounts/pending}" />
+            <IconTabFilter
+              id="backupTab"
+              key="BACKUP"
+              text="{i18n>backupTab}"
+              icon="sap-icon://collaborate"
+              count="{view>/tabCounts/backup}" />
+            <IconTabFilter
+              id="historyTab"
+              key="HISTORY"
+              text="{i18n>historyTab}"
+              icon="sap-icon://history"
+              count="{view>/tabCounts/history}" />
+          </items>
+          <content>
+            <VBox id="worklistContent" width="100%">
+              <OverflowToolbar id="filterToolbar" class="approvalFilterToolbar">
+                <Title id="worklistTitle" text="{view>/worklistTitle}" level="H2" />
+                <ObjectStatus id="resultCount" text="{view>/resultCountLabel}" state="Information" />
+                <ToolbarSpacer id="filterSpacer" />
+                <SearchField
+                  id="taskSearch"
+                  width="19rem"
+                  placeholder="{i18n>searchPlaceholder}"
+                  liveChange=".onSearch" />
+                <Select
+                  id="typeFilter"
+                  width="13rem"
+                  selectedKey="{view>/filters/type}"
+                  change=".onFilterChange"
+                  tooltip="{i18n>processType}"
+                  items="{view>/typeFilters}">
+                  <core:Item id="typeFilterItem" key="{view>key}" text="{view>text}" />
+                </Select>
+                <Select
+                  id="statusFilter"
+                  width="11rem"
+                  selectedKey="{view>/filters/status}"
+                  change=".onFilterChange"
+                  tooltip="{i18n>status}"
+                  visible="{= ${view>/selectedTab} === 'HISTORY' }"
+                  items="{view>/statusFilters}">
+                  <core:Item id="statusFilterItem" key="{view>key}" text="{view>text}" />
+                </Select>
+                <DateRangeSelection
+                  id="dateFilter"
+                  width="15rem"
+                  delimiter="–"
+                  displayFormat="medium"
+                  placeholder="{i18n>dateRangePlaceholder}"
+                  change=".onDateFilterChange" />
+                <Button
+                  id="clearFiltersButton"
+                  icon="sap-icon://clear-filter"
+                  tooltip="{i18n>clearFilters}"
+                  type="Transparent"
+                  press=".onClearFilters" />
+              </OverflowToolbar>
+
+              <Table
+                id="tasksTable"
+                items="{view>/filteredTasks}"
+                growing="true"
+                growingScrollToLoad="true"
+                growingThreshold="20"
+                sticky="ColumnHeaders"
+                autoPopinMode="true"
+                busy="{view>/actionBusy}"
+                busyIndicatorDelay="0"
+                class="approvalTasksTable">
+                <columns>
+                  <Column id="employeeColumn" importance="High" minScreenWidth="Tablet">
+                    <Text id="employeeColumnLabel" text="{i18n>employee}" />
+                  </Column>
+                  <Column id="requestColumn" importance="High">
+                    <Text id="requestColumnLabel" text="{i18n>request}" />
+                  </Column>
+                  <Column id="periodColumn" importance="High">
+                    <Text id="periodColumnLabel" text="{i18n>summary}" />
+                  </Column>
+                  <Column id="receivedColumn" importance="Medium">
+                    <Text id="receivedColumnLabel" text="{i18n>received}" />
+                  </Column>
+                  <Column id="statusColumn" importance="High">
+                    <Text id="statusColumnLabel" text="{i18n>status}" />
+                  </Column>
+                  <Column id="actionsColumn" importance="High" hAlign="End" width="10.5rem">
+                    <Text id="actionsColumnLabel" text="{i18n>actions}" />
+                  </Column>
+                </columns>
+                <items>
+                  <ColumnListItem
+                    id="taskItem"
+                    type="Active"
+                    vAlign="Middle"
+                    press=".onOpenTask">
+                    <cells>
+                      <HBox id="employeeCell" alignItems="Center" class="approvalEmployeeCell">
+                        <Avatar
+                          id="employeeAvatar"
+                          initials="{view>employeeInitials}"
+                          displaySize="XS"
+                          displayShape="Circle"
+                          backgroundColor="Accent6"
+                          class="sapUiTinyMarginEnd" />
+                        <VBox id="employeeIdentity">
+                          <Text id="employeeName" text="{view>employeeName}" wrapping="false" class="approvalStrongText" />
+                          <Text id="employeePosition" text="{view>employeePosition}" wrapping="false" class="approvalSecondaryText" />
+                        </VBox>
+                      </HBox>
+                      <VBox id="requestCell">
+                        <ObjectIdentifier id="requestIdentifier" title="{view>requestTitle}" text="{view>processCode}" />
+                        <ObjectStatus
+                          id="assignmentRole"
+                          text="{view>roleText}"
+                          state="{view>roleState}"
+                          visible="{= !!${view>roleText} }" />
+                      </VBox>
+                      <Text id="periodText" text="{view>requestSummary}" wrapping="true" />
+                      <VBox id="receivedCell">
+                        <Text id="receivedText" text="{view>submittedText}" wrapping="false" />
+                        <ObjectStatus
+                          id="dueStatus"
+                          text="{view>dueText}"
+                          state="{view>dueState}"
+                          icon="{view>dueIcon}"
+                          visible="{= !!${view>dueText} }" />
+                      </VBox>
+                      <ObjectStatus
+                        id="taskStatus"
+                        text="{view>statusText}"
+                        state="{view>statusState}"
+                        icon="{view>statusIcon}" />
+                      <HBox id="rowActions" justifyContent="End" alignItems="Center">
+                        <Button
+                          id="rowApproveButton"
+                          icon="sap-icon://accept"
+                          type="Transparent"
+                          tooltip="{i18n>approve}"
+                          visible="{view>canApprove}"
+                          press=".onApprove" />
+                        <Button
+                          id="rowRejectButton"
+                          icon="sap-icon://decline"
+                          type="Transparent"
+                          tooltip="{i18n>reject}"
+                          visible="{view>canReject}"
+                          press=".onReject" />
+                        <Button
+                          id="rowForwardButton"
+                          icon="sap-icon://forward"
+                          type="Transparent"
+                          tooltip="{i18n>forward}"
+                          visible="{view>canForward}"
+                          press=".onForward" />
+                        <Button
+                          id="rowDetailButton"
+                          icon="sap-icon://slim-arrow-right"
+                          type="Transparent"
+                          tooltip="{i18n>viewDetail}"
+                          press=".onOpenTask" />
+                      </HBox>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+                <noData>
+                  <IllustratedMessage
+                    id="noTasksMessage"
+                    illustrationType="sapIllus-NoTasks"
+                    title="{view>/noDataTitle}"
+                    description="{view>/noDataDescription}" />
+                </noData>
+              </Table>
+            </VBox>
+          </content>
+        </IconTabBar>
+
+        <Panel
+          id="delegationsPanel"
+          expandable="true"
+          expanded="true"
+          class="approvalDelegationPanel sapUiMediumMarginTop">
+          <headerToolbar>
+            <OverflowToolbar id="delegationsToolbar">
+              <Title id="delegationsTitle" text="{i18n>myDelegations}" level="H2" />
+              <ObjectStatus id="delegationsCount" text="{view>/delegationCountLabel}" state="Information" />
+              <ToolbarSpacer id="delegationsSpacer" />
+              <Button
+                id="newDelegationButton"
+                text="{i18n>newDelegation}"
+                icon="sap-icon://add-employee"
+                type="Emphasized"
+                enabled="{= !${view>/actionBusy} }"
+                press=".onOpenDelegation" />
+            </OverflowToolbar>
+          </headerToolbar>
+          <content>
+            <List
+              id="delegationsList"
+              items="{view>/delegations}"
+              showSeparators="Inner"
+              noDataText="{i18n>noDelegations}">
+              <items>
+                <CustomListItem id="delegationItem">
+                  <HBox id="delegationRow" alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="approvalDelegationRow">
+                    <HBox id="delegationIdentity" alignItems="Center" class="approvalDelegationIdentity">
+                      <Avatar
+                        id="delegateAvatar"
+                        initials="{view>delegateInitials}"
+                        displaySize="S"
+                        displayShape="Circle"
+                        backgroundColor="Accent7"
+                        class="sapUiSmallMarginEnd" />
+                      <VBox id="delegateText">
+                        <Text id="delegateName" text="{view>delegateName}" class="approvalStrongText" />
+                        <Text id="delegateEmail" text="{view>delegateEmail}" class="approvalSecondaryText" />
+                      </VBox>
+                    </HBox>
+                    <VBox id="delegationMetadata" class="approvalDelegationMetadata">
+                      <ObjectStatus id="delegationType" text="{view>typeText}" state="{view>typeState}" icon="{view>typeIcon}" />
+                      <Text id="delegationPeriod" text="{view>periodText}" class="approvalSecondaryText" />
+                    </VBox>
+                    <ObjectStatus id="delegationStatus" text="{view>statusText}" state="{view>statusState}" />
+                    <Button
+                      id="revokeDelegationButton"
+                      text="{i18n>revoke}"
+                      icon="sap-icon://decline"
+                      type="Transparent"
+                      enabled="{view>canRevoke}"
+                      visible="{view>canRevoke}"
+                      press=".onRevokeDelegation" />
+                  </HBox>
+                </CustomListItem>
+              </items>
+            </List>
+          </content>
+        </Panel>
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>

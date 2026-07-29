@@ -98,12 +98,16 @@ entity TiposAusencia {
       diasAnticipacion        : Integer default 0;
       tipoDiasAnticipacion    : TipoDiasAnticipacion default 'CALENDARIO';
 
+      minimoHorasSolicitud    : Decimal(5, 2);
       maximoHorasDia          : Decimal(5, 2);
       maximoHorasSemana       : Decimal(5, 2);
       maximoSolicitudesSemana : Integer;
 
       requiereMismoDia        : Boolean default false;
       permiteCruzarAnio       : Boolean default true;
+
+      politicaFecha           : PoliticaFechaAusencia default 'LIBRE';
+      requiereContratoVigente : Boolean default false;
 }
 
 entity Parentescos {
@@ -124,4 +128,9 @@ type UnidadConsumo : String(10) enum {
 type TipoDiasAnticipacion : String(12) enum {
   CALENDARIO = 'CALENDARIO';
   HABILES    = 'HABILES';
+};
+
+type PoliticaFechaAusencia : String(25) enum {
+  LIBRE              = 'LIBRE';
+  SEMANA_CUMPLEANOS  = 'SEMANA_CUMPLEANOS';
 };

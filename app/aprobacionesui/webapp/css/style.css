@@ -1,0 +1,247 @@
+.approvalKpiContainer {
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.approvalKpiCard {
+  box-sizing: border-box;
+  flex: 1 1 14rem;
+  min-width: 13rem;
+  min-height: 8rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-left-width: 0.28rem;
+  border-radius: 0.75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.approvalKpiCard:hover {
+  box-shadow: var(--sapContent_Shadow1);
+  transform: translateY(-1px);
+}
+
+.approvalKpiHeader {
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  color: var(--sapContent_LabelColor);
+}
+
+.approvalKpiHeader .sapUiIcon {
+  font-size: 1.05rem;
+}
+
+.approvalKpiCard .sapMObjectNumber {
+  margin-bottom: 0.35rem;
+}
+
+.approvalKpiCard .sapMText {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.78rem;
+}
+
+.approvalKpiPrimary {
+  border-left-color: var(--sapCriticalColor);
+}
+
+.approvalKpiCritical,
+.approvalKpiRejected {
+  border-left-color: var(--sapNegativeColor);
+}
+
+.approvalKpiInformation {
+  border-left-color: var(--sapInformativeColor);
+}
+
+.approvalKpiDelegated {
+  border-left-color: var(--sapIndicationColor_5);
+}
+
+.approvalKpiSuccess {
+  border-left-color: var(--sapPositiveColor);
+}
+
+.approvalPageContent {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 110rem;
+  margin: 0 auto;
+}
+
+.approvalWorkTabs,
+.approvalDelegationPanel {
+  overflow: hidden;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-radius: 0.75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.approvalWorkTabs .sapMITBContent {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.approvalFilterToolbar,
+.approvalDelegationPanel .sapMTB {
+  background: var(--sapGroup_ContentBackground) !important;
+}
+
+.approvalFilterToolbar {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
+}
+
+.approvalTasksTable {
+  background: var(--sapGroup_ContentBackground);
+}
+
+.approvalEmployeeCell,
+.approvalDelegationIdentity {
+  min-width: 0;
+}
+
+.approvalStrongText {
+  font-weight: 600;
+}
+
+.approvalSecondaryText {
+  color: var(--sapContent_LabelColor) !important;
+  font-size: 0.78rem !important;
+}
+
+.approvalDelegationRow {
+  box-sizing: border-box;
+  gap: 1rem;
+  padding: 0.75rem 0.25rem;
+}
+
+.approvalDelegationIdentity {
+  flex: 1 1 18rem;
+}
+
+.approvalDelegationMetadata {
+  flex: 1 1 13rem;
+}
+
+.sapMDialog .approvalDialogContent {
+  box-sizing: border-box;
+  padding: 1.25rem 1.5rem 1rem !important;
+}
+
+.approvalDateFields {
+  gap: 1rem;
+}
+
+.approvalDateField {
+  flex: 1 1 14rem;
+}
+
+.approvalDetailHeader {
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
+}
+
+.approvalDetailIdentity {
+  min-width: 0;
+  flex: 1 1 24rem;
+}
+
+.approvalDetailStatuses {
+  flex: 0 1 auto;
+}
+
+.approvalFactsList,
+.approvalEventsList {
+  overflow: hidden;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-radius: 0.5rem;
+}
+
+.approvalFactRow {
+  box-sizing: border-box;
+  gap: 1rem;
+  padding: 0.65rem 0.25rem;
+}
+
+.approvalFactLabelBox {
+  flex: 0 1 13rem;
+  min-width: 10rem;
+}
+
+.approvalFactValueBox {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.approvalFactSection {
+  color: var(--sapContent_LabelColor) !important;
+  font-size: 0.72rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.025rem;
+}
+
+.approvalEventRow {
+  box-sizing: border-box;
+  gap: 0.75rem;
+  padding: 0.7rem 0.25rem;
+}
+
+.approvalEventIcon {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--sapContent_IconColor);
+  font-size: 1.1rem;
+}
+
+.approvalEventContent {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .approvalKpiCard {
+    flex-basis: calc(50% - 0.5rem);
+  }
+}
+
+@media (max-width: 600px) {
+  .sapMDialog .approvalDialogContent {
+    padding: 1rem !important;
+  }
+
+  .approvalKpiCard {
+    flex-basis: 100%;
+    min-width: 100%;
+  }
+
+  .approvalPageContent {
+    padding-right: 0.5rem !important;
+    padding-left: 0.5rem !important;
+  }
+
+  .approvalFilterToolbar .sapMSF,
+  .approvalFilterToolbar .sapMSlt,
+  .approvalFilterToolbar .sapMInputBase {
+    width: 100% !important;
+  }
+
+  .approvalDetailStatuses {
+    align-items: flex-start !important;
+  }
+
+  .approvalFactLabelBox,
+  .approvalFactValueBox {
+    flex-basis: 100%;
+    min-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .approvalKpiCard {
+    transition: none;
+  }
+}

@@ -1,0 +1,37 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog
+    id="reasonDialog"
+    title="{view>/reasonForm/title}"
+    contentWidth="32rem"
+    horizontalScrolling="false"
+    verticalScrolling="false"
+    busy="{view>/actionBusy}"
+    busyIndicatorDelay="0"
+    afterClose=".onReasonDialogAfterClose">
+    <content>
+      <VBox id="reasonDialogContent" width="100%" class="approvalDialogContent">
+        <Label id="reasonLabel" text="{view>/reasonForm/label}" required="true" labelFor="reasonTextArea" />
+        <TextArea
+          id="reasonTextArea"
+          value="{view>/reasonForm/comment}"
+          placeholder="{view>/reasonForm/placeholder}"
+          rows="5"
+          maxLength="500"
+          width="100%"
+          liveChange=".onReasonChange" />
+        <Text id="reasonHelp" text="{i18n>reasonRequiredHelp}" class="approvalSecondaryText sapUiTinyMarginTop" />
+      </VBox>
+    </content>
+    <beginButton>
+      <Button
+        id="confirmReasonButton"
+        text="{view>/reasonForm/actionText}"
+        type="{view>/reasonForm/actionType}"
+        enabled="{= !!${view>/reasonForm/comment} &amp;&amp; !${view>/actionBusy} }"
+        press=".onConfirmReason" />
+    </beginButton>
+    <endButton>
+      <Button id="cancelReasonButton" text="{i18n>cancel}" press=".onCloseReasonDialog" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

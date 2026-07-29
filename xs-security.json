@@ -7,6 +7,10 @@
     {
       "name": "$XSAPPNAME.Admin",
       "description": "Admin"
+    },
+    {
+      "name": "$XSAPPNAME.ApprovalAdmin",
+      "description": "Administración de aprobaciones y delegaciones"
     }
   ],
   "attributes": [],
@@ -24,6 +28,14 @@
       "description": "generated",
       "scope-references": [
         "$XSAPPNAME.Admin"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "ApprovalAdmin",
+      "description": "Administración de aprobaciones y delegaciones",
+      "scope-references": [
+        "$XSAPPNAME.ApprovalAdmin"
       ],
       "attribute-references": []
     }
