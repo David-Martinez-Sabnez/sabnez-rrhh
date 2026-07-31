@@ -11,6 +11,14 @@
     {
       "name": "$XSAPPNAME.ApprovalAdmin",
       "description": "Administración de aprobaciones y delegaciones"
+    },
+    {
+      "name": "$XSAPPNAME.TimeAdmin",
+      "description": "Administración de clientes, proyectos y tiempos"
+    },
+    {
+      "name": "$XSAPPNAME.TimeFinance",
+      "description": "Acceso a tarifas, costos y rentabilidad"
     }
   ],
   "attributes": [],
@@ -36,6 +44,22 @@
       "description": "Administración de aprobaciones y delegaciones",
       "scope-references": [
         "$XSAPPNAME.ApprovalAdmin"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "TimeAdmin",
+      "description": "Administración de clientes, proyectos y tiempos",
+      "scope-references": [
+        "$XSAPPNAME.TimeAdmin"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "TimeFinance",
+      "description": "Acceso a tarifas, costos y rentabilidad",
+      "scope-references": [
+        "$XSAPPNAME.TimeFinance"
       ],
       "attribute-references": []
     }

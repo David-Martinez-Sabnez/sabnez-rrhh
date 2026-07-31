@@ -1,0 +1,74 @@
+<mvc:View controllerName="sabnez.com.tiemposadminui.controller.Admin"
+  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Page title="Gestión de tiempos" busy="{view>/busy}" class="sapUiContentPadding">
+    <headerContent>
+      <Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh" />
+    </headerContent>
+    <content>
+      <MessageStrip text="{view>/error}" type="Error" showIcon="true" showCloseButton="true"
+        visible="{= !!${view>/error} }" close=".onDismissError" class="sapUiSmallMarginBottom" />
+      <ObjectHeader title="Configuración comercial" intro="Clientes, proyectos y asignaciones"
+        icon="sap-icon://business-objects-experience" class="sapUiSmallMarginBottom" />
+      <IconTabBar id="tabs" expandable="false" select=".onTabSelect">
+        <items>
+          <IconTabFilter key="clients" text="Clientes" icon="sap-icon://customer" count="{view>/clients/length}">
+            <VBox class="sapUiSmallMarginTop">
+              <Title text="Nuevo cliente" level="H3" />
+              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+                <Label text="Razón social" required="true"/><Input value="{view>/clientForm/legalName}"/>
+                <Label text="Nombre comercial"/><Input value="{view>/clientForm/tradeName}"/>
+                <Label text="Identificación tributaria" required="true"/><Input value="{view>/clientForm/taxIdentification}"/>
+                <Label text="País"/><Input value="{view>/clientForm/countryCode}" maxLength="2"/>
+                <Label text="Moneda"/><Input value="{view>/clientForm/defaultCurrency}" maxLength="3"/>
+                <Label text="Zona horaria"/><Input value="{view>/clientForm/timeZone}"/>
+              </f:SimpleForm>
+              <Toolbar><ToolbarSpacer/><Button text="Guardar cliente" type="Emphasized" icon="sap-icon://save" press=".onSaveClient"/></Toolbar>
+              <Table items="{view>/clients}" noDataText="No hay clientes registrados" growing="true">
+                <columns><Column><Text text="Cliente"/></Column><Column><Text text="Identificación"/></Column><Column><Text text="Moneda"/></Column><Column><Text text="Estado"/></Column></columns>
+                <items><ColumnListItem><cells><ObjectIdentifier title="{view>tradeName}" text="{view>legalName}"/><Text text="{view>taxIdentification}"/><Text text="{view>defaultCurrency}"/><ObjectStatus text="{view>status}" state="Success"/></cells></ColumnListItem></items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+          <IconTabFilter key="projects" text="Proyectos" icon="sap-icon://project-definition-triangle-2" count="{view>/projects/length}">
+            <VBox class="sapUiSmallMarginTop">
+              <Title text="Nuevo proyecto" level="H3" />
+              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+                <Label text="Cliente" required="true"/><Select selectedKey="{view>/projectForm/clientID}" items="{view>/clients}"><core:Item key="{view>ID}" text="{view>tradeName}"/></Select>
+                <Label text="Código" required="true"/><Input value="{view>/projectForm/code}"/>
+                <Label text="Nombre" required="true"/><Input value="{view>/projectForm/name}"/>
+                <Label text="Inicio" required="true"/><DatePicker value="{view>/projectForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+                <Label text="Fin"/><DatePicker value="{view>/projectForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+                <Label text="Modalidad"/><Select selectedKey="{view>/projectForm/modality}"><core:Item key="FULL_TIME" text="Full time"/><core:Item key="HOURLY" text="Por horas"/><core:Item key="MIXED" text="Mixto"/><core:Item key="INTERNAL" text="Interno"/></Select>
+                <Label text="Descripción obligatoria"/><Switch state="{view>/projectForm/requiresDescription}"/>
+                <Label text="Soporte obligatorio"/><Switch state="{view>/projectForm/requiresEvidence}"/>
+              </f:SimpleForm>
+              <Toolbar><ToolbarSpacer/><Button text="Guardar proyecto" type="Emphasized" icon="sap-icon://save" press=".onSaveProject"/></Toolbar>
+              <Table items="{view>/projects}" noDataText="No hay proyectos registrados" growing="true">
+                <columns><Column><Text text="Proyecto"/></Column><Column><Text text="Cliente"/></Column><Column><Text text="Modalidad"/></Column><Column><Text text="Vigencia"/></Column></columns>
+                <items><ColumnListItem><cells><ObjectIdentifier title="{view>name}" text="{view>code}"/><Text text="{view>clientName}"/><ObjectStatus text="{view>modality}" state="Information"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Sin fecha fin') }"/></cells></ColumnListItem></items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+          <IconTabFilter key="assignments" text="Asignaciones" icon="sap-icon://employee" count="{view>/assignments/length}">
+            <VBox class="sapUiSmallMarginTop">
+              <Title text="Nueva asignación" level="H3" />
+              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+                <Label text="Proyecto" required="true"/><Select selectedKey="{view>/assignmentForm/projectID}" items="{view>/projects}"><core:Item key="{view>ID}" text="{view>name}"/></Select>
+                <Label text="Empleado" required="true"/><Select selectedKey="{view>/assignmentForm/employeeID}" items="{view>/employees}"><core:Item key="{view>ID}" text="{view>nombreCompleto}"/></Select>
+                <Label text="Rol en proyecto"/><Input value="{view>/assignmentForm/role}"/>
+                <Label text="Inicio" required="true"/><DatePicker value="{view>/assignmentForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+                <Label text="Fin"/><DatePicker value="{view>/assignmentForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+                <Label text="Asignación principal"/><Switch state="{view>/assignmentForm/isPrimary}"/>
+              </f:SimpleForm>
+              <Toolbar><ToolbarSpacer/><Button text="Guardar asignación" type="Emphasized" icon="sap-icon://save" press=".onSaveAssignment"/></Toolbar>
+              <Table items="{view>/assignments}" noDataText="No hay asignaciones registradas" growing="true">
+                <columns><Column><Text text="Empleado"/></Column><Column><Text text="Proyecto"/></Column><Column><Text text="Rol"/></Column><Column><Text text="Vigencia"/></Column></columns>
+                <items><ColumnListItem><cells><Text text="{view>employeeName}"/><Text text="{view>projectName}"/><Text text="{view>role}"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Vigente') }"/></cells></ColumnListItem></items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+        </items>
+      </IconTabBar>
+    </content>
+  </Page>
+</mvc:View>

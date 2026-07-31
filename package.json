@@ -32,6 +32,7 @@
     "watch-homeofficeui": "cds watch --open homeofficeui/webapp/index.html?sap-ui-xx-viewCache=false",
     "watch-ausenciasui": "cds watch --open ausenciasui/webapp/index.html?sap-ui-xx-viewCache=false",
     "watch-aprobacionesui": "cds watch --open aprobacionesui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-tiemposadminui": "cds watch --open tiemposadminui/webapp/index.html?sap-ui-xx-viewCache=false",
     "undeploy": "cf undeploy sabnez-rrhh --delete-services --delete-service-keys --delete-service-brokers",
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
     "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
@@ -90,7 +91,9 @@
               "roles": [
                 "authenticated-user",
                 "Editor",
-                "Admin"
+                "Admin",
+                "TimeAdmin",
+                "TimeFinance"
               ],
               "attr": {
                 "email": "legacy.validation@sabnez.test"
@@ -101,7 +104,9 @@
               "roles": [
                 "authenticated-user",
                 "Editor",
-                "Admin"
+                "Admin",
+                "TimeAdmin",
+                "TimeFinance"
               ],
               "attr": {
                 "email": "david.martinez@sabnez.com"
@@ -111,7 +116,9 @@
               "password": "test",
               "roles": [
                 "authenticated-user",
-                "ApprovalAdmin"
+                "ApprovalAdmin",
+                "TimeAdmin",
+                "TimeFinance"
               ],
               "attr": {
                 "email": "camila.sabogal@sabnez.com"
@@ -128,7 +135,9 @@
               "roles": [
                 "authenticated-user",
                 "Editor",
-                "Admin"
+                "Admin",
+                "TimeAdmin",
+                "TimeFinance"
               ],
               "attr": {
                 "email": "david.martinez@sabnez.com"
@@ -137,7 +146,9 @@
             "camila.sabogal@sabnez.com": {
               "password": "homeoffice",
               "roles": [
-                "authenticated-user"
+                "authenticated-user",
+                "TimeAdmin",
+                "TimeFinance"
               ],
               "attr": {
                 "email": "camila.sabogal@sabnez.com"
@@ -203,6 +214,7 @@
     "app/homeofficeui",
     "app/homeofficeadminui",
     "app/ausenciasui",
-    "app/aprobacionesui"
+    "app/aprobacionesui",
+    "app/tiemposadminui"
   ]
 }

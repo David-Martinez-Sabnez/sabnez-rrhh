@@ -1,0 +1,55 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sabnez.com.tiemposadminui",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "1.0.0" },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "dataSources": {
+      "mainService": {
+        "uri": "/tiempos-admin/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "TiemposAdmin-display": {
+          "semanticObject": "TiemposAdmin",
+          "action": "display",
+          "title": "{{appTitle}}",
+          "subTitle": "{{appSubtitle}}",
+          "icon": "sap-icon://business-objects-experience",
+          "signature": { "parameters": {}, "additionalParameters": "allowed" }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": { "desktop": true, "tablet": true, "phone": true }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": { "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {} }
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "sabnez.com.tiemposadminui.i18n.i18n" }
+      }
+    },
+    "resources": { "css": [{ "uri": "css/style.css" }] },
+    "rootView": {
+      "viewName": "sabnez.com.tiemposadminui.view.Admin",
+      "type": "XML",
+      "id": "Admin",
+      "async": true
+    }
+  },
+  "sap.cloud": { "public": true, "service": "sabnezrrhh.service" }
+}

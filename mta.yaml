@@ -78,6 +78,10 @@ modules:
             - sabnezcomaprobacionesui.zip
           name: sabnezcomaprobacionesui
           target-path: app/
+        - artifacts:
+            - sabnezcomtiemposadminui.zip
+          name: sabnezcomtiemposadminui
+          target-path: app/
   - name: sabnez-rrhh-destinations
     type: com.sap.application.content
     requires:
@@ -159,6 +163,16 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
+  - name: sabnezcomtiemposadminui
+    type: html5
+    path: app/tiemposadminui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
 resources:
   - name: sabnez-rrhh-db
     type: org.cloudfoundry.existing-service
@@ -189,6 +203,14 @@ resources:
             name: Aprobaciones Admin
             role-template-references:
               - $XSAPPNAME.ApprovalAdmin
+          - description: Administración de clientes, proyectos y tiempos
+            name: Tiempos Admin
+            role-template-references:
+              - $XSAPPNAME.TimeAdmin
+          - description: Acceso a tarifas, costos y rentabilidad
+            name: Tiempos Finanzas
+            role-template-references:
+              - $XSAPPNAME.TimeFinance
         tenant-mode: dedicated
         xsappname: sabnez-rrhh
       path: ./xs-security.json
