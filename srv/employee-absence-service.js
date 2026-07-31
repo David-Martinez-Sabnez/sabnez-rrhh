@@ -1,6 +1,8 @@
 "use strict";
 
 const cds = require("@sap/cds");
+const { streamToBuffer } = require("./lib/stream-utils");
+const { Readable } = require("node:stream");
 
 const {
   ESTADOS_CONSUMO_AUSENCIA,
@@ -312,11 +314,7 @@ module.exports = cds.service.impl(function () {
 
   this.on("guardarBorrador", async (req) => {
     const empleadoInicial = await obtenerEmpleadoAutenticado(req, Empleados);
-    const empleado = await bloquearEmpleado(
-      req,
-      Empleados,
-      empleadoInicial.ID,
-    );
+    const empleado = await bloquearEmpleado(req, Empleados, empleadoInicial.ID);
     const ID = req.data?.ID || null;
 
     let solicitudExistente = null;
@@ -395,7 +393,10 @@ module.exports = cds.service.impl(function () {
         );
       }
     } else {
-      await INSERT.into(Ausencias).entries({ ID: solicitudID, ...persistencia });
+      await INSERT.into(Ausencias).entries({
+        ID: solicitudID,
+        ...persistencia,
+      });
     }
 
     const solicitud = await cargarSolicitudPropia(
@@ -422,11 +423,7 @@ module.exports = cds.service.impl(function () {
 
     // Serializa todos los envíos del empleado. Así dos pestañas no pueden
     // consumir simultáneamente el mismo saldo o enviar dos cumpleaños.
-    const empleado = await bloquearEmpleado(
-      req,
-      Empleados,
-      empleadoInicial.ID,
-    );
+    const empleado = await bloquearEmpleado(req, Empleados, empleadoInicial.ID);
 
     const solicitud = await cargarSolicitudPropia(
       req,
@@ -738,6 +735,279 @@ module.exports = cds.service.impl(function () {
       puedeEliminar: false,
     });
   });
+
+  this.on("cargarSoporte", async (req) => {
+    const { solicitudID, soporteID, contenido, mimeType } = req.data || {};
+
+    if (!solicitudID || !soporteID || !contenido) {
+      reject(
+        req,
+        400,
+        "DATOS_SOPORTE_INCOMPLETOS",
+        "Faltan solicitudID, soporteID o contenido.",
+      );
+    }
+
+    const empleado = await obtenerEmpleadoAutenticado(req, Empleados);
+    await bloquearEmpleado(req, Empleados, empleado.ID);
+
+    const solicitud = await SELECT.one.from(Ausencias).where({
+      ID: solicitudID,
+      empleado_ID: empleado.ID,
+    });
+
+    if (!solicitud) {
+      reject(
+        req,
+        404,
+        "SOLICITUD_NO_ENCONTRADA",
+        "La solicitud no existe o no pertenece al usuario.",
+      );
+    }
+
+    exigirSolicitudAutoservicio(req, solicitud);
+
+    if (solicitud.estadoa_codigo !== "BORRADOR") {
+      reject(
+        req,
+        409,
+        "SOPORTES_BLOQUEADOS",
+        "Los soportes solo pueden cargarse mientras la solicitud está en borrador.",
+      );
+    }
+
+    const soporte = await SELECT.one.from(SoportesAusencia).where({
+      ID: soporteID,
+      up__ID: solicitudID,
+    });
+
+    if (!soporte) {
+      reject(req, 404, "SOPORTE_NO_ENCONTRADO", "El soporte no existe.");
+    }
+
+    const contenidoBuffer = Buffer.isBuffer(contenido)
+      ? contenido
+      : Buffer.from(contenido, "base64");
+
+    if (!contenidoBuffer.length) {
+      reject(req, 400, "ARCHIVO_VACIO", "El archivo recibido está vacío.");
+    }
+
+    const tipoMime = mimeType || soporte.mimeType;
+
+    await UPDATE(SoportesAusencia)
+      .set({
+        content: contenidoBuffer,
+        mimeType: tipoMime,
+        status: "Scanning",
+        lastScan: null,
+        hash: null,
+        note: null,
+      })
+      .where({
+        ID: soporteID,
+        up__ID: solicitudID,
+      });
+
+    let scanResult;
+
+    try {
+      const malwareScanner = await cds.connect.to("malwareScanner");
+      const archivoStream = Readable.from([contenidoBuffer]);
+
+      scanResult = await malwareScanner.send("scan", {
+        file: archivoStream,
+      });
+    } catch (error) {
+      await UPDATE(SoportesAusencia)
+        .set({
+          status: "Failed",
+          lastScan: new Date().toISOString(),
+          note: String(
+            error?.message || "No fue posible escanear el archivo.",
+          ).slice(0, 500),
+        })
+        .where({
+          ID: soporteID,
+          up__ID: solicitudID,
+        });
+
+      cds
+        .log("employee-absence-service")
+        .error("Falló el escaneo del soporte", {
+          solicitudID,
+          soporteID,
+          message: error?.message,
+          code: error?.code,
+          stack: error?.stack,
+        });
+
+      reject(
+        req,
+        502,
+        "ESCANEO_SOPORTE_FALLIDO",
+        "No fue posible validar el archivo con el servicio de seguridad.",
+      );
+    }
+
+    const esMalware = Boolean(scanResult?.isMalware);
+
+    await UPDATE(SoportesAusencia)
+      .set({
+        status: esMalware ? "Infected" : "Clean",
+        lastScan: new Date().toISOString(),
+        hash: scanResult?.hash || null,
+        note: esMalware
+          ? "El servicio de seguridad detectó contenido malicioso."
+          : null,
+      })
+      .where({
+        ID: soporteID,
+        up__ID: solicitudID,
+      });
+
+    if (esMalware) {
+      reject(
+        req,
+        422,
+        "ARCHIVO_INFECTADO",
+        "El archivo fue rechazado porque contiene contenido potencialmente malicioso.",
+      );
+    }
+
+    return true;
+  });
+
+  this.on("descargarSoporte", async (req) => {
+    const { solicitudID, soporteID } = req.data || {};
+
+    if (!solicitudID || !soporteID) {
+      reject(
+        req,
+        400,
+        "DATOS_SOPORTE_INCOMPLETOS",
+        "Faltan solicitudID o soporteID.",
+      );
+    }
+
+    const empleado = await obtenerEmpleadoAutenticado(req, Empleados);
+
+    const solicitud = await SELECT.one.from(Ausencias).columns("ID").where({
+      ID: solicitudID,
+      empleado_ID: empleado.ID,
+    });
+
+    if (!solicitud) {
+      reject(
+        req,
+        404,
+        "SOLICITUD_NO_ENCONTRADA",
+        "La solicitud no existe o no pertenece al usuario.",
+      );
+    }
+
+    const soporte = await SELECT.one
+      .from(SoportesAusencia)
+      .columns("ID", "filename", "mimeType", "content", "status")
+      .where({
+        ID: soporteID,
+        up__ID: solicitudID,
+      });
+
+    if (!soporte) {
+      reject(req, 404, "SOPORTE_NO_ENCONTRADO", "El soporte no existe.");
+    }
+
+    if (soporte.status !== "Clean") {
+      reject(
+        req,
+        409,
+        "SOPORTE_NO_VALIDADO",
+        "El archivo todavía no ha superado la validación de seguridad.",
+      );
+    }
+
+    let contenidoBuffer;
+
+    try {
+      contenidoBuffer = await streamABuffer(soporte.content);
+    } catch (error) {
+      cds
+        .log("employee-absence-service")
+        .error("No fue posible leer el contenido del soporte", {
+          solicitudID,
+          soporteID,
+          contentType:
+            soporte.content?.constructor?.name || typeof soporte.content,
+          error: error?.message,
+        });
+
+      reject(
+        req,
+        500,
+        "LECTURA_SOPORTE_FALLIDA",
+        "No fue posible leer el contenido del archivo.",
+      );
+    }
+
+    if (!contenidoBuffer?.length) {
+      reject(
+        req,
+        404,
+        "CONTENIDO_NO_DISPONIBLE",
+        "El archivo no tiene contenido almacenado.",
+      );
+    }
+
+    return {
+      filename: soporte.filename,
+      mimeType: soporte.mimeType || "application/octet-stream",
+      contenidoBase64: contenidoBuffer.toString("base64"),
+    };
+  });
+
+  this.on("eliminarSoporte", async (req) => {
+    const { solicitudID, soporteID } = req.data || {};
+
+    if (!solicitudID || !soporteID) {
+      return req.reject(400, "Faltan solicitudID o soporteID.");
+    }
+
+    const empleado = await obtenerEmpleadoAutenticado(req, Empleados);
+    await bloquearEmpleado(req, Empleados, empleado.ID);
+
+    const solicitud = await SELECT.one.from(Ausencias).where({
+      ID: solicitudID,
+      empleado_ID: empleado.ID,
+    });
+
+    if (!solicitud) {
+      return req.reject(
+        404,
+        "La solicitud no existe o no pertenece al usuario.",
+      );
+    }
+
+    exigirSolicitudAutoservicio(req, solicitud);
+
+    if (solicitud.estadoa_codigo !== "BORRADOR") {
+      return req.reject(
+        409,
+        "Solo puedes eliminar soportes de una solicitud en borrador.",
+      );
+    }
+
+    const filasEliminadas = await DELETE.from(SoportesAusencia).where({
+      ID: soporteID,
+      up__ID: solicitudID,
+    });
+
+    if (filasEliminadas !== 1) {
+      return req.reject(404, "El soporte no existe o ya fue eliminado.");
+    }
+
+    return true;
+  });
 });
 
 function reject(req, status, code, message, target) {
@@ -849,8 +1119,7 @@ async function bloquearEmpleado(req, Empleados, empleadoID) {
   const correoAutenticado = obtenerCorreoAutenticado(req);
   if (
     typeof empleadoBloqueado.correoCorporativo !== "string" ||
-    normalizarCorreo(empleadoBloqueado.correoCorporativo) !==
-    correoAutenticado
+    normalizarCorreo(empleadoBloqueado.correoCorporativo) !== correoAutenticado
   ) {
     reject(
       req,
@@ -1067,10 +1336,7 @@ async function construirDatosCanonicos({
     }
 
     const minimoHorasSolicitud = Number(tipo.minimoHorasSolicitud || 0);
-    if (
-      minimoHorasSolicitud > 0 &&
-      horasSolicitadas < minimoHorasSolicitud
-    ) {
+    if (minimoHorasSolicitud > 0 && horasSolicitadas < minimoHorasSolicitud) {
       reject(
         req,
         400,
@@ -1081,10 +1347,7 @@ async function construirDatosCanonicos({
     }
 
     const maximoHorasSolicitud = Number(tipo.maximoHorasDia || 0);
-    if (
-      maximoHorasSolicitud > 0 &&
-      horasSolicitadas > maximoHorasSolicitud
-    ) {
+    if (maximoHorasSolicitud > 0 && horasSolicitadas > maximoHorasSolicitud) {
       reject(
         req,
         400,
@@ -1183,13 +1446,7 @@ async function validarElegibilidadCumpleanios({
     fechaBeneficio,
   });
   if (!resultado.elegible) {
-    reject(
-      req,
-      409,
-      resultado.codigo,
-      resultado.mensaje,
-      resultado.target,
-    );
+    reject(req, 409, resultado.codigo, resultado.mensaje, resultado.target);
   }
 }
 
@@ -1215,7 +1472,8 @@ async function evaluarElegibilidadCumpleanios({
     return {
       elegible: false,
       codigo: "EMPLEADO_NO_ACTIVO_EN_FECHA_SOLICITADA",
-      mensaje: "No existe una relación laboral activa para la fecha seleccionada.",
+      mensaje:
+        "No existe una relación laboral activa para la fecha seleccionada.",
       target: "fechaInicio",
     };
   }
@@ -1370,20 +1628,18 @@ async function validarReglasDeEnvio({
   if (solicitud.unidadConsumo === "HORAS") {
     const compartePoliticaCumpleanios =
       tipo.politicaFecha === POLITICA_SEMANA_CUMPLEANOS;
-    const mismoTipo = efectivas.filter(
-      (ausencia) =>
-        compartePoliticaCumpleanios
-          ? politicaPorTipo.get(ausencia.tipoAusencia_codigo) ===
-            POLITICA_SEMANA_CUMPLEANOS
-          : ausencia.tipoAusencia_codigo === tipo.codigo,
+    const mismoTipo = efectivas.filter((ausencia) =>
+      compartePoliticaCumpleanios
+        ? politicaPorTipo.get(ausencia.tipoAusencia_codigo) ===
+          POLITICA_SEMANA_CUMPLEANOS
+        : ausencia.tipoAusencia_codigo === tipo.codigo,
     );
     const maximoHorasDia = Number(tipo.maximoHorasDia || 0);
     const horasMismoDia = round2(
       mismoTipo
         .filter((ausencia) => ausencia.fechaInicio === solicitud.fechaInicio)
         .reduce(
-          (total, ausencia) =>
-            total + Number(ausencia.horasSolicitadas || 0),
+          (total, ausencia) => total + Number(ausencia.horasSolicitadas || 0),
           0,
         ),
     );
@@ -1429,9 +1685,7 @@ async function validarReglasDeEnvio({
       );
     }
 
-    const maximoSolicitudesSemana = Number(
-      tipo.maximoSolicitudesSemana || 0,
-    );
+    const maximoSolicitudesSemana = Number(tipo.maximoSolicitudesSemana || 0);
     if (
       maximoSolicitudesSemana > 0 &&
       ausenciasSemana.length + 1 > maximoSolicitudesSemana
@@ -1505,8 +1759,7 @@ async function validarReglasDeEnvio({
             (ausencia) => Number(ausencia.fechaInicio?.slice(0, 4)) === anio,
           )
           .reduce(
-            (total, ausencia) =>
-              total + Number(ausencia.horasSolicitadas || 0),
+            (total, ausencia) => total + Number(ausencia.horasSolicitadas || 0),
             0,
           ),
       );
@@ -1532,9 +1785,7 @@ async function validarReglasDeEnvio({
       fechaActual: todayInColombia(),
     });
 
-    if (
-      Number(solicitud.diasHabiles) > saldo.diasVacacionesDisponibles
-    ) {
+    if (Number(solicitud.diasHabiles) > saldo.diasVacacionesDisponibles) {
       reject(
         req,
         409,
@@ -1564,7 +1815,9 @@ async function calcularSaldoValera({
   }
 
   const [saldoConfigurado, ausencias] = await Promise.all([
-    SELECT.one.from(SaldosValeraEmocional).where({ empleado_ID: empleadoID, anio }),
+    SELECT.one
+      .from(SaldosValeraEmocional)
+      .where({ empleado_ID: empleadoID, anio }),
     SELECT.from(Ausencias)
       .columns("ID", "estadoa_codigo", "fechaInicio", "horasSolicitadas")
       .where({
@@ -1621,7 +1874,12 @@ async function calcularSaldoCumpleanios({
   Ausencias,
   ausenciaExcluirID = null,
 }) {
-  if (!empleado?.ID || !empleado.fechaNacimiento || !ventana || !tipoCumpleanios) {
+  if (
+    !empleado?.ID ||
+    !empleado.fechaNacimiento ||
+    !ventana ||
+    !tipoCumpleanios
+  ) {
     return {
       horasAsignadas: 0,
       horasUtilizadas: 0,
@@ -1743,12 +2001,15 @@ async function calcularSaldoVacaciones({
         ? contrato.fechaFin
         : fechaActual;
     if (fechaCorte < contrato.fechaInicio) return total;
-    return total + Math.max(
-      0,
-      Math.floor(
-        (parseISODate(fechaCorte) - parseISODate(contrato.fechaInicio)) /
-          (24 * 60 * 60 * 1000),
-      ),
+    return (
+      total +
+      Math.max(
+        0,
+        Math.floor(
+          (parseISODate(fechaCorte) - parseISODate(contrato.fechaInicio)) /
+            (24 * 60 * 60 * 1000),
+        ),
+      )
     );
   }, 0);
   const diasVacacionesCausados = round2((diasTrabajados * 15) / 360);
@@ -1756,9 +2017,7 @@ async function calcularSaldoVacaciones({
   const tiposVacaciones = await SELECT.from(TiposAusencia)
     .columns("codigo")
     .where({ descuentaSaldo: true });
-  const codigosVacaciones = new Set(
-    tiposVacaciones.map((tipo) => tipo.codigo),
-  );
+  const codigosVacaciones = new Set(tiposVacaciones.map((tipo) => tipo.codigo));
   const ausencias = await SELECT.from(Ausencias)
     .columns("ID", "tipoAusencia_codigo", "estadoa_codigo", "diasHabiles")
     .where({ empleado_ID: empleadoID });
@@ -1846,7 +2105,9 @@ async function enriquecerSolicitudes({
         decisionesPorID?.[solicitud.ID] || null,
       ),
     )
-    .sort((a, b) => String(b.modifiedAt || "").localeCompare(String(a.modifiedAt || "")));
+    .sort((a, b) =>
+      String(b.modifiedAt || "").localeCompare(String(a.modifiedAt || "")),
+    );
 }
 
 async function enriquecerSolicitud({
@@ -1875,10 +2136,8 @@ function mapSolicitud(
   cantidadSoportes,
   decision = null,
 ) {
-  const esAutoservicio =
-    solicitud.origenRegistro === ORIGEN_AUTOSERVICIO;
-  const esBorrador =
-    esAutoservicio && solicitud.estadoa_codigo === "BORRADOR";
+  const esAutoservicio = solicitud.origenRegistro === ORIGEN_AUTOSERVICIO;
+  const esBorrador = esAutoservicio && solicitud.estadoa_codigo === "BORRADOR";
   return {
     ID: solicitud.ID,
     tipoAusenciaCodigo: solicitud.tipoAusencia_codigo,
@@ -1902,8 +2161,7 @@ function mapSolicitud(
     cantidadSoportes,
     puedeEditar: esBorrador,
     puedeEnviar: esBorrador,
-    puedeCancelar:
-      esAutoservicio && solicitud.estadoa_codigo === "SOLICITADA",
+    puedeCancelar: esAutoservicio && solicitud.estadoa_codigo === "SOLICITADA",
     puedeEliminar: esBorrador,
     createdAt: solicitud.createdAt,
     modifiedAt: solicitud.modifiedAt,
@@ -2058,6 +2316,47 @@ function esPeticionDeContenidoSoporte(req) {
     "";
 
   return propertyName === "content" || /\/content(?:\?|$)/i.test(url);
+}
+
+async function streamABuffer(value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return Buffer.from(value);
+  }
+
+  if (typeof value === "string") {
+    return Buffer.from(value, "base64");
+  }
+
+  if (
+    typeof value[Symbol.asyncIterator] === "function" ||
+    typeof value.pipe === "function"
+  ) {
+    const chunks = [];
+
+    for await (const chunk of value) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+
+    return Buffer.concat(chunks);
+  }
+
+  throw new TypeError(
+    `Formato de contenido no soportado: ${
+      value?.constructor?.name || typeof value
+    }`,
+  );
 }
 
 module.exports._test = {

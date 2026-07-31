@@ -13,17 +13,18 @@ sap.ui.define([], function () {
       reject: "rechazar",
       forward: "reenviar",
       saveDelegation: "guardarDelegacion",
-      revokeDelegation: "revocarDelegacion"
+      revokeDelegation: "revocarDelegacion",
+      downloadAbsenceAttachment: "descargarSoporteAusencia",
     }),
     taskRoles: Object.freeze({
       owner: "PRIMARY",
       backup: "BACKUP",
-      substitute: "DELEGATE"
+      substitute: "DELEGATE",
     }),
     entities: Object.freeze({
-      eligibleEmployees: "EmpleadosElegibles"
+      eligibleEmployees: "EmpleadosElegibles",
     }),
     delegationTypes: Object.freeze(["BACKUP", "SUBSTITUTE"]),
-    pendingStates: Object.freeze(["WAITING", "OPEN", "PROCESSING"])
+    pendingStates: Object.freeze(["WAITING", "OPEN", "PROCESSING"]),
   });
 });

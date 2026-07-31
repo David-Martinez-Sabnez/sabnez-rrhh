@@ -120,7 +120,7 @@
                         text="{view>filename}"
                         href="{view>downloadUrl}"
                         enabled="{= ${view>status} === 'Clean' }"
-                        target="_blank" 
+                        press=".onDownloadAttachment"
                         wrapping="true" />
                       <ObjectStatus
                         id="detailSupportScanStatus"

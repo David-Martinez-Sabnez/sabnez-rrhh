@@ -1,65 +1,174 @@
 "use strict";
 
 const cds = require("@sap/cds");
-const nodemailer = require("nodemailer");
 
 const LOG = cds.log("approval-mailer");
 
-let transporter;
+const TOKEN_SAFETY_WINDOW_MS = 60_000;
 
-function mailConfig() {
-  const credentials = cds.env.requires?.mail?.credentials || {};
+let cachedToken = null;
+let tokenExpiresAt = 0;
+let tokenRequest = null;
 
+function graphConfig() {
   return {
-    host: process.env.MAIL_HOST || credentials.host,
-    port: Number(process.env.MAIL_PORT || credentials.port || 587),
-    secure:
-      String(
-        process.env.MAIL_SECURE ?? credentials.secure ?? "false",
-      ).toLowerCase() === "true",
-    user: process.env.MAIL_USER || credentials.user,
-    password: process.env.MAIL_PASSWORD || credentials.password,
-    from:
-      process.env.MAIL_FROM ||
-      credentials.from ||
-      "Sabnez RRHH <no-reply@sabnez.com>",
+    tenantId: process.env.GRAPH_TENANT_ID,
+    clientId: process.env.GRAPH_CLIENT_ID,
+    clientSecret: process.env.GRAPH_CLIENT_SECRET,
+    mailbox: process.env.GRAPH_MAILBOX || "no-reply@sabnez.com",
+    fromName: process.env.MAIL_FROM_NAME || "Notificaciones Sabnez",
     approvalAppUrl:
       process.env.APPROVAL_APP_URL ||
-      credentials.approvalAppUrl ||
       "http://localhost:4004/aprobacionesui/webapp/index.html",
     absenceAppUrl:
       process.env.ABSENCE_APP_URL ||
-      credentials.absenceAppUrl ||
       "http://localhost:4004/ausenciasui/webapp/index.html",
   };
 }
 
-function getTransporter() {
-  if (transporter) {
-    return transporter;
+function validateGraphConfig(config) {
+  const missing = [];
+
+  if (!config.tenantId) missing.push("GRAPH_TENANT_ID");
+  if (!config.clientId) missing.push("GRAPH_CLIENT_ID");
+  if (!config.clientSecret) missing.push("GRAPH_CLIENT_SECRET");
+  if (!config.mailbox) missing.push("GRAPH_MAILBOX");
+
+  if (missing.length) {
+    throw new Error(
+      `Faltan variables de configuración de Microsoft Graph: ${missing.join(", ")}.`,
+    );
+  }
+}
+
+async function readResponseBody(response) {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
   }
 
-  const config = mailConfig();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
 
-  if (!config.host) {
-    throw new Error("No se configuró el servidor SMTP.");
+function graphError(operation, response, body) {
+  const detail =
+    typeof body === "string"
+      ? body
+      : body?.error?.message || body?.error_description || response.statusText;
+
+  const error = new Error(
+    `${operation} falló con HTTP ${response.status}: ${
+      detail || "sin detalle"
+    }`,
+  );
+
+  error.status = response.status;
+  error.graphResponse = body;
+
+  return error;
+}
+
+async function requestAccessToken(config) {
+  const tokenUrl =
+    `https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}` +
+    "/oauth2/v2.0/token";
+
+  const form = new URLSearchParams({
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    scope: "https://graph.microsoft.com/.default",
+    grant_type: "client_credentials",
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: form,
+  });
+
+  const body = await readResponseBody(response);
+
+  if (!response.ok) {
+    throw graphError(
+      "La obtención del token de Microsoft Graph",
+      response,
+      body,
+    );
   }
 
-  const options = {
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
+  if (!body?.access_token) {
+    throw new Error("Microsoft Entra no devolvió access_token.");
+  }
+
+  const expiresInSeconds = Number(body.expires_in || 3600);
+
+  cachedToken = body.access_token;
+  tokenExpiresAt =
+    Date.now() + Math.max(expiresInSeconds * 1000 - TOKEN_SAFETY_WINDOW_MS, 0);
+
+  return cachedToken;
+}
+
+async function getAccessToken(config) {
+  if (cachedToken && Date.now() < tokenExpiresAt) {
+    return cachedToken;
+  }
+
+  if (!tokenRequest) {
+    tokenRequest = requestAccessToken(config).finally(() => {
+      tokenRequest = null;
+    });
+  }
+
+  return tokenRequest;
+}
+
+function invalidateAccessToken() {
+  cachedToken = null;
+  tokenExpiresAt = 0;
+}
+
+async function graphSendMail(config, payload, retryOnUnauthorized = true) {
+  const accessToken = await getAccessToken(config);
+  const mailbox = encodeURIComponent(config.mailbox);
+
+  const endpoint =
+    `https://graph.microsoft.com/v1.0/users/` + `${mailbox}/sendMail`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (response.status === 401 && retryOnUnauthorized) {
+    invalidateAccessToken();
+    return graphSendMail(config, payload, false);
+  }
+
+  if (!response.ok) {
+    const body = await readResponseBody(response);
+
+    throw graphError("El envío de correo por Microsoft Graph", response, body);
+  }
+
+  return {
+    accepted: true,
+    status: response.status,
+    messageId: response.headers.get("request-id") || null,
   };
-
-  if (config.user && config.password) {
-    options.auth = {
-      user: config.user,
-      pass: config.password,
-    };
-  }
-
-  transporter = nodemailer.createTransport(options);
-  return transporter;
 }
 
 function escapeHtml(value) {
@@ -72,11 +181,9 @@ function escapeHtml(value) {
 }
 
 function approvalUrl(taskID) {
-  const baseUrl = mailConfig()
-    .approvalAppUrl.replace(/\/?#.*$/, "")
-    .replace(/\/$/, "");
+  const baseUrl = graphConfig().approvalAppUrl.replace(/\/$/, "");
 
-  return `${baseUrl}#/task/${encodeURIComponent(taskID)}`;
+  return `${baseUrl}&/task/${encodeURIComponent(taskID)}`;
 }
 
 function detailRows(facts = []) {
@@ -131,7 +238,10 @@ function buildHtml({
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
   <title>${escapeHtml(title)}</title>
 </head>
 
@@ -269,7 +379,12 @@ function buildHtml({
               ${
                 buttonUrl
                   ? `
-                    <div style="text-align:center;margin:30px 0 12px">
+                    <div
+                      style="
+                        text-align:center;
+                        margin:30px 0 12px;
+                      "
+                    >
                       <a
                         href="${escapeHtml(buttonUrl)}"
                         style="
@@ -296,8 +411,8 @@ function buildHtml({
                 line-height:18px;
                 color:#6a6d70;
               ">
-                Este es un mensaje automático. Las decisiones deben
-                registrarse desde el Centro de Aprobaciones.
+                Este es un mensaje automático. Las decisiones
+                deben registrarse desde el Centro de Aprobaciones.
               </p>
             </td>
           </tr>
@@ -330,7 +445,9 @@ function notificationContent(data) {
         html: buildHtml({
           title: "Nueva solicitud de ausencia",
           greeting: `Hola, ${recipientName}.`,
-          introduction: `${data.solicitanteNombre} ha enviado una solicitud que requiere tu aprobación.`,
+          introduction:
+            `${data.solicitanteNombre} ha enviado una solicitud ` +
+            "que requiere tu aprobación.",
           summary: data.resumen,
           facts: data.facts,
           status: "Pendiente de aprobación",
@@ -345,7 +462,9 @@ function notificationContent(data) {
         html: buildHtml({
           title: "Solicitud de ausencia reasignada",
           greeting: `Hola, ${recipientName}.`,
-          introduction: `Se te ha reasignado una solicitud presentada por ${data.solicitanteNombre}.`,
+          introduction:
+            "Se te ha reasignado una solicitud presentada por " +
+            `${data.solicitanteNombre}.`,
           summary: data.resumen,
           facts: data.facts,
           status: "Pendiente de aprobación",
@@ -365,7 +484,7 @@ function notificationContent(data) {
           facts: data.facts,
           status: translateStatus(data.estadoInstancia),
           buttonText: "Consultar mis solicitudes",
-          buttonUrl: mailConfig().absenceAppUrl,
+          buttonUrl: graphConfig().absenceAppUrl,
         }),
       };
 
@@ -376,7 +495,8 @@ function notificationContent(data) {
           title: "Actualización de una solicitud",
           greeting: `Hola, ${recipientName}.`,
           introduction:
-            "Se registró una actualización en una solicitud relacionada contigo.",
+            "Se registró una actualización en una solicitud " +
+            "relacionada contigo.",
           summary: data.resumen,
           facts: data.facts,
           status: translateStatus(data.estadoInstancia),
@@ -401,21 +521,48 @@ function translateStatus(status) {
 }
 
 async function sendApprovalEmail(data) {
-  const config = mailConfig();
+  const config = graphConfig();
+
+  validateGraphConfig(config);
+
+  if (!data?.destinatarioID) {
+    throw new Error("La notificación no contiene destinatarioID.");
+  }
+
   const content = notificationContent(data);
 
-  LOG.info("Enviando correo de aprobación", {
+  LOG.info("Enviando correo de aprobación mediante Microsoft Graph", {
     eventID: data.eventID,
     tipo: data.tipo,
     destinatario: data.destinatarioID,
+    mailbox: config.mailbox,
   });
 
-  return getTransporter().sendMail({
-    from: config.from,
-    to: data.destinatarioID,
-    subject: content.subject,
-    html: content.html,
-  });
+  const payload = {
+    message: {
+      subject: content.subject,
+      body: {
+        contentType: "HTML",
+        content: content.html,
+      },
+      from: {
+        emailAddress: {
+          name: config.fromName,
+          address: config.mailbox,
+        },
+      },
+      toRecipients: [
+        {
+          emailAddress: {
+            address: data.destinatarioID,
+          },
+        },
+      ],
+    },
+    saveToSentItems: false,
+  };
+
+  return graphSendMail(config, payload);
 }
 
 module.exports = {

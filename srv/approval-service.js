@@ -1,6 +1,7 @@
 "use strict";
 
 const cds = require("@sap/cds");
+const { streamToBuffer } = require("./lib/stream-utils");
 
 const {
   ASSIGNMENT_TYPES,
@@ -831,6 +832,94 @@ module.exports = cds.service.impl(function () {
        * para un reintento posterior.
        */
     }
+  });
+
+  this.on("descargarSoporteAusencia", async (req) => {
+    const { solicitudID, soporteID } = req.data || {};
+
+    if (!solicitudID || !soporteID) {
+      reject(
+        req,
+        400,
+        "DATOS_SOPORTE_INCOMPLETOS",
+        "Faltan solicitudID o soporteID.",
+      );
+    }
+
+    /*
+     * Solo permite descargar adjuntos de ausencias relacionadas con tareas
+     * visibles para el aprobador autenticado, incluyendo su historial
+     * autorizado.
+     */
+    const IDsAutorizados = await authorizedAbsenceIDs(req, approval, rrhh);
+
+    if (!IDsAutorizados.includes(solicitudID)) {
+      reject(
+        req,
+        404,
+        "SOLICITUD_NO_DISPONIBLE",
+        "La solicitud no existe o no está disponible para el usuario.",
+      );
+    }
+
+    const soporte = await SELECT.one
+      .from(SoportesAusencia)
+      .columns("ID", "filename", "mimeType", "content", "status")
+      .where({
+        ID: soporteID,
+        up__ID: solicitudID,
+      });
+
+    if (!soporte) {
+      reject(req, 404, "SOPORTE_NO_ENCONTRADO", "El soporte no existe.");
+    }
+
+    if (soporte.status !== "Clean") {
+      reject(
+        req,
+        409,
+        "SOPORTE_NO_VALIDADO",
+        "El archivo todavía no ha superado la validación de seguridad.",
+      );
+    }
+
+    let contenidoBuffer;
+
+    try {
+      contenidoBuffer = await streamToBuffer(soporte.content);
+    } catch (error) {
+      cds
+        .log("approval-service")
+        .error("No fue posible leer el soporte de la ausencia", {
+          solicitudID,
+          soporteID,
+          contentType:
+            soporte.content?.constructor?.name || typeof soporte.content,
+          error: error?.message,
+        });
+
+      reject(
+        req,
+        500,
+        "LECTURA_SOPORTE_FALLIDA",
+        "No fue posible leer el contenido del archivo.",
+      );
+    }
+
+    if (!contenidoBuffer?.length) {
+      reject(
+        req,
+        404,
+        "CONTENIDO_NO_DISPONIBLE",
+        "El archivo no tiene contenido almacenado.",
+      );
+    }
+
+    return {
+      filename: soporte.filename,
+      mimeType: soporte.mimeType || "application/octet-stream",
+      contenidoBase64: contenidoBuffer.toString("base64"),
+    };
   });
 
   async function handleDecision(req, decision) {

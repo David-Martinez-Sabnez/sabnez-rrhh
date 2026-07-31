@@ -11,8 +11,7 @@
     "@cap-js/attachments": "^3.13.1",
     "@cap-js/postgres": "^2.3.0",
     "@sap/cds": "^9.9.2",
-    "@sap/xssec": "^4",
-    "nodemailer": "^9.0.3"
+    "@sap/xssec": "^4"
   },
   "devDependencies": {
     "@cap-js/sqlite": "^2.4.0",
@@ -186,22 +185,9 @@
           "kind": "xsuaa"
         }
       },
-      "mail": {
-        "[development]": {
-          "kind": "smtp",
-          "credentials": {
-            "host": "localhost",
-            "port": 1025,
-            "secure": false,
-            "from": "Sabnez RRHH <no-reply@sabnez.com>"
-          }
-        },
-        "[production]": {
-          "kind": "smtp"
-        }
-      },
       "attachments": {
-        "kind": "db"
+        "kind": "db",
+        "scan": true
       },
       "destinations": true,
       "html5-repo": true,

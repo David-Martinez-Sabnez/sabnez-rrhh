@@ -29,7 +29,6 @@ sap.ui.define(
       onInit: function () {
         this._requestDialog = null;
         this._detailDialog = null;
-        this._csrfToken = null;
 
         this.getView().setModel(
           new JSONModel({
@@ -385,6 +384,56 @@ sap.ui.define(
         oFormModel.setProperty("/attachmentError", "");
 
         oFormModel.refresh(true);
+      },
+
+      onDownloadAttachment: async function (oEvent) {
+        var oAttachment = oEvent
+          .getSource()
+          .getBindingContext("view")
+          ?.getObject();
+
+        if (!oAttachment) {
+          return;
+        }
+
+        try {
+          var oResult = await this._invokeAction("descargarSoporte", {
+            solicitudID: this.getView()
+              .getModel("view")
+              .getProperty("/selectedRequest/ID"),
+
+            soporteID: oAttachment.ID,
+          });
+
+          var oFile = this._unwrapObject(oResult);
+
+          if (!oFile.contenidoBase64) {
+            throw new Error(
+              "El servicio no devolvió el contenido del archivo.",
+            );
+          }
+
+          var aBytes = this._base64ToBytes(oFile.contenidoBase64);
+
+          var oBlob = new Blob([aBytes], {
+            type: oFile.mimeType || "application/octet-stream",
+          });
+
+          var sObjectUrl = URL.createObjectURL(oBlob);
+          var oLink = document.createElement("a");
+
+          oLink.href = sObjectUrl;
+          oLink.download = oFile.filename || "soporte";
+          document.body.appendChild(oLink);
+          oLink.click();
+          document.body.removeChild(oLink);
+
+          window.setTimeout(function () {
+            URL.revokeObjectURL(sObjectUrl);
+          }, 1000);
+        } catch (oError) {
+          MessageBox.error(this._extractErrorMessage(oError));
+        }
       },
 
       onDeleteExistingAttachment: async function (oEvent) {
@@ -1028,12 +1077,24 @@ sap.ui.define(
 
       _loadAttachments: async function (sRequestId) {
         var oConfig = ServiceContract.attachments;
-        var sQuery = "?$select=ID,filename,mimeType,status";
-        var oResult = await this._serviceFetch(
-          this._attachmentCollectionPath(sRequestId) + sQuery,
+        var oODataModel = this.getOwnerComponent().getModel();
+
+        var sCollectionPath = "/" + this._attachmentCollectionPath(sRequestId);
+
+        var oBinding = oODataModel.bindList(sCollectionPath, null, null, null, {
+          $select: "ID,filename,mimeType,status",
+          $$groupId: "$direct",
+        });
+
+        var aContexts = await oBinding.requestContexts(
+          0,
+          ServiceContract.attachments.maximumFiles,
         );
-        return this._unwrapArray(oResult).map(
-          function (oAttachment) {
+
+        return aContexts.map(
+          function (oContext) {
+            var oAttachment = oContext.getObject();
+
             return Object.assign({}, oAttachment, {
               icon: this._attachmentIcon(
                 oAttachment.mimeType,
@@ -1041,11 +1102,6 @@ sap.ui.define(
               ),
               statusText: this._attachmentStatusText(oAttachment.status),
               statusState: this._attachmentStatusState(oAttachment.status),
-              downloadUrl:
-                this._serviceRoot() +
-                this._attachmentPath(oAttachment.ID, sRequestId) +
-                "/" +
-                oConfig.contentProperty,
             });
           }.bind(this),
         );
@@ -1061,36 +1117,48 @@ sap.ui.define(
         for (var i = 0; i < aPending.length; i += 1) {
           var oPending = aPending[i];
           var oMetadata = {};
+
           oMetadata[oConfig.parentForeignKey] = sRequestId;
           oMetadata.filename = oPending.filename;
           oMetadata.mimeType = oPending.mimeType;
 
-          var oCreated = await this._serviceFetch(
-            this._attachmentCollectionPath(sRequestId),
+          var oODataModel = this.getOwnerComponent().getModel();
+
+          var sAttachmentCollectionPath =
+            "/" + this._attachmentCollectionPath(sRequestId);
+
+          var oAttachmentBinding = oODataModel.bindList(
+            sAttachmentCollectionPath,
+            null,
+            null,
+            null,
             {
-              method: "POST",
-              body: JSON.stringify(oMetadata),
-              headers: { "Content-Type": "application/json" },
+              $$updateGroupId: "$direct",
             },
           );
+
+          var oCreatedContext = oAttachmentBinding.create(oMetadata);
+
+          await oCreatedContext.created();
+
+          var oCreated = oCreatedContext.getObject();
+
           var sAttachmentId =
             oCreated.ID || this._idFromODataId(oCreated["@odata.id"]);
+
           if (!sAttachmentId) {
             throw new Error(this._text("missingAttachmentId"));
           }
 
           try {
-            await this._serviceFetch(
-              this._attachmentPath(sAttachmentId, sRequestId) +
-                "/" +
-                oConfig.contentProperty,
-              {
-                method: "PUT",
-                body: oPending.file,
-                headers: { "Content-Type": oPending.mimeType },
-                expectJson: false,
-              },
-            );
+            var sBase64Content = await this._fileToBase64(oPending.file);
+
+            await this._invokeAction("cargarSoporte", {
+              solicitudID: sRequestId,
+              soporteID: sAttachmentId,
+              contenido: sBase64Content,
+              mimeType: oPending.mimeType,
+            });
 
             oFormModel.setProperty(
               "/existingAttachments",
@@ -1124,13 +1192,10 @@ sap.ui.define(
       },
 
       _deleteAttachment: function (sAttachmentId, sRequestId) {
-        return this._serviceFetch(
-          this._attachmentPath(sAttachmentId, sRequestId),
-          {
-            method: "DELETE",
-            expectJson: false,
-          },
-        );
+        return this._invokeAction("eliminarSoporte", {
+          solicitudID: sRequestId,
+          soporteID: sAttachmentId,
+        });
       },
 
       _attachmentPath: function (sAttachmentId, sRequestId) {
@@ -1153,94 +1218,6 @@ sap.ui.define(
           ")/" +
           oConfig.navigationProperty
         );
-      },
-
-      _serviceFetch: async function (sRelativePath, mOptions) {
-        var oOptions = Object.assign(
-          { method: "GET", headers: {}, expectJson: true },
-          mOptions || {},
-        );
-        var bMutation = !["GET", "HEAD"].includes(
-          oOptions.method.toUpperCase(),
-        );
-        var mHeaders = Object.assign(
-          { Accept: "application/json" },
-          oOptions.headers,
-        );
-        if (bMutation) {
-          var sCsrfToken = await this._getCsrfToken();
-
-          if (sCsrfToken) {
-            mHeaders["x-csrf-token"] = sCsrfToken;
-          }
-        }
-        var oResponse = await fetch(this._serviceRoot() + sRelativePath, {
-          method: oOptions.method,
-          headers: mHeaders,
-          body: oOptions.body,
-          credentials: "same-origin",
-        });
-        if (bMutation && oResponse.status === 403 && !oOptions.csrfRetried) {
-          this._csrfToken = null;
-          return this._serviceFetch(
-            sRelativePath,
-            Object.assign({}, mOptions, { csrfRetried: true }),
-          );
-        }
-        if (!oResponse.ok) {
-          if (bMutation && oResponse.status === 403) {
-            this._csrfToken = null;
-          }
-          throw new Error(await this._responseErrorMessage(oResponse));
-        }
-        if (!oOptions.expectJson || oResponse.status === 204) {
-          return {};
-        }
-        var sContentType = oResponse.headers.get("content-type") || "";
-        return sContentType.includes("json") ? oResponse.json() : {};
-      },
-
-      _getCsrfToken: async function () {
-        if (this._csrfToken) {
-          return this._csrfToken;
-        }
-
-        var oResponse = await fetch(this._serviceRoot(), {
-          method: "HEAD",
-          headers: {
-            "x-csrf-token": "Fetch",
-            "cache-control": "no-cache",
-          },
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-
-        if (!oResponse.ok) {
-          if (
-            window.location.hostname === "localhost" ||
-            window.location.hostname === "127.0.0.1"
-          ) {
-            return null;
-          }
-
-          throw new Error(await this._responseErrorMessage(oResponse));
-        }
-
-        var sToken = oResponse.headers.get("x-csrf-token");
-
-        if (!sToken) {
-          if (
-            window.location.hostname === "localhost" ||
-            window.location.hostname === "127.0.0.1"
-          ) {
-            return null;
-          }
-
-          throw new Error(this._text("csrfError"));
-        }
-
-        this._csrfToken = sToken;
-        return this._csrfToken;
       },
 
       _serviceRoot: function () {
@@ -1533,6 +1510,42 @@ sap.ui.define(
           .getModel("i18n")
           .getResourceBundle()
           .getText(sKey, aArguments || []);
+      },
+
+      _fileToBase64: function (oFile) {
+        return new Promise(function (resolve, reject) {
+          var oReader = new FileReader();
+
+          oReader.onload = function () {
+            var sResult = String(oReader.result || "");
+            var iComma = sResult.indexOf(",");
+
+            resolve(iComma >= 0 ? sResult.substring(iComma + 1) : sResult);
+          };
+
+          oReader.onerror = function () {
+            reject(
+              oReader.error || new Error("No fue posible leer el archivo."),
+            );
+          };
+
+          oReader.readAsDataURL(oFile);
+        });
+      },
+
+      _base64ToBytes: function (sBase64) {
+        var sNormalized = String(sBase64 || "")
+          .replace(/^data:[^;]+;base64,/, "")
+          .replace(/\s/g, "");
+
+        var sBinary = window.atob(sNormalized);
+        var aBytes = new Uint8Array(sBinary.length);
+
+        for (var i = 0; i < sBinary.length; i += 1) {
+          aBytes[i] = sBinary.charCodeAt(i);
+        }
+
+        return aBytes;
       },
     });
   },

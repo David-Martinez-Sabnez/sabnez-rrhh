@@ -32,8 +32,10 @@
               backgroundColor="Accent6"
               class="sapUiSmallMarginEnd" />
             <VBox id="taskDetailTitleBox">
-              <Title id="taskDetailTitle" text="{view>/selectedTask/requestTitle}" level="H2" wrapping="true" />
-              <Text id="taskDetailEmployee" text="{view>/selectedTask/employeeName}" class="approvalStrongText" />
+              <Title id="taskDetailTitle" text="{view>/selectedTask/requestTitle}" level="H2"
+                wrapping="true" />
+              <Text id="taskDetailEmployee" text="{view>/selectedTask/employeeName}"
+                class="approvalStrongText" />
               <Text
                 id="taskDetailActingFor"
                 text="{view>/selectedTask/employeePosition}"
@@ -101,7 +103,8 @@
           <Label id="detailSubmittedLabel" text="{i18n>received}" />
           <Text id="detailSubmitted" text="{view>/selectedTask/submittedText}" />
 
-          <Label id="detailDueLabel" text="{i18n>deadline}" visible="{= !!${view>/selectedTask/dueText} }" />
+          <Label id="detailDueLabel" text="{i18n>deadline}"
+            visible="{= !!${view>/selectedTask/dueText} }" />
           <ObjectStatus
             id="detailDue"
             text="{view>/selectedTask/dueText}"
@@ -109,14 +112,16 @@
             icon="{view>/selectedTask/dueIcon}"
             visible="{= !!${view>/selectedTask/dueText} }" />
 
-          <Label id="detailModifiedLabel" text="{i18n>lastUpdated}" visible="{= !!${view>/selectedTask/modifiedText} }" />
+          <Label id="detailModifiedLabel" text="{i18n>lastUpdated}"
+            visible="{= !!${view>/selectedTask/modifiedText} }" />
           <Text
             id="detailModified"
             text="{view>/selectedTask/modifiedText}"
             visible="{= !!${view>/selectedTask/modifiedText} }" />
         </f:SimpleForm>
 
-        <Title id="factsTitle" text="{i18n>requestInformation}" level="H3" class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
+        <Title id="factsTitle" text="{i18n>requestInformation}" level="H3"
+          class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
         <List
           id="factsList"
           items="{view>/selectedTask/facts}"
@@ -130,31 +135,36 @@
                   <Text id="factSection" text="{view>section}" class="approvalFactSection" />
                   <Label id="factLabel" text="{view>label}" wrapping="true" />
                 </VBox>
-                <VBox id="factValueBox" class="approvalFactValueBox">
+                <VBox
+                  id="idValueVBox"
+                  class="approvalFactValueBox">
+
                   <Link
-                    id="factLink"
+                    id="idValueLink"
                     text="{view>value}"
-                    href="{view>link}"
-                    target="_blank"
+                    press=".onDownloadAttachment"
                     wrapping="true"
                     visible="{view>isLink}" />
+
                   <ObjectStatus
-                    id="factStatus"
+                    id="idValueObjectStatus"
                     text="{view>value}"
                     state="{view>state}"
                     visible="{view>isStatus}" />
+
                   <Text
-                    id="factValue"
+                    id="idValueText"
                     text="{view>value}"
-                    wrapping="true"
                     visible="{= !${view>isLink} &amp;&amp; !${view>isStatus} }" />
+
                 </VBox>
               </HBox>
             </CustomListItem>
           </items>
         </List>
 
-        <Title id="eventsTitle" text="{i18n>history}" level="H3" class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
+        <Title id="eventsTitle" text="{i18n>history}" level="H3"
+          class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
         <List
           id="eventsList"
           items="{view>/selectedTask/events}"
@@ -164,7 +174,8 @@
           <items>
             <CustomListItem id="eventItem">
               <HBox id="eventRow" width="100%" alignItems="Start" class="approvalEventRow">
-                <core:Icon id="eventIcon" src="{view>icon}" decorative="true" class="approvalEventIcon" />
+                <core:Icon id="eventIcon" src="{view>icon}" decorative="true"
+                  class="approvalEventIcon" />
                 <VBox id="eventContent" class="approvalEventContent">
                   <HBox id="eventHeading" width="100%" justifyContent="SpaceBetween" wrap="Wrap">
                     <Text id="eventType" text="{view>type}" class="approvalStrongText" />
