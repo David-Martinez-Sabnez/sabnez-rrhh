@@ -1,12 +1,13 @@
 "use strict";
 
 const cds = require("@sap/cds");
+const { Readable } = require("node:stream");
 const {
   exceedsDailyWarning,
   validateTimeEntry,
 } = require("./lib/time-entry-rules");
 
-const { SELECT, INSERT, UPDATE } = cds.ql;
+const { SELECT, INSERT, UPDATE, DELETE } = cds.ql;
 
 module.exports = cds.service.impl(function () {
   const rrhh = cds.entities("sabnez.rrhh");
@@ -239,6 +240,55 @@ module.exports = cds.service.impl(function () {
       totalRegistros: entries.length,
       totalHoras: entries.reduce((sum, entry) => sum + Number(entry.durationHours || 0), 0),
     };
+  });
+
+  this.on("cargarSoporte", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const { registroID, nombreArchivo, mimeType, contenido } = req.data || {};
+    if (!Evidence || !registroID || !nombreArchivo || !contenido) {
+      reject(req, 400, "SOPORTE_INCOMPLETO", "Faltan los datos necesarios para cargar el soporte.");
+    }
+    const entry = await SELECT.one.from(TimeEntries).where({ ID: registroID, employee_ID: employee.ID });
+    if (!entry) reject(req, 404, "REGISTRO_NO_ENCONTRADO", "El registro no existe o no pertenece al empleado autenticado.");
+    if (!new Set(["DRAFT", "RETURNED"]).has(entry.status)) {
+      reject(req, 409, "SOPORTES_BLOQUEADOS", "Solo se pueden cargar soportes en registros editables.");
+    }
+    const buffer = Buffer.isBuffer(contenido) ? contenido : Buffer.from(contenido, "base64");
+    if (!buffer.length) reject(req, 400, "ARCHIVO_VACIO", "El archivo recibido está vacío.");
+    if (buffer.length > 10 * 1024 * 1024) reject(req, 413, "ARCHIVO_DEMASIADO_GRANDE", "El soporte no puede superar 10 MB.");
+
+    const supportID = cds.utils.uuid();
+    const safeName = String(nombreArchivo).trim().slice(0, 255);
+    const safeMime = String(mimeType || "application/octet-stream").trim().slice(0, 100);
+    await INSERT.into(Evidence).entries({
+      ID: supportID,
+      up__ID: registroID,
+      filename: safeName,
+      mimeType: safeMime,
+      content: buffer,
+      status: "Scanning",
+    });
+
+    let scanResult;
+    try {
+      const scanner = await cds.connect.to("malwareScanner");
+      scanResult = await scanner.send("scan", { file: Readable.from([buffer]) });
+    } catch (error) {
+      await DELETE.from(Evidence).where({ ID: supportID, up__ID: registroID });
+      reject(req, 502, "ESCANEO_SOPORTE_FALLIDO", "No fue posible validar el archivo con el servicio de seguridad.");
+    }
+    const infected = Boolean(scanResult?.isMalware);
+    await UPDATE(Evidence).set({
+      status: infected ? "Infected" : "Clean",
+      lastScan: new Date().toISOString(),
+      hash: scanResult?.hash || null,
+      note: infected ? "El servicio de seguridad detectó contenido malicioso." : null,
+    }).where({ ID: supportID, up__ID: registroID });
+    if (infected) {
+      await DELETE.from(Evidence).where({ ID: supportID, up__ID: registroID });
+      reject(req, 422, "ARCHIVO_INFECTADO", "El soporte fue rechazado por la validación de seguridad.");
+    }
+    return { exito: true, mensaje: "El soporte se cargó y validó correctamente.", soporteID: supportID };
   });
 });
 

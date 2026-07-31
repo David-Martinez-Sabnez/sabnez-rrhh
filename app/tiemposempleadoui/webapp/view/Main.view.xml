@@ -1,0 +1,61 @@
+<mvc:View controllerName="sabnez.com.tiemposempleadoui.controller.Main"
+  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:u="sap.ui.unified">
+  <Page title="Mis tiempos" busy="{view>/busy}" class="sapUiContentPadding">
+    <headerContent><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></headerContent>
+    <content>
+      <MessageStrip text="{view>/error}" type="Error" showIcon="true" visible="{= !!${view>/error} }" class="sapUiSmallMarginBottom"/>
+      <MessageStrip text="{view>/success}" type="Success" showIcon="true" visible="{= !!${view>/success} }" class="sapUiSmallMarginBottom"/>
+      <VBox class="weekHero sapUiMediumMarginBottom sapUiSmallMargin">
+        <Toolbar design="Transparent">
+          <Button icon="sap-icon://navigation-left-arrow" tooltip="Semana anterior" press=".onPreviousWeek"/>
+          <Button text="Esta semana" press=".onCurrentWeek"/>
+          <Button icon="sap-icon://navigation-right-arrow" tooltip="Semana siguiente" press=".onNextWeek"/>
+          <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin"/>
+          <ToolbarSpacer/>
+          <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal"/>
+          <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }"/>
+        </Toolbar>
+      </VBox>
+
+      <Panel headerText="Registrar tiempo" expandable="true" expanded="true" class="entryForm sapUiSmallMarginBottom">
+        <content>
+          <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+            <Label text="Fecha" required="true"/><DatePicker value="{view>/form/fecha}" valueFormat="yyyy-MM-dd" displayFormat="EEEE, dd/MM/yyyy" change=".onDateChange"/>
+            <Label text="Proyecto" required="true"/><Select selectedKey="{view>/form/asignacionID}" items="{view>/assignments}" change=".onAssignmentChange"><core:Item key="{view>ID}" text="{= ${view>proyectoNombre} + ' · ' + ${view>clienteNombre} }"/></Select>
+            <Label text="Horas" required="true"/><StepInput value="{view>/form/duracionHoras}" min="0.5" max="24" step="0.5" displayValuePrecision="1"/>
+            <Label text="Tipo" required="true"/><Select selectedKey="{view>/form/tipoSolicitado}" change=".onTypeChange"><core:Item key="REGULAR" text="Regular"/><core:Item key="OVERTIME" text="Extra"/></Select>
+            <Label text="Hora aproximada de inicio" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaInicioAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
+            <Label text="Hora aproximada de fin" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaFinAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
+            <Label text="Autorización previa" visible="{view>/form/isSpecial}"/><Switch state="{view>/form/autorizacionPrevia}" visible="{view>/form/isSpecial}"/>
+            <Label text="Motivo excepcional" required="{view>/form/isSpecial}" visible="{view>/form/isSpecial}"/><Input value="{view>/form/motivoExcepcional}" visible="{view>/form/isSpecial}"/>
+            <Label text="Descripción" required="{view>/form/descriptionRequired}"/><TextArea value="{view>/form/descripcion}" rows="3" growing="true" placeholder="Describe brevemente la actividad realizada"/>
+            <Label text="Soporte" required="{view>/form/supportRequired}"/><u:FileUploader id="supportUploader" change=".onFileSelected" sameFilenameAllowed="true" buttonText="Seleccionar archivo" placeholder="PDF, imagen u Office · máximo 10 MB"/>
+          </f:SimpleForm>
+          <MessageStrip text="{view>/form/rulesText}" type="Information" showIcon="true" visible="{= !!${view>/form/rulesText} }" class="sapUiSmallMargin"/>
+          <Toolbar design="Transparent"><Button text="Limpiar" press=".onClearForm"/><ToolbarSpacer/><Button text="Guardar borrador" icon="sap-icon://save" type="Emphasized" press=".onSave"/></Toolbar>
+        </content>
+      </Panel>
+
+      <Panel headerText="Registros de la semana" class="entryForm">
+        <content>
+          <Table items="{view>/entries}" noDataText="Aún no has registrado horas para esta semana" growing="true">
+            <columns>
+              <Column><Text text="Día"/></Column><Column><Text text="Proyecto"/></Column><Column hAlign="End"><Text text="Horas"/></Column><Column><Text text="Tipo"/></Column><Column><Text text="Detalle y soporte"/></Column><Column><Text text="Estado"/></Column><Column hAlign="End"><Text text="Acciones"/></Column>
+            </columns>
+            <items><ColumnListItem vAlign="Middle">
+              <cells>
+                <ObjectIdentifier title="{view>dateLabel}" text="{view>fecha}"/>
+                <Text text="{view>proyectoNombre}"/>
+                <ObjectNumber number="{view>duracionHoras}" unit="h" state="{= ${view>alertaHorasDiarias} ? 'Warning' : 'None' }"/>
+                <ObjectStatus text="{view>typeLabel}" state="{= ${view>tipoSolicitado} === 'REGULAR' ? 'None' : 'Warning' }"/>
+                <VBox><Text text="{view>descripcion}" maxLines="2"/><ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }" icon="sap-icon://attachment" state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }"/></VBox>
+                <ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/>
+                <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar al día siguiente" type="Transparent" press=".onCopyNextDay" enabled="{view>puedeEditar}"/></HBox>
+              </cells>
+            </ColumnListItem></items>
+          </Table>
+        </content>
+      </Panel>
+    </content>
+  </Page>
+</mvc:View>

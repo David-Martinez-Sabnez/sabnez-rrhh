@@ -57,6 +57,12 @@ service EmployeeTimeService @(
     totalHoras     : Decimal(9, 2);
   }
 
+  type ResultadoSoporte {
+    exito     : Boolean;
+    mensaje   : String(500);
+    soporteID : UUID;
+  }
+
   function obtenerMisAsignaciones(fecha: Date) returns many AsignacionDisponible;
   function obtenerMisRegistros(semanaInicio: Date) returns many RegistroTiempo;
 
@@ -73,6 +79,13 @@ service EmployeeTimeService @(
     autorizacionPrevia: Boolean,
     motivoExcepcional: String(1000)
   ) returns ResultadoRegistro;
+
+  action cargarSoporte(
+    registroID: UUID,
+    nombreArchivo: String(255),
+    mimeType: String(100),
+    contenido: LargeBinary
+  ) returns ResultadoSoporte;
 
   action enviarSemana(semanaInicio: Date) returns ResultadoEnvioSemanal;
 }

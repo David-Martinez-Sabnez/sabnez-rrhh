@@ -82,6 +82,10 @@ modules:
             - sabnezcomtiemposadminui.zip
           name: sabnezcomtiemposadminui
           target-path: app/
+        - artifacts:
+            - sabnezcomtiemposempleadoui.zip
+          name: sabnezcomtiemposempleadoui
+          target-path: app/
   - name: sabnez-rrhh-destinations
     type: com.sap.application.content
     requires:
@@ -166,6 +170,16 @@ modules:
   - name: sabnezcomtiemposadminui
     type: html5
     path: app/tiemposadminui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+  - name: sabnezcomtiemposempleadoui
+    type: html5
+    path: app/tiemposempleadoui
     build-parameters:
       build-result: dist
       builder: custom
