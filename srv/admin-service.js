@@ -1,5 +1,8 @@
 const cds = require("@sap/cds");
 const absenceRules = require("./lib/absence-rules");
+const {
+  normalizarSideEffectFotoInline,
+} = require("./lib/request-url-rules");
 
 const { SELECT } = cds.ql;
 
@@ -50,6 +53,16 @@ module.exports = cds.service.impl(function () {
   ]);
 
   const today = () => absenceRules.todayInColombia();
+
+  // En un $batch, CAP crea una petición interna cuya URL ya no incluye
+  // `/admin`. Normalizarla aquí evita que @cap-js/attachments confunda un
+  // side effect de entidad con una descarga de stream por terminar en
+  // `foto_content`.
+  this.before("READ", EmpleadosSrv, (req) => {
+    if (req.req?.url) {
+      req.req.url = normalizarSideEffectFotoInline(req.req.url, "GET");
+    }
+  });
 
   const keyFrom = (req) => {
     if (req.data.ID) return req.data.ID;

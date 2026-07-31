@@ -4,7 +4,7 @@ function normalizarSideEffectFotoInline(requestUrl, method = "GET") {
   if (method !== "GET" || typeof requestUrl !== "string") return requestUrl;
 
   const [pathname, queryString = ""] = requestUrl.split("?", 2);
-  if (!/\/admin\/Empleados\([^/]+\)$/i.test(pathname) || !queryString) {
+  if (!/(?:\/admin)?\/Empleados\([^/]+\)$/i.test(pathname) || !queryString) {
     return requestUrl;
   }
 

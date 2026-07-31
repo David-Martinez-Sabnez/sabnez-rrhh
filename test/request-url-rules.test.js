@@ -16,6 +16,16 @@ test("evita confundir el side effect de foto con una descarga de stream", () => 
     "foto_content,DraftMessages",
   );
   assert.equal(normalized.endsWith("_content"), false);
+
+  const batchInner =
+    "/Empleados(ID=ef1a2f6b-4e22-4206-9c13-6bedaf3172d0,IsActiveEntity=false)?$select=DraftMessages,foto_content";
+  assert.equal(
+    new URL(
+      normalizarSideEffectFotoInline(batchInner),
+      "http://localhost",
+    ).searchParams.get("$select"),
+    "foto_content,DraftMessages",
+  );
 });
 
 test("no altera la ruta directa del stream ni otras consultas", () => {
