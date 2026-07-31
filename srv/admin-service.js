@@ -2,6 +2,7 @@ const cds = require("@sap/cds");
 const absenceRules = require("./lib/absence-rules");
 const {
   normalizarSideEffectFotoInline,
+  obtenerHeaderHttp,
   obtenerRutaServicioPublica,
 } = require("./lib/request-url-rules");
 
@@ -376,8 +377,8 @@ module.exports = cds.service.impl(function () {
     ) {
       const isActive = empleado.IsActiveEntity === false ? "false" : "true";
       const forwardedPath =
-        req?.headers?.["x-forwarded-path"] ||
-        req?.req?.headers?.["x-forwarded-path"];
+        obtenerHeaderHttp(req, "x-forwarded-path") ||
+        obtenerHeaderHttp(cds.context, "x-forwarded-path");
       const servicePath = obtenerRutaServicioPublica(forwardedPath);
       return `${servicePath}/Empleados(ID=${empleado.ID},IsActiveEntity=${isActive})/foto_content`;
     }

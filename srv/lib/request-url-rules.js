@@ -31,7 +31,27 @@ function obtenerRutaServicioPublica(forwardedPath, servicePath = "/admin") {
   return `${forwardedPath.slice(0, serviceIndex)}${servicePath}`;
 }
 
+function obtenerHeaderHttp(request, headerName) {
+  const normalizedName = String(headerName || "").toLowerCase();
+  const candidates = [
+    request?.headers,
+    request?.req?.headers,
+    request?._?.req?.headers,
+    request?.http?.req?.headers,
+    request?.context?.http?.req?.headers,
+  ];
+
+  for (const headers of candidates) {
+    if (!headers) continue;
+    const value = headers[normalizedName] ?? headers[headerName];
+    if (typeof value === "string" && value) return value;
+  }
+
+  return undefined;
+}
+
 module.exports = {
   normalizarSideEffectFotoInline,
+  obtenerHeaderHttp,
   obtenerRutaServicioPublica,
 };

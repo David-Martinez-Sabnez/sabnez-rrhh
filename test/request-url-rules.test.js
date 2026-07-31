@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   normalizarSideEffectFotoInline,
+  obtenerHeaderHttp,
   obtenerRutaServicioPublica,
 } = require("../srv/lib/request-url-rules");
 
@@ -48,4 +49,22 @@ test("conserva el prefijo público del approuter para descargar la foto", () => 
   );
   assert.equal(obtenerRutaServicioPublica("/admin/$batch"), "/admin");
   assert.equal(obtenerRutaServicioPublica(undefined), "/admin");
+});
+
+test("recupera el prefijo HTTP desde solicitudes internas de activación", () => {
+  const forwardedPath = "/destino/~version~/admin/$batch";
+  assert.equal(
+    obtenerHeaderHttp(
+      { _: { req: { headers: { "x-forwarded-path": forwardedPath } } } },
+      "x-forwarded-path",
+    ),
+    forwardedPath,
+  );
+  assert.equal(
+    obtenerHeaderHttp(
+      { http: { req: { headers: { "x-forwarded-path": forwardedPath } } } },
+      "x-forwarded-path",
+    ),
+    forwardedPath,
+  );
 });
