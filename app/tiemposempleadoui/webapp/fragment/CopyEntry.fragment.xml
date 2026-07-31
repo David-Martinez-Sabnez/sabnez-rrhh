@@ -1,0 +1,23 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog id="copyDialog" title="Copiar registro a otros días" contentWidth="30rem" stretchOnPhone="true" afterClose=".onCopyDialogAfterClose">
+    <content>
+      <VBox class="sapUiMediumMargin">
+        <ObjectIdentifier title="{view>/copySource/proyectoNombre}" text="{= ${view>/copySource/duracionHoras} + ' h · ' + ${view>/copySource/typeLabel} }" class="sapUiSmallMarginBottom"/>
+        <Text text="Selecciona uno o varios días de esta semana. Se creará un borrador independiente en cada día." wrapping="true" class="sapUiSmallMarginBottom"/>
+        <MessageStrip text="Los soportes no se copian por seguridad. Si son obligatorios, deberás adjuntarlos en cada nuevo registro." type="Information" showIcon="true" visible="{view>/copySource/requiereSoporte}" class="sapUiSmallMarginBottom"/>
+        <Toolbar design="Transparent" class="sapUiTinyMarginBottom">
+          <Text text="Selección rápida"/>
+          <ToolbarSpacer/>
+          <Button text="Lunes a viernes" type="Transparent" press=".onSelectBusinessDays"/>
+          <Button text="Todos" type="Transparent" press=".onSelectAllCopyDays"/>
+          <Button text="Limpiar" type="Transparent" press=".onClearCopyDays"/>
+        </Toolbar>
+        <List id="copyDaysList" items="{view>/copyDays}" mode="MultiSelect" includeItemInSelection="true">
+          <StandardListItem title="{view>fullLabel}" description="{view>currentSummary}" selected="{view>selected}" enabled="{view>enabled}" info="{view>info}" infoState="{view>infoState}"/>
+        </List>
+      </VBox>
+    </content>
+    <beginButton><Button text="Copiar a días seleccionados" type="Emphasized" icon="sap-icon://duplicate" press=".onConfirmCopy"/></beginButton>
+    <endButton><Button text="Cancelar" press=".onCancelCopy"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>
