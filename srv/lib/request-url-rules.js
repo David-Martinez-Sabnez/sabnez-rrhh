@@ -19,4 +19,19 @@ function normalizarSideEffectFotoInline(requestUrl, method = "GET") {
   return `${pathname}?${params.toString()}`;
 }
 
-module.exports = { normalizarSideEffectFotoInline };
+function obtenerRutaServicioPublica(forwardedPath, servicePath = "/admin") {
+  if (typeof forwardedPath !== "string" || !forwardedPath.startsWith("/")) {
+    return servicePath;
+  }
+
+  const marker = `${servicePath}/`;
+  const serviceIndex = forwardedPath.lastIndexOf(marker);
+  if (serviceIndex < 0) return servicePath;
+
+  return `${forwardedPath.slice(0, serviceIndex)}${servicePath}`;
+}
+
+module.exports = {
+  normalizarSideEffectFotoInline,
+  obtenerRutaServicioPublica,
+};

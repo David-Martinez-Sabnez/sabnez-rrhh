@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   normalizarSideEffectFotoInline,
+  obtenerRutaServicioPublica,
 } = require("../srv/lib/request-url-rules");
 
 test("evita confundir el side effect de foto con una descarga de stream", () => {
@@ -36,4 +37,15 @@ test("no altera la ruta directa del stream ni otras consultas", () => {
     normalizarSideEffectFotoInline("/admin/Empleados?$select=ID,foto_content"),
     "/admin/Empleados?$select=ID,foto_content",
   );
+});
+
+test("conserva el prefijo público del approuter para descargar la foto", () => {
+  const forwardedPath =
+    "/5439ce8e.sabnezrrhhservice.sabnezcomempleadosui/~version~/admin/$batch";
+  assert.equal(
+    obtenerRutaServicioPublica(forwardedPath),
+    "/5439ce8e.sabnezrrhhservice.sabnezcomempleadosui/~version~/admin",
+  );
+  assert.equal(obtenerRutaServicioPublica("/admin/$batch"), "/admin");
+  assert.equal(obtenerRutaServicioPublica(undefined), "/admin");
 });

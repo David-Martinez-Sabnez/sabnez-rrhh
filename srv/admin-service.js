@@ -2,6 +2,7 @@ const cds = require("@sap/cds");
 const absenceRules = require("./lib/absence-rules");
 const {
   normalizarSideEffectFotoInline,
+  obtenerRutaServicioPublica,
 } = require("./lib/request-url-rules");
 
 const { SELECT } = cds.ql;
@@ -367,14 +368,18 @@ module.exports = cds.service.impl(function () {
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
 
-  function construirFotoUrl(empleado, fotoMeta) {
+  function construirFotoUrl(empleado, fotoMeta, req) {
     if (
       empleado.ID &&
       fotoMeta?.foto_url &&
       fotoMeta.foto_status === "Clean"
     ) {
       const isActive = empleado.IsActiveEntity === false ? "false" : "true";
-      return `/admin/Empleados(ID=${empleado.ID},IsActiveEntity=${isActive})/foto_content`;
+      const forwardedPath =
+        req?.headers?.["x-forwarded-path"] ||
+        req?.req?.headers?.["x-forwarded-path"];
+      const servicePath = obtenerRutaServicioPublica(forwardedPath);
+      return `${servicePath}/Empleados(ID=${empleado.ID},IsActiveEntity=${isActive})/foto_content`;
     }
 
     return construirAvatarIniciales(empleado);
@@ -3498,7 +3503,7 @@ module.exports = cds.service.impl(function () {
           saldoValera,
           saldoCumpleanios,
           {
-            fotoUrl: construirFotoUrl(empleadoCompleto, empleadoBase),
+            fotoUrl: construirFotoUrl(empleadoCompleto, empleadoBase, req),
           },
         );
       }),
