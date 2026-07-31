@@ -45,6 +45,16 @@ type EstadoPeriodoTiempo : String(25) enum {
   REOPENED            = 'REOPENED';
 };
 
+type EstadoHojaSemanal : String(20) enum {
+  OPEN                = 'OPEN';
+  SUBMITTED           = 'SUBMITTED';
+  UNDER_REVIEW        = 'UNDER_REVIEW';
+  RETURNED            = 'RETURNED';
+  LEADER_APPROVED     = 'LEADER_APPROVED';
+  INTERNALLY_APPROVED = 'INTERNALLY_APPROVED';
+  CLOSED              = 'CLOSED';
+};
+
 type EstadoRegistroTiempo : String(25) enum {
   DRAFT              = 'DRAFT';
   SUBMITTED          = 'SUBMITTED';
@@ -177,9 +187,9 @@ entity ProjectApprovers : cuid, managed {
   active                 : Boolean default true;
 }
 
-@assert.unique: { assignmentCycleStart: [assignment, reportingCycle, periodStart] }
-entity TimePeriods : cuid, managed {
-  assignment             : Association to ProjectAssignments @mandatory;
+@assert.unique: { projectCycleStart: [project, reportingCycle, periodStart] }
+entity BillingPeriods : cuid, managed {
+  project                : Association to Projects @mandatory;
   reportingCycle         : Association to ReportingCycles @mandatory;
   periodStart            : Date @mandatory;
   periodEnd              : Date @mandatory;
@@ -192,11 +202,28 @@ entity TimePeriods : cuid, managed {
   reopenedAt             : Timestamp;
   reopenedByUserID       : String(255);
   reopeningReason        : String(1000);
-  entries                : Composition of many TimeEntries on entries.period = $self;
+  entries                : Association to many TimeEntries on entries.billingPeriod = $self;
+}
+
+@assert.unique: { assignmentWeek: [assignment, weekStart] }
+entity WeeklyTimesheets : cuid, managed {
+  assignment             : Association to ProjectAssignments @mandatory;
+  employee               : Association to Empleados @mandatory;
+  weekStart              : Date @mandatory;
+  weekEnd                : Date @mandatory;
+  status                 : EstadoHojaSemanal default 'OPEN';
+  submittedAt            : Timestamp;
+  leaderApprovedAt       : Timestamp;
+  internallyApprovedAt   : Timestamp;
+  returnedAt             : Timestamp;
+  returnComment          : String(1000);
+  version                : Integer default 1 @odata.etag;
+  entries                : Composition of many TimeEntries on entries.timesheet = $self;
 }
 
 entity TimeEntries : cuid, managed {
-  period                 : Association to TimePeriods @mandatory;
+  timesheet              : Association to WeeklyTimesheets @mandatory;
+  billingPeriod          : Association to BillingPeriods;
   assignment             : Association to ProjectAssignments @mandatory;
   employee               : Association to Empleados @mandatory;
   workDate               : Date @mandatory;
