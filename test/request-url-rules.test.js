@@ -1,0 +1,29 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const test = require("node:test");
+const {
+  normalizarSideEffectFotoInline,
+} = require("../srv/lib/request-url-rules");
+
+test("evita confundir el side effect de foto con una descarga de stream", () => {
+  const original =
+    "/admin/Empleados(ID=ef1a2f6b-4e22-4206-9c13-6bedaf3172d0,IsActiveEntity=false)?$select=DraftMessages,foto_content";
+  const normalized = normalizarSideEffectFotoInline(original);
+
+  assert.equal(
+    new URL(normalized, "http://localhost").searchParams.get("$select"),
+    "foto_content,DraftMessages",
+  );
+  assert.equal(normalized.endsWith("_content"), false);
+});
+
+test("no altera la ruta directa del stream ni otras consultas", () => {
+  const stream =
+    "/admin/Empleados(ID=ef1a2f6b-4e22-4206-9c13-6bedaf3172d0,IsActiveEntity=false)/foto_content";
+  assert.equal(normalizarSideEffectFotoInline(stream), stream);
+  assert.equal(
+    normalizarSideEffectFotoInline("/admin/Empleados?$select=ID,foto_content"),
+    "/admin/Empleados?$select=ID,foto_content",
+  );
+});

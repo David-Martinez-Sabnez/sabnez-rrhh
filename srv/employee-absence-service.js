@@ -22,6 +22,7 @@ const {
   obtenerInicioSemanaISO,
   obtenerOcurrenciaCumpleaniosParaFecha,
   obtenerProximaVentanaCumpleanios,
+  obtenerVentanaCumpleaniosAnioActual,
   parseISODate,
   round2,
   tieneSegundos,
@@ -238,17 +239,36 @@ module.exports = cds.service.impl(function () {
         }),
       ]);
 
+    const ventanaAnioActual = obtenerVentanaCumpleaniosAnioActual(
+      empleado.fechaNacimiento,
+      fechaActual,
+    );
     const proximaVentana = obtenerProximaVentanaCumpleanios(
       empleado.fechaNacimiento,
       fechaActual,
     );
-    const elegibilidadCumpleanios = proximaVentana
+    const elegibilidadCumpleanios = ventanaAnioActual
       ? await evaluarElegibilidadVentanaCumpleanios({
           empleado,
           Contratos,
-          ventana: proximaVentana,
+          ventana: ventanaAnioActual,
         })
       : { elegible: false };
+    const tieneCumpleaniosRegistrado = solicitudes.some((solicitud) => {
+      if (
+        solicitud.tipoAusencia_codigo !== tipoCumpleanios?.codigo ||
+        !ESTADOS_CONSUMO_AUSENCIA.has(solicitud.estadoa_codigo)
+      ) {
+        return false;
+      }
+
+      return (
+        obtenerOcurrenciaCumpleaniosParaFecha(
+          empleado.fechaNacimiento,
+          solicitud.fechaInicio,
+        )?.anioOcurrencia === anioActual
+      );
+    });
 
     const [saldoValera, saldoCumpleanios] = await Promise.all([
       calcularSaldoValera({
@@ -260,8 +280,9 @@ module.exports = cds.service.impl(function () {
       }),
       calcularSaldoCumpleanios({
         empleado,
-        ventana: proximaVentana,
-        tipoCumpleanios: elegibilidadCumpleanios.elegible
+        ventana: ventanaAnioActual,
+        tipoCumpleanios:
+          elegibilidadCumpleanios.elegible || tieneCumpleaniosRegistrado
           ? tipoCumpleanios
           : null,
         TiposAusencia,

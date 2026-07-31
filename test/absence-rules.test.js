@@ -23,6 +23,7 @@ const {
   obtenerInicioSemanaISO,
   obtenerOcurrenciaCumpleaniosParaFecha,
   obtenerProximaVentanaCumpleanios,
+  obtenerVentanaCumpleaniosAnioActual,
   obtenerVentanaCumpleanios,
   tieneSegundos,
 } = require("../srv/lib/absence-rules");
@@ -232,6 +233,18 @@ test("obtiene la ventana de cumpleanios vigente o la siguiente", () => {
     semanaInicio: "2027-07-19",
     semanaFin: "2027-07-25",
   });
+});
+
+test("mantiene el saldo de cumpleaños en el año actual aunque la semana ya haya pasado", () => {
+  assert.deepEqual(
+    obtenerVentanaCumpleaniosAnioActual("1990-01-12", "2026-07-31"),
+    obtenerVentanaCumpleanios("1990-01-12", 2026),
+  );
+  assert.equal(
+    obtenerProximaVentanaCumpleanios("1990-01-12", "2026-07-31")
+      .anioOcurrencia,
+    2027,
+  );
 });
 
 test("considera vigente en enero una ventana iniciada en diciembre", () => {

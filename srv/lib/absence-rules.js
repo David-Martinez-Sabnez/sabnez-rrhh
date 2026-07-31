@@ -324,6 +324,17 @@ function obtenerProximaVentanaCumpleanios(fechaNacimiento, fechaReferencia) {
   return obtenerVentanaCumpleanios(fechaNacimiento, referenceYear + 1);
 }
 
+function obtenerVentanaCumpleaniosAnioActual(
+  fechaNacimiento,
+  fechaReferencia,
+) {
+  if (!isValidISODate(fechaReferencia)) return null;
+  return obtenerVentanaCumpleanios(
+    fechaNacimiento,
+    Number(fechaReferencia.slice(0, 4)),
+  );
+}
+
 function todayInColombia(now = new Date()) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
@@ -360,6 +371,7 @@ module.exports = {
   obtenerInicioSemanaISO,
   obtenerOcurrenciaCumpleaniosParaFecha,
   obtenerProximaVentanaCumpleanios,
+  obtenerVentanaCumpleaniosAnioActual,
   obtenerVentanaCumpleanios,
   parseISODate,
   round2,

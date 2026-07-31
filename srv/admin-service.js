@@ -3178,14 +3178,14 @@ module.exports = cds.service.impl(function () {
           "estado_codigo",
         )
         .where({ ID: empleadoID });
-      ventana = absenceRules.obtenerProximaVentanaCumpleanios(
+      anioBeneficio = Number(today().slice(0, 4));
+      ventana = absenceRules.obtenerVentanaCumpleaniosAnioActual(
         empleado?.fechaNacimiento,
         today(),
       );
-      anioBeneficio = ventana?.anioOcurrencia ?? null;
     }
 
-    if (!anioBeneficio) return resultadoVacio();
+    if (!anioBeneficio || (!ventana && !anio)) return resultadoVacio();
 
     const tipoCumpleanios = await SELECT.one
       .from(TiposAusencia)
@@ -3196,7 +3196,15 @@ module.exports = cds.service.impl(function () {
       });
     if (!tipoCumpleanios) return resultadoVacio(anioBeneficio);
 
-    if (ventana) {
+    const saldo = await calcularSaldoBeneficioHoras(
+      empleadoID,
+      tipoCumpleanios.codigo,
+      anioBeneficio,
+    );
+    const tieneConsumoRegistrado =
+      saldo.horasUtilizadas > 0 || saldo.horasReservadas > 0;
+
+    if (ventana && !tieneConsumoRegistrado) {
       const inicioRelacion =
         empleado?.fechaIngreso > ventana.semanaInicio
           ? empleado.fechaIngreso
@@ -3223,12 +3231,6 @@ module.exports = cds.service.impl(function () {
       );
       if (!contratoCubreAlgunDia) return resultadoVacio(anioBeneficio);
     }
-
-    const saldo = await calcularSaldoBeneficioHoras(
-      empleadoID,
-      tipoCumpleanios.codigo,
-      anioBeneficio,
-    );
 
     return {
       cumpleaniosAnioBeneficio: anioBeneficio,
