@@ -1,5 +1,6 @@
 # Dependencias y artefactos generados
 node_modules/
+.npm-cache/
 gen/
 mta_archives/
 dist/

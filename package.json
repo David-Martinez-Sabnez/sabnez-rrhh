@@ -25,6 +25,7 @@
     "watch": "cds watch",
     "deploy:sqlite": "cds deploy --profile development",
     "reset:sqlite": "node scripts/reset-sqlite.js",
+    "seed:time-demo": "node scripts/seed-time-demo.js",
     "compile": "cds compile db srv app --to csn",
     "env:production": "cds env requires.db --for production",
     "watch-empleadosui": "cds watch --open empleadosui/webapp/index.html?sap-ui-xx-viewCache=false",
