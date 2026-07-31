@@ -9,6 +9,12 @@ const ESTADOS_CONSUMO_AUSENCIA = new Set([
 ]);
 
 const ESTADOS_RESERVA_AUSENCIA = new Set(["SOLICITADA", "APROBADA"]);
+const ESTADOS_UTILIZACION_AUSENCIA = new Set(["FINALIZADA"]);
+
+// Cumpleaños se consume desde la aprobación: no depende de que un proceso
+// posterior cambie el registro a FINALIZADA.
+const ESTADOS_RESERVA_CUMPLEANIOS = new Set(["SOLICITADA"]);
+const ESTADOS_UTILIZACION_CUMPLEANIOS = new Set(["APROBADA", "FINALIZADA"]);
 
 const colombianHolidaysCache = new Map();
 
@@ -336,6 +342,9 @@ function todayInColombia(now = new Date()) {
 module.exports = {
   ESTADOS_CONSUMO_AUSENCIA,
   ESTADOS_RESERVA_AUSENCIA,
+  ESTADOS_RESERVA_CUMPLEANIOS,
+  ESTADOS_UTILIZACION_AUSENCIA,
+  ESTADOS_UTILIZACION_CUMPLEANIOS,
   addDays,
   calcularDiasAnticipacion,
   calcularDiasHabilesColombia,

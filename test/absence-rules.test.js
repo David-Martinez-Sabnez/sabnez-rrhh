@@ -8,6 +8,9 @@ const { join } = require("node:path");
 const {
   ESTADOS_CONSUMO_AUSENCIA,
   ESTADOS_RESERVA_AUSENCIA,
+  ESTADOS_RESERVA_CUMPLEANIOS,
+  ESTADOS_UTILIZACION_AUSENCIA,
+  ESTADOS_UTILIZACION_CUMPLEANIOS,
   calcularDiasAnticipacion,
   calcularDiasHabilesColombia,
   calcularHorasSolicitadas,
@@ -246,6 +249,18 @@ test("solo los estados vigentes reservan y solo los consumidos afectan el saldo"
     ["APROBADA", "SOLICITADA"],
   );
   assert.deepEqual(
+    [...ESTADOS_UTILIZACION_AUSENCIA].sort(),
+    ["FINALIZADA"],
+  );
+  assert.deepEqual(
+    [...ESTADOS_RESERVA_CUMPLEANIOS].sort(),
+    ["SOLICITADA"],
+  );
+  assert.deepEqual(
+    [...ESTADOS_UTILIZACION_CUMPLEANIOS].sort(),
+    ["APROBADA", "FINALIZADA"],
+  );
+  assert.deepEqual(
     [...ESTADOS_CONSUMO_AUSENCIA].sort(),
     ["APROBADA", "FINALIZADA", "SOLICITADA"],
   );
@@ -255,6 +270,7 @@ test("solo los estados vigentes reservan y solo los consumidos afectan el saldo"
     assert.equal(ESTADOS_CONSUMO_AUSENCIA.has(estado), false);
   }
   assert.equal(ESTADOS_RESERVA_AUSENCIA.has("FINALIZADA"), false);
+  assert.equal(ESTADOS_RESERVA_CUMPLEANIOS.has("APROBADA"), false);
 });
 
 test("configura cumpleaños como beneficio distinto de Valera y limitado a cuatro horas", () => {
@@ -291,6 +307,30 @@ test("configura cumpleaños como beneficio distinto de Valera y limitado a cuatr
       permiteCruzarAnio: "false",
       politicaFecha: "SEMANA_CUMPLEANOS",
       requiereContratoVigente: "true",
+    },
+  );
+});
+
+test("configura votación como permiso remunerado de exactamente cuatro horas", () => {
+  const votacion = cargarTiposAusencia().find(({ codigo }) => codigo === "VO");
+
+  assert.ok(votacion, "Debe existir el tipo de ausencia VO");
+  assert.deepEqual(
+    {
+      remunerada: votacion.remunerada,
+      unidadConsumo: votacion.unidadConsumo,
+      controlaSaldoHoras: votacion.controlaSaldoHoras,
+      minimoHorasSolicitud: votacion.minimoHorasSolicitud,
+      maximoHorasDia: votacion.maximoHorasDia,
+      requiereMismoDia: votacion.requiereMismoDia,
+    },
+    {
+      remunerada: "true",
+      unidadConsumo: "HORAS",
+      controlaSaldoHoras: "false",
+      minimoHorasSolicitud: "4",
+      maximoHorasDia: "4",
+      requiereMismoDia: "true",
     },
   );
 });

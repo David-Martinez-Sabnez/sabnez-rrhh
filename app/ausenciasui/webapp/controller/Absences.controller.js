@@ -959,9 +959,11 @@ sap.ui.define(
           "diasVacacionesReservados",
           "diasVacacionesDisponibles",
           "horasValeraAsignadas",
+          "horasValeraUtilizadas",
           "horasValeraReservadas",
           "horasValeraDisponibles",
           "horasCumpleaniosAsignadas",
+          "horasCumpleaniosUtilizadas",
           "horasCumpleaniosReservadas",
           "horasCumpleaniosDisponibles",
         ].forEach(
@@ -975,10 +977,12 @@ sap.ui.define(
         ]);
         oPrepared.valeraDetail = this._text("valeraDetail", [
           oPrepared.horasValeraAsignadas,
+          oPrepared.horasValeraUtilizadas,
           oPrepared.horasValeraReservadas,
         ]);
         oPrepared.birthdayDetail = this._text("birthdayDetail", [
           oPrepared.horasCumpleaniosAsignadas,
+          oPrepared.horasCumpleaniosUtilizadas,
           oPrepared.horasCumpleaniosReservadas,
         ]);
         if (
@@ -1342,9 +1346,11 @@ sap.ui.define(
           diasVacacionesReservados: 0,
           diasVacacionesDisponibles: 0,
           horasValeraAsignadas: 0,
+          horasValeraUtilizadas: 0,
           horasValeraReservadas: 0,
           horasValeraDisponibles: 0,
           horasCumpleaniosAsignadas: 0,
+          horasCumpleaniosUtilizadas: 0,
           horasCumpleaniosReservadas: 0,
           horasCumpleaniosDisponibles: 0,
           proximoCumpleanios: null,

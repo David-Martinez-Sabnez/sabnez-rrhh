@@ -17,9 +17,11 @@ service EmployeeAbsenceService @(
     diasVacacionesReservados    : Decimal(9, 2);
     diasVacacionesDisponibles   : Decimal(9, 2);
     horasValeraAsignadas        : Decimal(7, 2);
+    horasValeraUtilizadas       : Decimal(7, 2);
     horasValeraReservadas       : Decimal(7, 2);
     horasValeraDisponibles      : Decimal(7, 2);
     horasCumpleaniosAsignadas   : Decimal(7, 2);
+    horasCumpleaniosUtilizadas  : Decimal(7, 2);
     horasCumpleaniosReservadas  : Decimal(7, 2);
     horasCumpleaniosDisponibles : Decimal(7, 2);
     proximoCumpleanios          : Date;

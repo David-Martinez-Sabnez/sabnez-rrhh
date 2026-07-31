@@ -33,7 +33,13 @@ module.exports = cds.service.impl(function () {
   const SoportesAusencia =
     cds.entities("sabnez.rrhh")["Ausencias.soportes"];
 
-  const { ESTADOS_CONSUMO_AUSENCIA } = absenceRules;
+  const {
+    ESTADOS_CONSUMO_AUSENCIA,
+    ESTADOS_RESERVA_AUSENCIA,
+    ESTADOS_RESERVA_CUMPLEANIOS,
+    ESTADOS_UTILIZACION_AUSENCIA,
+    ESTADOS_UTILIZACION_CUMPLEANIOS,
+  } = absenceRules;
   const POLITICA_SEMANA_CUMPLEANOS = "SEMANA_CUMPLEANOS";
   const ORIGEN_AUTOSERVICIO = "AUTOSERVICIO";
   const ORIGEN_LEGADO_RRHH = "LEGADO_RRHH";
@@ -1299,7 +1305,6 @@ module.exports = cds.service.impl(function () {
       );
 
       if (
-        !registroLegado &&
         minimoHorasSolicitud > 0 &&
         data.horasSolicitadas < minimoHorasSolicitud
       ) {
@@ -1314,7 +1319,6 @@ module.exports = cds.service.impl(function () {
 
       const maximoHorasSolicitud = Number(absenceType.maximoHorasDia || 0);
       if (
-        !registroLegado &&
         maximoHorasSolicitud > 0 &&
         data.horasSolicitadas > maximoHorasSolicitud
       ) {
@@ -3086,9 +3090,18 @@ module.exports = cds.service.impl(function () {
         ) === anio,
     );
 
+    const esBeneficioCumpleanios =
+      tipoAusencia.politicaFecha === POLITICA_SEMANA_CUMPLEANOS;
+    const estadosUtilizacion = esBeneficioCumpleanios
+      ? ESTADOS_UTILIZACION_CUMPLEANIOS
+      : ESTADOS_UTILIZACION_AUSENCIA;
+    const estadosReserva = esBeneficioCumpleanios
+      ? ESTADOS_RESERVA_CUMPLEANIOS
+      : ESTADOS_RESERVA_AUSENCIA;
+
     const horasUtilizadas = round2(
       ausenciasDelAnio
-        .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+        .filter((ausencia) => estadosUtilizacion.has(ausencia.estadoa_codigo))
         .reduce(
           (total, ausencia) =>
             total + Number(ausencia.horasSolicitadas || 0),
@@ -3098,9 +3111,7 @@ module.exports = cds.service.impl(function () {
 
     const horasReservadas = round2(
       ausenciasDelAnio
-        .filter((ausencia) =>
-          ["SOLICITADA", "APROBADA"].includes(ausencia.estadoa_codigo),
-        )
+        .filter((ausencia) => estadosReserva.has(ausencia.estadoa_codigo))
         .reduce(
           (total, ausencia) =>
             total + Number(ausencia.horasSolicitadas || 0),
@@ -3386,7 +3397,9 @@ module.exports = cds.service.impl(function () {
 
     const diasDisfrutados = round2(
       vacaciones
-        .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+        .filter((ausencia) =>
+          ESTADOS_UTILIZACION_AUSENCIA.has(ausencia.estadoa_codigo),
+        )
         .reduce(
           (total, ausencia) => total + Number(ausencia.diasHabiles || 0),
           0,
@@ -3396,7 +3409,7 @@ module.exports = cds.service.impl(function () {
     const diasReservados = round2(
       vacaciones
         .filter((ausencia) =>
-          ["SOLICITADA", "APROBADA"].includes(ausencia.estadoa_codigo),
+          ESTADOS_RESERVA_AUSENCIA.has(ausencia.estadoa_codigo),
         )
         .reduce(
           (total, ausencia) => total + Number(ausencia.diasHabiles || 0),

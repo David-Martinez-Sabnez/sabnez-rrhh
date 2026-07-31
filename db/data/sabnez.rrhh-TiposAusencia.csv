@@ -8,3 +8,4 @@ PA;Licencia de paternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;tru
 MA;Licencia de maternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
 VE;Valera emocional (horas personales);true;false;false;HORAS;true;40;3;CALENDARIO;;4;4;;true;false;LIBRE;false
 CU;Beneficio de cumpleaños;true;false;false;HORAS;true;4;0;CALENDARIO;4;4;4;1;true;false;SEMANA_CUMPLEANOS;true
+VO;Permiso por votación;true;false;false;HORAS;false;;0;CALENDARIO;4;4;;;true;false;LIBRE;false

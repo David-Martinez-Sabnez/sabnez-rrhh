@@ -7,6 +7,9 @@ const { Readable } = require("node:stream");
 const {
   ESTADOS_CONSUMO_AUSENCIA,
   ESTADOS_RESERVA_AUSENCIA,
+  ESTADOS_RESERVA_CUMPLEANIOS,
+  ESTADOS_UTILIZACION_AUSENCIA,
+  ESTADOS_UTILIZACION_CUMPLEANIOS,
   addDays,
   calcularDiasAnticipacion,
   calcularDiasHabilesColombia,
@@ -281,9 +284,11 @@ module.exports = cds.service.impl(function () {
       diasVacacionesReservados: saldoVacaciones.diasVacacionesReservados,
       diasVacacionesDisponibles: saldoVacaciones.diasVacacionesDisponibles,
       horasValeraAsignadas: saldoValera.horasAsignadas,
+      horasValeraUtilizadas: saldoValera.horasUtilizadas,
       horasValeraReservadas: saldoValera.horasReservadas,
       horasValeraDisponibles: saldoValera.horasDisponibles,
       horasCumpleaniosAsignadas: saldoCumpleanios.horasAsignadas,
+      horasCumpleaniosUtilizadas: saldoCumpleanios.horasUtilizadas,
       horasCumpleaniosReservadas: saldoCumpleanios.horasReservadas,
       horasCumpleaniosDisponibles: saldoCumpleanios.horasDisponibles,
       proximoCumpleanios: proximaVentana?.fechaCumpleanios ?? null,
@@ -1839,7 +1844,9 @@ async function calcularSaldoValera({
   );
   const horasUtilizadas = round2(
     delAnio
-      .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+      .filter((ausencia) =>
+        ESTADOS_UTILIZACION_AUSENCIA.has(ausencia.estadoa_codigo),
+      )
       .reduce(
         (total, ausencia) => total + Number(ausencia.horasSolicitadas || 0),
         0,
@@ -1928,7 +1935,9 @@ async function calcularSaldoCumpleanios({
   const horasAsignadas = round2(Number(tipoCumpleanios.horasAnuales ?? 4));
   const horasUtilizadas = round2(
     efectivasOcurrencia
-      .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+      .filter((ausencia) =>
+        ESTADOS_UTILIZACION_CUMPLEANIOS.has(ausencia.estadoa_codigo),
+      )
       .reduce(
         (total, ausencia) => total + Number(ausencia.horasSolicitadas || 0),
         0,
@@ -1937,7 +1946,7 @@ async function calcularSaldoCumpleanios({
   const horasReservadas = round2(
     efectivasOcurrencia
       .filter((ausencia) =>
-        ESTADOS_RESERVA_AUSENCIA.has(ausencia.estadoa_codigo),
+        ESTADOS_RESERVA_CUMPLEANIOS.has(ausencia.estadoa_codigo),
       )
       .reduce(
         (total, ausencia) => total + Number(ausencia.horasSolicitadas || 0),
@@ -2028,7 +2037,9 @@ async function calcularSaldoVacaciones({
   );
   const diasVacacionesDisfrutados = round2(
     vacaciones
-      .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+      .filter((ausencia) =>
+        ESTADOS_UTILIZACION_AUSENCIA.has(ausencia.estadoa_codigo),
+      )
       .reduce(
         (total, ausencia) => total + Number(ausencia.diasHabiles || 0),
         0,
