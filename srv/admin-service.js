@@ -58,11 +58,13 @@ module.exports = cds.service.impl(function () {
   // `/admin`. Normalizarla aquí evita que @cap-js/attachments confunda un
   // side effect de entidad con una descarga de stream por terminar en
   // `foto_content`.
-  this.before("READ", EmpleadosSrv, (req) => {
+  const normalizarLecturaFotoInline = (req) => {
     if (req.req?.url) {
       req.req.url = normalizarSideEffectFotoInline(req.req.url, "GET");
     }
-  });
+  };
+  this.before("READ", EmpleadosSrv, normalizarLecturaFotoInline);
+  this.before("READ", EmpleadosSrv.drafts, normalizarLecturaFotoInline);
 
   const keyFrom = (req) => {
     if (req.data.ID) return req.data.ID;
