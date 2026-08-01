@@ -12,6 +12,9 @@ sap.ui.define([
       this._csrfToken = null;
       this._selectedFile = null;
       this._copyDialog = null;
+      this._interactionHandler = function () {
+        this.getView().getModel("view")?.setProperty("/success", null);
+      }.bind(this);
       var monday = this._startOfWeek(new Date());
       this.getView().setModel(new JSONModel({
         busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "",
@@ -22,10 +25,23 @@ sap.ui.define([
     },
 
     onExit: function () {
+      var root = this.getView().getDomRef();
+      if (root) {
+        root.removeEventListener("pointerdown", this._interactionHandler, true);
+        root.removeEventListener("keydown", this._interactionHandler, true);
+      }
       if (this._copyDialog) {
         this._copyDialog.destroy();
         this._copyDialog = null;
       }
+    },
+
+    onAfterRendering: function () {
+      var root = this.getView().getDomRef();
+      root.removeEventListener("pointerdown", this._interactionHandler, true);
+      root.removeEventListener("keydown", this._interactionHandler, true);
+      root.addEventListener("pointerdown", this._interactionHandler, true);
+      root.addEventListener("keydown", this._interactionHandler, true);
     },
 
     onRefresh: function () { this._loadWeek(); },
@@ -87,6 +103,7 @@ sap.ui.define([
           currentSummary: day.entryCount ? day.hours + " h registradas en " + day.entryCount + " registro(s)" : "Sin registros todavía",
           selected: false,
           enabled: !isSource,
+          dayKind: day.dayKind,
           info: isSource ? "Día de origen" : "",
           infoState: isSource ? "Information" : (day.dayKind !== "WORKDAY" ? "Warning" : "None"),
           highlight: day.dayKind !== "WORKDAY" ? "Warning" : "None"
@@ -104,8 +121,8 @@ sap.ui.define([
     },
 
     onCancelCopy: function () { this._copyDialog?.close(); },
-    onSelectBusinessDays: function () { this._setCopyDaySelection(function (date) { var day=new Date(date+"T12:00:00").getDay(); return day>=1&&day<=5; }); },
-    onSelectAllCopyDays: function () { this._setCopyDaySelection(function () { return true; }); },
+    onSelectBusinessDays: function () { this._setCopyDaySelection(function (item) { var day=new Date(item.date+"T12:00:00").getDay(); return day>=1&&day<=5&&item.dayKind!=="HOLIDAY"; }); },
+    onSelectAllCopyDays: function () { this._setCopyDaySelection(function (item) { return item.dayKind!=="HOLIDAY"; }); },
     onClearCopyDays: function () { this._setCopyDaySelection(function () { return false; }); },
     onCopyDialogAfterClose: function () {
       var model = this.getView().getModel("view");
@@ -252,7 +269,7 @@ sap.ui.define([
     _json: async function (response) { var payload={}; try { payload=await response.json(); } catch (_) {} if (!response.ok) throw new Error(payload?.error?.message || "No fue posible completar la operación."); return payload.value !== undefined && Object.keys(payload).length===1 ? payload.value : payload; },
     _root: function () { return "/tiempos-empleado/"; },
     _confirmDeleteEntries: function (IDs, message) { if(!IDs.length)return; MessageBox.confirm(message,{emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);try{await this._post("eliminarRegistros",{registros:IDs.map(function(ID){return {ID:ID};})});model.setProperty("/success",IDs.length===1?"Registro eliminado correctamente.":IDs.length+" registros eliminados correctamente.");await this._loadWeek(false);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}}.bind(this)}); },
-    _setCopyDaySelection: function (predicate) { this.byId("copyDaysList").getItems().forEach(function(item){var day=item.getBindingContext("view").getObject();item.setSelected(Boolean(day.enabled&&predicate(day.date)));}); },
+    _setCopyDaySelection: function (predicate) { this.byId("copyDaysList").getItems().forEach(function(item){var day=item.getBindingContext("view").getObject();item.setSelected(Boolean(day.enabled&&predicate(day)));}); },
     _copyEntryToDate: function (source, date) { return this._post("guardarBorrador", { ID:null, asignacionID:source.asignacionID, fecha:date, duracionHoras:Number(source.duracionHoras), tipoSolicitado:source.tipoSolicitado, descripcion:source.descripcion||null, horaInicioAproximada:source.horaInicioAproximada||null, horaFinAproximada:source.horaFinAproximada||null, zonaHoraria:source.zonaHoraria||"America/Bogota", autorizacionPrevia:Boolean(source.autorizacionPrevia), motivoExcepcional:source.motivoExcepcional||null }); },
     _buildWeekDays: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),selected=model.getProperty("/form/fecha"),today=this._iso(new Date()),entries=model.getProperty("/entries")||[],nonWorking=model.getProperty("/nonWorkingDays")||[],days=[]; for(var i=0;i<7;i+=1){var date=this._addDays(start,i),dayEntries=entries.filter(function(entry){return entry.fecha===date;}),hours=dayEntries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0),exception=nonWorking.find(function(item){return item.fecha===date;}),state=date===selected?"selected":date===today?"today":dayEntries.length?"filled":"empty"; days.push({date:date,weekdayLabel:new Intl.DateTimeFormat("es-CO",{weekday:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),dayNumber:String(Number(date.slice(8,10))),monthLabel:new Intl.DateTimeFormat("es-CO",{month:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),fullLabel:this._fullDate(date),hours:hours.toFixed(1),entryCount:dayEntries.length,entryLabel:dayEntries.length?dayEntries.length+" registro(s)":"Sin registros",state:state,dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||""});} model.setProperty("/weekDays",days); model.setProperty("/form/dayFullLabel",this._fullDate(selected)); },
     _moveWeek: function (days) { var model=this.getView().getModel("view"),newStart=this._addDays(model.getProperty("/weekStart"),days); model.setProperty("/weekStart",newStart); model.setProperty("/form",this._emptyForm(newStart)); this._selectedFile=null; this.byId("supportUploader").clear(); this._loadWeek(); },

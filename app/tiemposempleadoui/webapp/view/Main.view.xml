@@ -34,7 +34,7 @@
 
       <Panel headerText="Registrar tiempo" expandable="true" expanded="true" class="entryForm sapUiSmallMarginBottom">
         <content>
-          <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+          <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="2" columnsL="2" columnsM="1" class="timeEntryFields">
             <Label text="Día seleccionado" required="true"/><ObjectIdentifier title="{view>/form/dayFullLabel}"/>
             <Label text="Proyecto" required="true"/><Select selectedKey="{view>/form/asignacionID}" items="{view>/assignments}" change=".onAssignmentChange"><core:Item key="{view>ID}" text="{= ${view>proyectoNombre} + ' · ' + ${view>clienteNombre} }"/></Select>
             <Label text="Horas" required="true"/><StepInput value="{view>/form/duracionHoras}" min="0.5" max="24" step="0.5" displayValuePrecision="1"/>
