@@ -1,71 +1,48 @@
-<mvc:View controllerName="sabnez.com.tiemposadminui.controller.Admin"
-  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+<mvc:View controllerName="sabnez.com.tiemposadminui.controller.Admin" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:u="sap.ui.unified">
   <Page title="Gestión de tiempos" busy="{view>/busy}" class="sapUiContentPadding">
-    <headerContent>
-      <Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh" />
-    </headerContent>
+    <headerContent><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></headerContent>
     <content>
-      <MessageStrip text="{view>/error}" type="Error" showIcon="true" showCloseButton="true"
-        visible="{= !!${view>/error} }" close=".onDismissError" class="sapUiSmallMarginBottom" />
-      <ObjectHeader title="Configuración comercial" intro="Clientes, proyectos y asignaciones"
-        icon="sap-icon://business-objects-experience" class="sapUiSmallMarginBottom" />
-      <IconTabBar id="tabs" expandable="false" select=".onTabSelect">
+      <MessageStrip text="{view>/error}" type="Error" showIcon="true" showCloseButton="true" visible="{= !!${view>/error} }" close=".onDismissError" class="sapUiSmallMarginBottom"/>
+      <OverflowToolbar class="adminAppHeader sapUiSmallMarginBottom">
+        <Avatar src="sap-icon://business-objects-experience" displayShape="Square" displaySize="S" backgroundColor="Accent6"/>
+        <VBox><Title text="Configuración comercial" level="H1"/><Text text="Clientes, contratos, proyectos, asignaciones y tarifas"/></VBox>
+        <ToolbarSpacer/><ObjectStatus text="Administración" state="Information" icon="sap-icon://locked"/>
+      </OverflowToolbar>
+      <IconTabBar id="tabs" expandable="false" applyContentPadding="false">
         <items>
           <IconTabFilter key="clients" text="Clientes" icon="sap-icon://customer" count="{view>/clients/length}">
-            <VBox class="sapUiSmallMarginTop">
-              <Title text="Nuevo cliente" level="H3" />
-              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
-                <Label text="Razón social" required="true"/><Input value="{view>/clientForm/legalName}"/>
-                <Label text="Nombre comercial"/><Input value="{view>/clientForm/tradeName}"/>
-                <Label text="Identificación tributaria" required="true"/><Input value="{view>/clientForm/taxIdentification}"/>
-                <Label text="País"/><Input value="{view>/clientForm/countryCode}" maxLength="2"/>
-                <Label text="Moneda"/><Input value="{view>/clientForm/defaultCurrency}" maxLength="3"/>
-                <Label text="Zona horaria"/><Input value="{view>/clientForm/timeZone}"/>
-              </f:SimpleForm>
-              <Toolbar><ToolbarSpacer/><Button text="Guardar cliente" type="Emphasized" icon="sap-icon://save" press=".onSaveClient"/></Toolbar>
-              <Table items="{view>/clients}" noDataText="No hay clientes registrados" growing="true">
-                <columns><Column><Text text="Cliente"/></Column><Column><Text text="Identificación"/></Column><Column><Text text="Moneda"/></Column><Column><Text text="Estado"/></Column></columns>
-                <items><ColumnListItem><cells><ObjectIdentifier title="{view>tradeName}" text="{view>legalName}"/><Text text="{view>taxIdentification}"/><Text text="{view>defaultCurrency}"/><ObjectStatus text="{view>status}" state="Success"/></cells></ColumnListItem></items>
-              </Table>
-            </VBox>
+            <VBox class="adminSection"><Title text="{= ${view>/clientForm/ID} ? 'Editar cliente' : 'Nuevo cliente' }" level="H3"/><f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+              <Label text="Razón social" required="true"/><Input value="{view>/clientForm/legalName}"/><Label text="Nombre comercial"/><Input value="{view>/clientForm/tradeName}"/><Label text="Identificación tributaria" required="true"/><Input value="{view>/clientForm/taxIdentification}"/><Label text="País"/><Input value="{view>/clientForm/countryCode}" maxLength="2"/><Label text="Moneda"/><Input value="{view>/clientForm/defaultCurrency}" maxLength="3"/><Label text="Zona horaria"/><Input value="{view>/clientForm/timeZone}"/><Label text="Exento de impuestos"/><Switch state="{view>/clientForm/taxExempt}"/>
+            </f:SimpleForm><Toolbar><Button text="Cancelar edición" visible="{= !!${view>/clientForm/ID} }" press=".onCancelClientEdit"/><ToolbarSpacer/><Button text="{= ${view>/clientForm/ID} ? 'Actualizar cliente' : 'Guardar cliente' }" type="Emphasized" icon="sap-icon://save" press=".onSaveClient"/></Toolbar>
+            <Table items="{view>/clients}" noDataText="No hay clientes registrados" growing="true"><columns><Column><Text text="Cliente"/></Column><Column><Text text="Identificación"/></Column><Column><Text text="Moneda"/></Column><Column><Text text="Estado"/></Column><Column hAlign="End"><Text text="Acciones"/></Column></columns><items><ColumnListItem><cells><ObjectIdentifier title="{view>tradeName}" text="{view>legalName}"/><Text text="{view>taxIdentification}"/><Text text="{view>defaultCurrency}"/><ObjectStatus text="{view>status}" state="Success"/><HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEditClient"/><Button icon="sap-icon://delete" tooltip="Eliminar" type="Transparent" press=".onDeleteClient"/></HBox></cells></ColumnListItem></items></Table></VBox>
           </IconTabFilter>
+
+          <IconTabFilter key="contracts" text="Contratos" icon="sap-icon://document-text" count="{view>/contracts/length}">
+            <VBox class="adminSection"><Title text="{= ${view>/contractForm/ID} ? 'Editar contrato' : 'Nuevo contrato' }" level="H3"/><f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+              <Label text="Cliente" required="true"/><Select selectedKey="{view>/contractForm/clientID}" items="{view>/clients}"><core:Item key="{view>ID}" text="{view>tradeName}"/></Select><Label text="Referencia" required="true"/><Input value="{view>/contractForm/reference}"/><Label text="Descripción"/><Input value="{view>/contractForm/description}"/><Label text="Inicio" required="true"/><DatePicker value="{view>/contractForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Fin"/><DatePicker value="{view>/contractForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Moneda"/><Input value="{view>/contractForm/currency}" maxLength="3"/><Label text="Valor total"/><Input value="{view>/contractForm/totalValue}" type="Number"/><Label text="Aviso renovación (días)"/><StepInput value="{view>/contractForm/renewalNoticeDays}" min="0" step="1"/><Label text="Documento firmado"/><u:FileUploader id="contractUploader" change=".onContractFileSelected" sameFilenameAllowed="true" buttonText="Seleccionar" placeholder="PDF o documento · máximo 10 MB"/>
+            </f:SimpleForm><Toolbar><Button text="Cancelar edición" visible="{= !!${view>/contractForm/ID} }" press=".onCancelContractEdit"/><ToolbarSpacer/><Button text="{= ${view>/contractForm/ID} ? 'Actualizar contrato' : 'Guardar contrato' }" type="Emphasized" icon="sap-icon://save" press=".onSaveContract"/></Toolbar>
+            <Table items="{view>/contracts}" noDataText="No hay contratos" growing="true"><columns><Column><Text text="Contrato"/></Column><Column><Text text="Cliente"/></Column><Column><Text text="Vigencia"/></Column><Column><Text text="Documento"/></Column><Column hAlign="End"><Text text="Acciones"/></Column></columns><items><ColumnListItem><cells><ObjectIdentifier title="{view>reference}" text="{view>description}"/><Text text="{view>clientName}"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Vigente') }"/><Button text="{= ${view>documentCount} + ' archivo(s)' }" icon="sap-icon://attachment" type="Transparent" press=".onDownloadContract" enabled="{= ${view>documentCount} > 0 }"/><HBox justifyContent="End"><Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditContract"/><Button icon="sap-icon://delete" type="Transparent" tooltip="Eliminar" press=".onDeleteContract"/></HBox></cells></ColumnListItem></items></Table></VBox>
+          </IconTabFilter>
+
           <IconTabFilter key="projects" text="Proyectos" icon="sap-icon://project-definition-triangle-2" count="{view>/projects/length}">
-            <VBox class="sapUiSmallMarginTop">
-              <Title text="Nuevo proyecto" level="H3" />
-              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
-                <Label text="Cliente" required="true"/><Select selectedKey="{view>/projectForm/clientID}" items="{view>/clients}"><core:Item key="{view>ID}" text="{view>tradeName}"/></Select>
-                <Label text="Código" required="true"/><Input value="{view>/projectForm/code}"/>
-                <Label text="Nombre" required="true"/><Input value="{view>/projectForm/name}"/>
-                <Label text="Inicio" required="true"/><DatePicker value="{view>/projectForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
-                <Label text="Fin"/><DatePicker value="{view>/projectForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
-                <Label text="Modalidad"/><Select selectedKey="{view>/projectForm/modality}"><core:Item key="FULL_TIME" text="Full time"/><core:Item key="HOURLY" text="Por horas"/><core:Item key="MIXED" text="Mixto"/><core:Item key="INTERNAL" text="Interno"/></Select>
-                <Label text="Descripción obligatoria"/><Switch state="{view>/projectForm/requiresDescription}"/>
-                <Label text="Soporte obligatorio"/><Switch state="{view>/projectForm/requiresEvidence}"/>
-              </f:SimpleForm>
-              <Toolbar><ToolbarSpacer/><Button text="Guardar proyecto" type="Emphasized" icon="sap-icon://save" press=".onSaveProject"/></Toolbar>
-              <Table items="{view>/projects}" noDataText="No hay proyectos registrados" growing="true">
-                <columns><Column><Text text="Proyecto"/></Column><Column><Text text="Cliente"/></Column><Column><Text text="Modalidad"/></Column><Column><Text text="Vigencia"/></Column></columns>
-                <items><ColumnListItem><cells><ObjectIdentifier title="{view>name}" text="{view>code}"/><Text text="{view>clientName}"/><ObjectStatus text="{view>modality}" state="Information"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Sin fecha fin') }"/></cells></ColumnListItem></items>
-              </Table>
-            </VBox>
+            <VBox class="adminSection"><Title text="{= ${view>/projectForm/ID} ? 'Editar proyecto' : 'Nuevo proyecto' }" level="H3"/><f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+              <Label text="Cliente" required="true"/><Select selectedKey="{view>/projectForm/clientID}" items="{view>/clients}" change=".onProjectClientChange"><core:Item key="{view>ID}" text="{view>tradeName}"/></Select><Label text="Contrato asociado"/><Select selectedKey="{view>/projectForm/contractID}" items="{view>/contractsForProject}" forceSelection="false"><core:Item key="{view>ID}" text="{view>reference}"/></Select><Label text="Código" required="true"/><Input value="{view>/projectForm/code}"/><Label text="Nombre" required="true"/><Input value="{view>/projectForm/name}"/><Label text="Descripción"/><Input value="{view>/projectForm/description}"/><Label text="Inicio" required="true"/><DatePicker value="{view>/projectForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Fin"/><DatePicker value="{view>/projectForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Modalidad"/><Select selectedKey="{view>/projectForm/modality}"><core:Item key="FULL_TIME" text="Full time"/><core:Item key="HOURLY" text="Por horas"/><core:Item key="MIXED" text="Mixto"/><core:Item key="INTERNAL" text="Interno"/></Select><Label text="Descripción obligatoria"/><Switch state="{view>/projectForm/requiresDescription}"/><Label text="Soporte obligatorio"/><Switch state="{view>/projectForm/requiresEvidence}"/><Label text="Aprobación del cliente"/><Switch state="{view>/projectForm/requiresClientApproval}"/>
+            </f:SimpleForm><Toolbar><Button text="Cancelar edición" visible="{= !!${view>/projectForm/ID} }" press=".onCancelProjectEdit"/><ToolbarSpacer/><Button text="{= ${view>/projectForm/ID} ? 'Actualizar proyecto' : 'Guardar proyecto' }" type="Emphasized" icon="sap-icon://save" press=".onSaveProject"/></Toolbar>
+            <Table items="{view>/projects}" noDataText="No hay proyectos" growing="true"><columns><Column><Text text="Proyecto"/></Column><Column><Text text="Cliente / contrato"/></Column><Column><Text text="Modalidad"/></Column><Column><Text text="Vigencia"/></Column><Column hAlign="End"><Text text="Acciones"/></Column></columns><items><ColumnListItem><cells><ObjectIdentifier title="{view>name}" text="{view>code}"/><ObjectIdentifier title="{view>clientName}" text="{view>contractReference}"/><ObjectStatus text="{view>modality}" state="Information"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Sin fecha fin') }"/><HBox justifyContent="End"><Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditProject"/><Button icon="sap-icon://delete" type="Transparent" tooltip="Eliminar" press=".onDeleteProject"/></HBox></cells></ColumnListItem></items></Table></VBox>
           </IconTabFilter>
+
           <IconTabFilter key="assignments" text="Asignaciones" icon="sap-icon://employee" count="{view>/assignments/length}">
-            <VBox class="sapUiSmallMarginTop">
-              <Title text="Nueva asignación" level="H3" />
-              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
-                <Label text="Proyecto" required="true"/><Select selectedKey="{view>/assignmentForm/projectID}" items="{view>/projects}"><core:Item key="{view>ID}" text="{view>name}"/></Select>
-                <Label text="Empleado" required="true"/><Select selectedKey="{view>/assignmentForm/employeeID}" items="{view>/employees}"><core:Item key="{view>ID}" text="{view>nombreCompleto}"/></Select>
-                <Label text="Rol en proyecto"/><Input value="{view>/assignmentForm/role}"/>
-                <Label text="Inicio" required="true"/><DatePicker value="{view>/assignmentForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
-                <Label text="Fin"/><DatePicker value="{view>/assignmentForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
-                <Label text="Asignación principal"/><Switch state="{view>/assignmentForm/isPrimary}"/>
-              </f:SimpleForm>
-              <Toolbar><ToolbarSpacer/><Button text="Guardar asignación" type="Emphasized" icon="sap-icon://save" press=".onSaveAssignment"/></Toolbar>
-              <Table items="{view>/assignments}" noDataText="No hay asignaciones registradas" growing="true">
-                <columns><Column><Text text="Empleado"/></Column><Column><Text text="Proyecto"/></Column><Column><Text text="Rol"/></Column><Column><Text text="Vigencia"/></Column></columns>
-                <items><ColumnListItem><cells><Text text="{view>employeeName}"/><Text text="{view>projectName}"/><Text text="{view>role}"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Vigente') }"/></cells></ColumnListItem></items>
-              </Table>
-            </VBox>
+            <VBox class="adminSection"><Title text="{= ${view>/assignmentForm/ID} ? 'Editar asignación' : 'Nueva asignación' }" level="H3"/><f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+              <Label text="Proyecto" required="true"/><Select selectedKey="{view>/assignmentForm/projectID}" items="{view>/projects}"><core:Item key="{view>ID}" text="{view>name}"/></Select><Label text="Empleado" required="true"/><Select selectedKey="{view>/assignmentForm/employeeID}" items="{view>/employees}"><core:Item key="{view>ID}" text="{view>nombreCompleto}"/></Select><Label text="Rol"/><Input value="{view>/assignmentForm/role}"/><Label text="Inicio" required="true"/><DatePicker value="{view>/assignmentForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Fin"/><DatePicker value="{view>/assignmentForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Asignación comercial (%)"/><StepInput value="{view>/assignmentForm/commercialAllocation}" min="0" max="100" step="5"/><Label text="Principal"/><Switch state="{view>/assignmentForm/isPrimary}"/>
+            </f:SimpleForm><Toolbar><Button text="Cancelar edición" visible="{= !!${view>/assignmentForm/ID} }" press=".onCancelAssignmentEdit"/><ToolbarSpacer/><Button text="{= ${view>/assignmentForm/ID} ? 'Actualizar asignación' : 'Guardar asignación' }" type="Emphasized" icon="sap-icon://save" press=".onSaveAssignment"/></Toolbar>
+            <Table items="{view>/assignments}" noDataText="No hay asignaciones" growing="true"><columns><Column><Text text="Empleado"/></Column><Column><Text text="Proyecto"/></Column><Column><Text text="Rol"/></Column><Column><Text text="Vigencia"/></Column><Column hAlign="End"><Text text="Acciones"/></Column></columns><items><ColumnListItem><cells><Text text="{view>employeeName}"/><Text text="{view>projectName}"/><Text text="{view>role}"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Vigente') }"/><HBox justifyContent="End"><Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditAssignment"/><Button icon="sap-icon://delete" type="Transparent" tooltip="Eliminar" press=".onDeleteAssignment"/></HBox></cells></ColumnListItem></items></Table></VBox>
+          </IconTabFilter>
+
+          <IconTabFilter key="rates" text="Tarifas" icon="sap-icon://money-bills" count="{view>/rates/length}" visible="{view>/canSeeRates}">
+            <VBox class="adminSection"><Title text="{= ${view>/rateForm/ID} ? 'Editar tarifa' : 'Nueva tarifa' }" level="H3"/><MessageStrip text="Las tarifas y costos internos solo son visibles para usuarios financieros." type="Information" showIcon="true"/><f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
+              <Label text="Asignación" required="true"/><Select selectedKey="{view>/rateForm/assignmentID}" items="{view>/assignments}"><core:Item key="{view>ID}" text="{= ${view>employeeName} + ' · ' + ${view>projectName} }"/></Select><Label text="Inicio" required="true"/><DatePicker value="{view>/rateForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Fin"/><DatePicker value="{view>/rateForm/validTo}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/><Label text="Moneda"/><Input value="{view>/rateForm/currency}" maxLength="3"/><Label text="Venta mensual"/><Input value="{view>/rateForm/monthlySaleRate}" type="Number"/><Label text="Venta hora regular"/><Input value="{view>/rateForm/regularSaleHourlyRate}" type="Number"/><Label text="Venta hora extra"/><Input value="{view>/rateForm/overtimeSaleHourlyRate}" type="Number"/><Label text="Costo interno mensual"/><Input value="{view>/rateForm/internalMonthlyCost}" type="Number"/><Label text="Costo interno por hora"/><Input value="{view>/rateForm/internalHourlyCost}" type="Number"/>
+            </f:SimpleForm><Toolbar><Button text="Cancelar edición" visible="{= !!${view>/rateForm/ID} }" press=".onCancelRateEdit"/><ToolbarSpacer/><Button text="{= ${view>/rateForm/ID} ? 'Actualizar tarifa' : 'Guardar tarifa' }" type="Emphasized" icon="sap-icon://save" press=".onSaveRate"/></Toolbar>
+            <Table items="{view>/rates}" noDataText="No hay tarifas" growing="true"><columns><Column><Text text="Empleado / proyecto"/></Column><Column><Text text="Vigencia"/></Column><Column hAlign="End"><Text text="Venta mensual"/></Column><Column hAlign="End"><Text text="Hora regular"/></Column><Column hAlign="End"><Text text="Hora extra"/></Column><Column hAlign="End"><Text text="Acciones"/></Column></columns><items><ColumnListItem><cells><ObjectIdentifier title="{view>employeeName}" text="{view>projectName}"/><Text text="{= ${view>validFrom} + ' — ' + (${view>validTo} || 'Vigente') }"/><ObjectNumber number="{view>monthlySaleRate}" unit="{view>currency}"/><ObjectNumber number="{view>regularSaleHourlyRate}" unit="{view>currency}"/><ObjectNumber number="{view>overtimeSaleHourlyRate}" unit="{view>currency}"/><HBox justifyContent="End"><Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditRate"/><Button icon="sap-icon://delete" type="Transparent" tooltip="Eliminar" press=".onDeleteRate"/></HBox></cells></ColumnListItem></items></Table></VBox>
           </IconTabFilter>
         </items>
       </IconTabBar>

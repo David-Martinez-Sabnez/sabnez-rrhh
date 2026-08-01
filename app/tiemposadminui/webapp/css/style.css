@@ -12,6 +12,9 @@ body,
 }
 
 .sapMPageBgStandard { background: #f5f7fa; }
-.sapMObjectHeader { background: linear-gradient(120deg, #eff6ff, #ffffff); border: 1px solid #d9e6f5; border-radius: .75rem; }
+.adminAppHeader { min-height: 4.5rem; padding: .55rem 1rem; background: #fff; border: 1px solid #dce3e8; border-radius: .5rem; box-shadow: 0 1px 4px rgba(34,53,72,.08); }
+.adminAppHeader .sapMTitle { font-size: 1.35rem; }
+.adminAppHeader .sapMText { color: #556b7d; }
+.adminSection { padding: 1rem; }
 .sapMITBContent { border-radius: 0 0 .75rem .75rem; }
 .sapUiFormResGrid { background: #fff; border-radius: .5rem; }
