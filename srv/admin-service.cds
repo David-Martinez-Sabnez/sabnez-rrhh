@@ -43,6 +43,11 @@ service AdminService @(
       virtual horasValeraDisponibles    : Decimal(7, 2),
       virtual vencimientoValera         : Date,
       virtual proximaRecargaValera      : Date,
+      virtual cumpleaniosAnioBeneficio  : Integer,
+      virtual horasCumpleaniosAsignadas : Decimal(7, 2),
+      virtual horasCumpleaniosUtilizadas: Decimal(7, 2),
+      virtual horasCumpleaniosReservadas: Decimal(7, 2),
+      virtual horasCumpleaniosDisponibles: Decimal(7, 2),
       virtual fotoUrl                   : String(1024)
     };
 

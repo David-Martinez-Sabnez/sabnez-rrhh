@@ -16,18 +16,21 @@
   "devDependencies": {
     "@cap-js/sqlite": "^2.4.0",
     "@sap/cds-dk": "^10",
-    "rimraf": "^5.0.5",
-    "mbt": "^1.2.29"
+    "mbt": "^1.2.29",
+    "rimraf": "^5.0.5"
   },
   "scripts": {
+    "test": "node --test test/*.test.js",
     "start": "cds-serve",
     "watch": "cds watch",
     "deploy:sqlite": "cds deploy --profile development",
     "reset:sqlite": "node scripts/reset-sqlite.js",
-    "compile": "cdsc toCsn db/schema.cds srv/admin-service.cds srv/admin-annotations.cds",
+    "compile": "cds compile db srv app --to csn",
     "env:production": "cds env requires.db --for production",
     "watch-empleadosui": "cds watch --open empleadosui/webapp/index.html?sap-ui-xx-viewCache=false",
     "watch-homeofficeui": "cds watch --open homeofficeui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-ausenciasui": "cds watch --open ausenciasui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-aprobacionesui": "cds watch --open aprobacionesui/webapp/index.html?sap-ui-xx-viewCache=false",
     "undeploy": "cf undeploy sabnez-rrhh --delete-services --delete-service-keys --delete-service-brokers",
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
     "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
@@ -38,8 +41,18 @@
       "db": {
         "[development]": {
           "kind": "sqlite",
+          "schema_evolution": "auto",
           "credentials": {
             "url": "db.sqlite"
+          },
+          "data": [
+            "db/data"
+          ]
+        },
+        "[test]": {
+          "kind": "sqlite",
+          "credentials": {
+            "url": ":memory:"
           },
           "data": [
             "db/data",
@@ -68,13 +81,53 @@
         }
       },
       "auth": {
+        "[test]": {
+          "kind": "mocked",
+          "users": {
+            "legacy.validation@sabnez.test": {
+              "password": "test",
+              "roles": [
+                "authenticated-user",
+                "Editor",
+                "Admin"
+              ],
+              "attr": {
+                "email": "legacy.validation@sabnez.test"
+              }
+            },
+            "david.martinez@sabnez.com": {
+              "password": "test",
+              "roles": [
+                "authenticated-user",
+                "Editor",
+                "Admin"
+              ],
+              "attr": {
+                "email": "david.martinez@sabnez.com"
+              }
+            },
+            "camila.sabogal@sabnez.com": {
+              "password": "test",
+              "roles": [
+                "authenticated-user",
+                "ApprovalAdmin"
+              ],
+              "attr": {
+                "email": "camila.sabogal@sabnez.com"
+              }
+            },
+            "*": false
+          }
+        },
         "[development]": {
           "kind": "mocked",
           "users": {
             "david.martinez@sabnez.com": {
               "password": "homeoffice",
               "roles": [
-                "authenticated-user"
+                "authenticated-user",
+                "Editor",
+                "Admin"
               ],
               "attr": {
                 "email": "david.martinez@sabnez.com"
@@ -133,7 +186,8 @@
         }
       },
       "attachments": {
-        "kind": "db"
+        "kind": "db",
+        "scan": true
       },
       "destinations": true,
       "html5-repo": true,
@@ -146,6 +200,8 @@
   "sapux": [
     "app/empleadosui",
     "app/homeofficeui",
-    "app/homeofficeadminui"
+    "app/homeofficeadminui",
+    "app/ausenciasui",
+    "app/aprobacionesui"
   ]
 }

@@ -1,0 +1,53 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog
+    id="forwardDialog"
+    title="{i18n>forwardTask}"
+    contentWidth="34rem"
+    horizontalScrolling="false"
+    verticalScrolling="false"
+    busy="{view>/actionBusy}"
+    busyIndicatorDelay="0"
+    afterClose=".onForwardDialogAfterClose">
+    <content>
+      <VBox id="forwardDialogContent" width="100%" class="approvalDialogContent">
+        <MessageStrip
+          id="forwardHelp"
+          text="{i18n>forwardHelp}"
+          type="Information"
+          showIcon="true"
+          showCloseButton="false"
+          class="sapUiSmallMarginBottom" />
+        <Label id="forwardRecipientLabel" text="{i18n>forwardRecipient}" required="true" labelFor="forwardRecipientSelect" />
+        <ComboBox
+          id="forwardRecipientSelect"
+          selectedKey="{view>/forwardForm/recipientID}"
+          placeholder="{i18n>selectEmployee}"
+          width="100%"
+          showSecondaryValues="true"
+          items="{view>/forwardForm/candidates}">
+          <core:ListItem id="forwardRecipientItem" key="{view>ID}" text="{view>name}" additionalText="{view>email}" />
+        </ComboBox>
+        <Label id="forwardReasonLabel" text="{i18n>forwardReason}" required="true" labelFor="forwardReasonTextArea" class="sapUiSmallMarginTop" />
+        <TextArea
+          id="forwardReasonTextArea"
+          value="{view>/forwardForm/reason}"
+          placeholder="{i18n>forwardReasonPlaceholder}"
+          rows="4"
+          maxLength="500"
+          width="100%" />
+      </VBox>
+    </content>
+    <beginButton>
+      <Button
+        id="confirmForwardButton"
+        text="{i18n>forward}"
+        icon="sap-icon://forward"
+        type="Emphasized"
+        enabled="{= !!${view>/forwardForm/recipientID} &amp;&amp; !!${view>/forwardForm/reason} &amp;&amp; !${view>/actionBusy} }"
+        press=".onConfirmForward" />
+    </beginButton>
+    <endButton>
+      <Button id="cancelForwardButton" text="{i18n>cancel}" press=".onCloseForwardDialog" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

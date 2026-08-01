@@ -1,0 +1,282 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.ui.layout.form"
+  xmlns:u="sap.ui.unified">
+  <Dialog
+    id="requestDialog"
+    title="{form>/dialogTitle}"
+    contentWidth="46rem"
+    contentHeight="auto"
+    horizontalScrolling="false"
+    verticalScrolling="true"
+    draggable="true"
+    resizable="true"
+    busy="{form>/busy}"
+    busyIndicatorDelay="0"
+    afterClose=".onRequestDialogAfterClose">
+
+    <content>
+      <VBox
+        id="requestFormContent"
+        width="100%"
+        class="sapUiResponsiveContentPadding absenceDialogContent">
+        <MessageStrip
+          id="typeRuleStrip"
+          text="{form>/ruleText}"
+          type="Information"
+          showIcon="true"
+          showCloseButton="false"
+          visible="{= !!${form>/ruleText} }"
+          class="sapUiSmallMarginBottom" />
+
+        <f:SimpleForm
+          id="requestSimpleForm"
+          editable="true"
+          layout="ResponsiveGridLayout"
+          labelSpanXL="4"
+          labelSpanL="4"
+          labelSpanM="4"
+          labelSpanS="12"
+          adjustLabelSpan="false"
+          emptySpanXL="0"
+          emptySpanL="0"
+          emptySpanM="0"
+          emptySpanS="0"
+          columnsXL="1"
+          columnsL="1"
+          columnsM="1"
+          singleContainerFullSize="false">
+
+          <core:Title id="requestDataTitle" text="{i18n>requestData}" />
+
+          <Label id="absenceTypeLabel" text="{i18n>absenceType}" required="true"
+            labelFor="absenceTypeSelect" />
+          <Select
+            id="absenceTypeSelect"
+            width="100%"
+            forceSelection="false"
+            selectedKey="{form>/tipoAusenciaCodigo}"
+            change=".onAbsenceTypeChange"
+            items="{view>/absenceTypes}">
+            <core:Item id="absenceTypeItem" key="{view>codigo}" text="{view>descripcion}" />
+          </Select>
+
+          <Label
+            id="startDateLabel"
+            text="{= ${form>/isHours} ? ${i18n>absenceDate} : ${i18n>startDate} }"
+            required="true"
+            labelFor="startDatePicker" />
+          <DatePicker
+            id="startDatePicker"
+            width="100%"
+            value="{form>/fechaInicio}"
+            valueFormat="yyyy-MM-dd"
+            displayFormat="long"
+            change=".onStartDateChange" />
+
+          <Label
+            id="endDateLabel"
+            text="{i18n>endDate}"
+            required="true"
+            visible="{= !${form>/isHours} }"
+            labelFor="endDatePicker" />
+          <DatePicker
+            id="endDatePicker"
+            width="100%"
+            value="{form>/fechaFin}"
+            valueFormat="yyyy-MM-dd"
+            displayFormat="long"
+            visible="{= !${form>/isHours} }" />
+
+          <Label
+            id="startTimeLabel"
+            text="{i18n>startTime}"
+            required="true"
+            visible="{form>/isHours}"
+            labelFor="startTimePicker" />
+          <TimePicker
+            id="startTimePicker"
+            width="100%"
+            value="{form>/horaInicio}"
+            valueFormat="HH:mm:ss"
+            displayFormat="short"
+            minutesStep="15"
+            visible="{form>/isHours}" />
+
+          <Label
+            id="endTimeLabel"
+            text="{i18n>endTime}"
+            required="true"
+            visible="{form>/isHours}"
+            labelFor="endTimePicker" />
+          <TimePicker
+            id="endTimePicker"
+            width="100%"
+            value="{form>/horaFin}"
+            valueFormat="HH:mm:ss"
+            displayFormat="short"
+            minutesStep="15"
+            visible="{form>/isHours}" />
+
+          <Label id="reasonLabel" text="{i18n>reason}" labelFor="reasonTextArea" />
+          <TextArea
+            id="reasonTextArea"
+            value="{form>/motivo}"
+            placeholder="{i18n>reasonPlaceholder}"
+            rows="3"
+            maxLength="500"
+            growing="true"
+            growingMaxLines="6"
+            width="100%" />
+        </f:SimpleForm>
+
+        <Title
+          id="supportTitle"
+          text="{i18n>supportingDocuments}"
+          level="H4"
+          class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
+
+        <Text id="supportRulesText" text="{i18n>supportRules}" wrapping="true" />
+        <ObjectStatus
+          id="supportRequirementStatus"
+          text="{form>/supportRequirementText}"
+          state="{= ${form>/requiereSoporte} ? 'Warning' : 'None' }"
+          icon="{= ${form>/requiereSoporte} ? 'sap-icon://message-warning' : 'sap-icon://hint' }"
+          class="sapUiTinyMarginTop sapUiSmallMarginBottom" />
+
+        <u:FileUploader
+          id="supportFileUploader"
+          name="supportFiles"
+          buttonText="{i18n>chooseFiles}"
+          buttonOnly="true"
+          multiple="true"
+          uploadOnChange="false"
+          sameFilenameAllowed="false"
+          fileType="pdf,png,jpg,jpeg"
+          mimeType="application/pdf,image/png,image/jpeg"
+          maximumFileSize="10"
+          change=".onFilesSelected"
+          fileSizeExceed=".onFileSizeExceed"
+          typeMissmatch=".onFileTypeMismatch" />
+
+        <MessageStrip
+          id="attachmentErrorStrip"
+          text="{form>/attachmentError}"
+          type="Error"
+          showIcon="true"
+          showCloseButton="false"
+          visible="{= !!${form>/attachmentError} }"
+          class="sapUiSmallMarginTop" />
+
+        <VBox
+          id="existingAttachmentsBox"
+          visible="{= ${form>/existingAttachments}.length > 0 }"
+          class="sapUiSmallMarginTop">
+          <Title id="existingAttachmentsTitle" text="{form>/existingAttachmentLabel}" level="H5" />
+          <List
+            id="existingAttachmentsList"
+            items="{form>/existingAttachments}"
+            showSeparators="Inner"
+            class="absenceAttachmentList">
+            <items>
+              <CustomListItem id="existingAttachmentItem">
+                <HBox id="existingAttachmentRow" width="100%" alignItems="Center">
+                  <core:Icon
+                    id="existingAttachmentIcon"
+                    src="{form>icon}"
+                    decorative="true"
+                    class="sapUiSmallMarginEnd" />
+                  <VBox id="existingAttachmentInfo" class="absenceAttachmentInfo">
+                    <layoutData>
+                      <FlexItemData id="existingAttachmentFlexData" growFactor="1" shrinkFactor="1" />
+                    </layoutData>
+                    <Link
+                      id="existingAttachmentName"
+                      text="{form>filename}"
+                      href="{form>downloadUrl}"
+                      target="_blank"
+                      wrapping="true" />
+                    <Text id="existingAttachmentType" text="{form>mimeType}"
+                      class="absenceAttachmentMeta" />
+                    <ObjectStatus
+                      id="existingAttachmentStatus"
+                      text="{form>statusText}"
+                      state="{form>statusState}" />
+                  </VBox>
+                  <Button
+                    id="deleteExistingAttachmentButton"
+                    icon="sap-icon://delete"
+                    type="Transparent"
+                    tooltip="{i18n>removeFile}"
+                    enabled="{= !${form>/busy} }"
+                    press=".onDeleteExistingAttachment" />
+                </HBox>
+              </CustomListItem>
+            </items>
+          </List>
+        </VBox>
+
+        <VBox
+          id="pendingAttachmentsBox"
+          visible="{form>/hasPendingAttachments}"
+          class="sapUiSmallMarginTop">
+          <Title id="pendingAttachmentsTitle" text="{i18n>pendingFiles}" level="H5" />
+          <List
+            id="pendingAttachmentsList"
+            items="{form>/pendingAttachments}"
+            showSeparators="Inner"
+            class="absenceAttachmentList">
+            <items>
+              <CustomListItem id="pendingAttachmentItem">
+                <HBox id="pendingAttachmentRow" width="100%" alignItems="Center">
+                  <core:Icon
+                    id="pendingAttachmentIcon"
+                    src="{form>icon}"
+                    decorative="true"
+                    class="sapUiSmallMarginEnd" />
+                  <VBox id="pendingAttachmentInfo" class="absenceAttachmentInfo">
+                    <layoutData>
+                      <FlexItemData id="pendingAttachmentFlexData" growFactor="1" shrinkFactor="1" />
+                    </layoutData>
+                    <Text id="pendingAttachmentName" text="{form>filename}" wrapping="true" />
+                    <Text id="pendingAttachmentSize" text="{form>sizeText}"
+                      class="absenceAttachmentMeta" />
+                  </VBox>
+                  <Button
+                    id="removePendingAttachmentButton"
+                    icon="sap-icon://decline"
+                    type="Transparent"
+                    tooltip="{i18n>removeFile}"
+                    enabled="{= !${form>/busy} }"
+                    press=".onRemovePendingAttachment" />
+                </HBox>
+              </CustomListItem>
+            </items>
+          </List>
+        </VBox>
+      </VBox>
+    </content>
+
+    <buttons>
+      <Button
+        id="saveAndSubmitButton"
+        text="{i18n>saveAndSubmit}"
+        type="Emphasized"
+        icon="sap-icon://paper-plane"
+        enabled="{= !${form>/busy} }"
+        press=".onSaveAndSubmit" />
+      <Button
+        id="saveDraftButton"
+        text="{i18n>saveDraft}"
+        icon="sap-icon://save"
+        enabled="{= !${form>/busy} }"
+        press=".onSaveDraft" />
+      <Button
+        id="closeRequestDialogButton"
+        text="{i18n>close}"
+        enabled="{= !${form>/busy} }"
+        press=".onCloseRequestDialog" />
+    </buttons>
+  </Dialog>
+</core:FragmentDefinition>

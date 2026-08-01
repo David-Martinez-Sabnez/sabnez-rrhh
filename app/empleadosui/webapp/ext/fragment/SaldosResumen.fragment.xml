@@ -168,5 +168,59 @@
             </FlexBox>
         </VBox>
 
+        <VBox class="sabnezBalanceBlock sabnezBalanceBlockSpacing">
+            <HBox
+                alignItems="Center"
+                justifyContent="SpaceBetween"
+                wrap="Wrap"
+                class="sabnezBalanceHeader">
+                <VBox>
+                    <Title text="{i18n>birthdayBenefitTitle}" level="H3" />
+                    <Text
+                        text="{i18n>birthdayBenefitSubtitle}"
+                        class="sabnezBalanceSubtitle" />
+                </VBox>
+                <ObjectStatus
+                    text="{i18n>birthdayBenefitLabel}"
+                    icon="sap-icon://birthday" />
+            </HBox>
+
+            <FlexBox
+                wrap="Wrap"
+                alignItems="Stretch"
+                renderType="Div"
+                class="sabnezKpiGrid">
+                <VBox class="sabnezKpiCard">
+                    <Text text="{i18n>voucherAssignedLabel}" class="sabnezKpiLabel" />
+                    <ObjectNumber
+                        number="{horasCumpleaniosAsignadas}"
+                        unit="{i18n>hoursUnit}"
+                        emphasized="true" />
+                </VBox>
+                <VBox class="sabnezKpiCard">
+                    <Text text="{i18n>voucherUsedLabel}" class="sabnezKpiLabel" />
+                    <ObjectNumber
+                        number="{horasCumpleaniosUtilizadas}"
+                        unit="{i18n>hoursUnit}"
+                        emphasized="true" />
+                </VBox>
+                <VBox class="sabnezKpiCard">
+                    <Text text="{i18n>voucherReservedLabel}" class="sabnezKpiLabel" />
+                    <ObjectNumber
+                        number="{horasCumpleaniosReservadas}"
+                        unit="{i18n>hoursUnit}"
+                        emphasized="true" />
+                </VBox>
+                <VBox class="sabnezKpiCard sabnezKpiCardAvailable">
+                    <Text text="{i18n>voucherAvailableLabel}" class="sabnezKpiLabel" />
+                    <ObjectNumber
+                        number="{horasCumpleaniosDisponibles}"
+                        unit="{i18n>hoursUnit}"
+                        state="Success"
+                        emphasized="true" />
+                </VBox>
+            </FlexBox>
+        </VBox>
+
     </VBox>
 </core:FragmentDefinition>

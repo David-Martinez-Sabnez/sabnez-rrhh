@@ -109,7 +109,7 @@ annotate AdminService.Empleados with @(
       },
       {
         $Type : 'UI.ReferenceFacet',
-        Label : 'Ausencias',
+        Label : 'Ausencias históricas',
         Target: 'ausencias/@UI.LineItem'
       }
     ],
@@ -185,6 +185,14 @@ annotate AdminService.Empleados with @(
       {Value: horasValeraDisponibles},
       {Value: vencimientoValera},
       {Value: proximaRecargaValera}
+    ]},
+
+    FieldGroup #Cumpleanios: {Data: [
+      {Value: cumpleaniosAnioBeneficio},
+      {Value: horasCumpleaniosAsignadas},
+      {Value: horasCumpleaniosUtilizadas},
+      {Value: horasCumpleaniosReservadas},
+      {Value: horasCumpleaniosDisponibles}
     ]}
   }
 );
@@ -223,6 +231,11 @@ annotate AdminService.Empleados with {
   horasValeraDisponibles    @title: 'Horas disponibles';
   vencimientoValera         @title: 'Vencimiento';
   proximaRecargaValera      @title: 'Próxima recarga';
+  cumpleaniosAnioBeneficio   @title: 'Año de la ocurrencia de cumpleaños';
+  horasCumpleaniosAsignadas  @title: 'Horas de cumpleaños asignadas';
+  horasCumpleaniosUtilizadas @title: 'Horas de cumpleaños utilizadas';
+  horasCumpleaniosReservadas @title: 'Horas de cumpleaños reservadas';
+  horasCumpleaniosDisponibles @title: 'Horas de cumpleaños disponibles';
 };
 
 // ============================================================
@@ -344,8 +357,8 @@ annotate AdminService.Contratos with {
 
 annotate AdminService.Ausencias with @(UI: {
   HeaderInfo         : {
-    TypeName      : 'Ausencia',
-    TypeNamePlural: 'Ausencias',
+    TypeName      : 'Ausencia histórica',
+    TypeNamePlural: 'Ausencias históricas',
     Title         : {Value: tipoAusencia_codigo}
   },
   LineItem           : [
@@ -375,13 +388,21 @@ annotate AdminService.Ausencias with @(UI: {
     }
   ],
 
-  Facets             : [{
-    $Type : 'UI.ReferenceFacet',
-    Label : 'Datos de la ausencia',
-    Target: '@UI.FieldGroup#General'
-  }],
+  Facets             : [
+    {
+      $Type : 'UI.ReferenceFacet',
+      Label : 'Datos de la ausencia',
+      Target: '@UI.FieldGroup#General'
+    },
+    {
+      $Type : 'UI.ReferenceFacet',
+      Label : 'Soportes',
+      Target: 'soportes/@UI.LineItem'
+    }
+  ],
 
   FieldGroup #General: {Data: [
+    {Value: tipoAusencia_codigo},
     {Value: fechaInicio},
     {Value: fechaFin},
     {Value: diasHabiles},
@@ -398,6 +419,7 @@ annotate AdminService.Ausencias with @(UI: {
 annotate AdminService.Ausencias with {
   ID                  @UI.Hidden;
   empleado            @UI.Hidden;
+  origenRegistro      @UI.Hidden @Core.Immutable;
   tipoAusencia        @UI.Hidden;
   estadoAusencia      @UI.Hidden;
   unidadConsumo       @UI.Hidden;

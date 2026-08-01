@@ -1,0 +1,165 @@
+.absenceEmployeeName {
+  color: var(--sapContent_LabelColor);
+  margin-top: 0.15rem;
+}
+
+.absenceKpiContainer {
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.absenceKpiCard {
+  box-sizing: border-box;
+  flex: 1 1 15rem;
+  min-width: 13.5rem;
+  min-height: 8.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-left-width: 0.28rem;
+  border-radius: 0.75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.absenceKpiCard:hover {
+  box-shadow: var(--sapContent_Shadow1);
+  transform: translateY(-1px);
+}
+
+.absenceKpiHeader {
+  gap: 0.5rem;
+  color: var(--sapContent_LabelColor);
+  margin-bottom: 0.6rem;
+}
+
+.absenceKpiHeader .sapUiIcon {
+  font-size: 1.05rem;
+}
+
+.absenceKpiCard .sapMObjectNumber {
+  margin-bottom: 0.35rem;
+}
+
+.absenceKpiCard .sapMText {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.78rem;
+}
+
+.kpiWarning {
+  border-left-color: var(--sapCriticalColor);
+}
+
+.kpiSuccess {
+  border-left-color: var(--sapPositiveColor);
+}
+
+.kpiError {
+  border-left-color: var(--sapNegativeColor);
+}
+
+.kpiAccent {
+  border-left-color: var(--sapInformativeColor);
+}
+
+.kpiBirthday {
+  border-left-color: var(--sapIndicationColor_5);
+  background: linear-gradient(
+    135deg,
+    var(--sapGroup_ContentBackground) 0%,
+    var(--sapObjectHeader_Background) 100%
+  );
+}
+
+.absenceListReport {
+  box-sizing: border-box;
+  max-width: 100rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.absenceListToolbar,
+.absenceStateToolbar {
+  background: var(--sapGroup_ContentBackground) !important;
+  border-left: 1px solid var(--sapGroup_ContentBorderColor);
+  border-right: 1px solid var(--sapGroup_ContentBorderColor);
+}
+
+.absenceListToolbar {
+  border-top: 1px solid var(--sapGroup_ContentBorderColor);
+  border-radius: 0.75rem 0.75rem 0 0;
+  padding-top: 0.25rem;
+}
+
+.absenceStateToolbar {
+  border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
+  padding-bottom: 0.25rem;
+}
+
+.absenceRequestsTable {
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-top: 0;
+  border-radius: 0 0 0.75rem 0.75rem;
+  overflow: hidden;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.absenceSupportCount,
+.absenceAttachmentMeta {
+  color: var(--sapContent_LabelColor) !important;
+  font-size: 0.75rem !important;
+}
+
+.absenceAttachmentList {
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.absenceAttachmentInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sapMDialog .absenceDialogContent {
+  box-sizing: border-box;
+  padding: 1.25rem 1.5rem 1rem !important;
+}
+
+@media (max-width: 900px) {
+  .absenceKpiCard {
+    flex-basis: calc(50% - 0.5rem);
+  }
+}
+
+@media (max-width: 600px) {
+  .sapMDialog .absenceDialogContent {
+    padding: 1rem !important;
+  }
+
+  .absenceKpiCard {
+    flex-basis: 100%;
+    min-width: 100%;
+  }
+
+  .absenceListReport {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  .absenceListToolbar .sapMSF,
+  .absenceListToolbar .sapMSlt {
+    width: 100% !important;
+  }
+
+  .absenceStateToolbar .sapMSegB {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .absenceKpiCard {
+    transition: none;
+  }
+}

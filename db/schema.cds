@@ -66,6 +66,11 @@ type Parentesco    : String(40) enum {
   OT;
 };
 
+type OrigenRegistroAusencia : String(20) enum {
+  AUTOSERVICIO = 'AUTOSERVICIO';
+  LEGADO_RRHH  = 'LEGADO_RRHH';
+};
+
 // ============================================================
 // EMPLEADO — entidad central
 // ============================================================
@@ -235,6 +240,10 @@ entity ContactosEmergencia : cuid, managed {
 entity Ausencias : cuid, managed {
   empleado            : Association to Empleados @mandatory;
 
+  // El backend asigna el origen. Los registros previos a la app de
+  // autoservicio provienen de la carga histórica realizada por RR. HH.
+  origenRegistro      : OrigenRegistroAusencia default 'LEGADO_RRHH';
+
   tipoAusencia_codigo : String(30)               @mandatory;
 
   tipoAusencia        : Association to TiposAusencia
@@ -309,7 +318,8 @@ entity SaldosValeraEmocional : cuid, managed {
 annotate sabnez.rrhh.Ausencias.soportes with {
   content
   @Core.AcceptableMediaTypes: [
-    'image/*',
+    'image/jpeg',
+    'image/png',
     'application/pdf'
   ]
   @Validation.Maximum       : '10MB';

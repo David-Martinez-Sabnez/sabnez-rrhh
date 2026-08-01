@@ -1,0 +1,225 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.ui.layout.form">
+  <Dialog
+    id="taskDetailDialog"
+    title="{i18n>taskDetail}"
+    contentWidth="50rem"
+    contentHeight="44rem"
+    stretchOnPhone="true"
+    horizontalScrolling="false"
+    verticalScrolling="true"
+    draggable="true"
+    resizable="true"
+    busy="{view>/actionBusy}"
+    busyIndicatorDelay="0"
+    afterClose=".onTaskDetailAfterClose">
+    <content>
+      <VBox id="taskDetailContent" width="100%" class="approvalDialogContent">
+        <HBox
+          id="taskDetailHeader"
+          alignItems="Start"
+          justifyContent="SpaceBetween"
+          wrap="Wrap"
+          class="approvalDetailHeader">
+          <HBox id="taskDetailIdentity" alignItems="Center" class="approvalDetailIdentity">
+            <Avatar
+              id="taskDetailAvatar"
+              initials="{view>/selectedTask/employeeInitials}"
+              displaySize="M"
+              displayShape="Circle"
+              backgroundColor="Accent6"
+              class="sapUiSmallMarginEnd" />
+            <VBox id="taskDetailTitleBox">
+              <Title id="taskDetailTitle" text="{view>/selectedTask/requestTitle}" level="H2"
+                wrapping="true" />
+              <Text id="taskDetailEmployee" text="{view>/selectedTask/employeeName}"
+                class="approvalStrongText" />
+              <Text
+                id="taskDetailActingFor"
+                text="{view>/selectedTask/employeePosition}"
+                visible="{= !!${view>/selectedTask/employeePosition} }"
+                class="approvalSecondaryText" />
+            </VBox>
+          </HBox>
+          <VBox id="taskDetailStatuses" alignItems="End" class="approvalDetailStatuses">
+            <ObjectStatus
+              id="taskDetailStatus"
+              text="{view>/selectedTask/statusText}"
+              state="{view>/selectedTask/statusState}"
+              icon="{view>/selectedTask/statusIcon}" />
+            <ObjectStatus
+              id="taskDetailRole"
+              text="{view>/selectedTask/roleText}"
+              state="{view>/selectedTask/roleState}"
+              visible="{= !!${view>/selectedTask/roleText} }"
+              class="sapUiTinyMarginTop" />
+          </VBox>
+        </HBox>
+
+        <MessageStrip
+          id="backupContextMessage"
+          text="{i18n>backupContextMessage}"
+          type="Information"
+          showIcon="true"
+          showCloseButton="false"
+          visible="{view>/selectedTask/isBackup}"
+          class="sapUiSmallMarginTop" />
+
+        <f:SimpleForm
+          id="taskDetailForm"
+          editable="false"
+          layout="ResponsiveGridLayout"
+          labelSpanXL="3"
+          labelSpanL="3"
+          labelSpanM="4"
+          labelSpanS="12"
+          adjustLabelSpan="false"
+          emptySpanXL="0"
+          emptySpanL="0"
+          emptySpanM="0"
+          emptySpanS="0"
+          columnsXL="1"
+          columnsL="1"
+          columnsM="1"
+          class="sapUiSmallMarginTop">
+          <Label id="detailSummaryLabel" text="{i18n>summary}" />
+          <Text id="detailSummary" text="{view>/selectedTask/requestSummary}" wrapping="true" />
+
+          <Label id="detailProcessLabel" text="{i18n>process}" />
+          <ObjectIdentifier
+            id="detailProcess"
+            title="{view>/selectedTask/processCode}"
+            text="{view>/selectedTask/businessObjectText}" />
+
+          <Label id="detailPriorityLabel" text="{i18n>priority}" />
+          <ObjectStatus
+            id="detailPriority"
+            text="{view>/selectedTask/priorityText}"
+            state="{view>/selectedTask/priorityState}"
+            icon="{view>/selectedTask/priorityIcon}" />
+
+          <Label id="detailSubmittedLabel" text="{i18n>received}" />
+          <Text id="detailSubmitted" text="{view>/selectedTask/submittedText}" />
+
+          <Label id="detailDueLabel" text="{i18n>deadline}"
+            visible="{= !!${view>/selectedTask/dueText} }" />
+          <ObjectStatus
+            id="detailDue"
+            text="{view>/selectedTask/dueText}"
+            state="{view>/selectedTask/dueState}"
+            icon="{view>/selectedTask/dueIcon}"
+            visible="{= !!${view>/selectedTask/dueText} }" />
+
+          <Label id="detailModifiedLabel" text="{i18n>lastUpdated}"
+            visible="{= !!${view>/selectedTask/modifiedText} }" />
+          <Text
+            id="detailModified"
+            text="{view>/selectedTask/modifiedText}"
+            visible="{= !!${view>/selectedTask/modifiedText} }" />
+        </f:SimpleForm>
+
+        <Title id="factsTitle" text="{i18n>requestInformation}" level="H3"
+          class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
+        <List
+          id="factsList"
+          items="{view>/selectedTask/facts}"
+          showSeparators="Inner"
+          noDataText="{i18n>noRequestInformation}"
+          class="approvalFactsList">
+          <items>
+            <CustomListItem id="factItem">
+              <HBox id="factRow" width="100%" alignItems="Start" wrap="Wrap" class="approvalFactRow">
+                <VBox id="factLabelBox" class="approvalFactLabelBox">
+                  <Text id="factSection" text="{view>section}" class="approvalFactSection" />
+                  <Label id="factLabel" text="{view>label}" wrapping="true" />
+                </VBox>
+                <VBox
+                  id="idValueVBox"
+                  class="approvalFactValueBox">
+
+                  <Link
+                    id="idValueLink"
+                    text="{view>value}"
+                    press=".onDownloadAttachment"
+                    wrapping="true"
+                    visible="{view>isLink}" />
+
+                  <ObjectStatus
+                    id="idValueObjectStatus"
+                    text="{view>value}"
+                    state="{view>state}"
+                    visible="{view>isStatus}" />
+
+                  <Text
+                    id="idValueText"
+                    text="{view>value}"
+                    visible="{= !${view>isLink} &amp;&amp; !${view>isStatus} }" />
+
+                </VBox>
+              </HBox>
+            </CustomListItem>
+          </items>
+        </List>
+
+        <Title id="eventsTitle" text="{i18n>history}" level="H3"
+          class="sapUiMediumMarginTop sapUiTinyMarginBottom" />
+        <List
+          id="eventsList"
+          items="{view>/selectedTask/events}"
+          showSeparators="Inner"
+          noDataText="{i18n>noHistoryEvents}"
+          class="approvalEventsList">
+          <items>
+            <CustomListItem id="eventItem">
+              <HBox id="eventRow" width="100%" alignItems="Start" class="approvalEventRow">
+                <core:Icon id="eventIcon" src="{view>icon}" decorative="true"
+                  class="approvalEventIcon" />
+                <VBox id="eventContent" class="approvalEventContent">
+                  <HBox id="eventHeading" width="100%" justifyContent="SpaceBetween" wrap="Wrap">
+                    <Text id="eventType" text="{view>type}" class="approvalStrongText" />
+                    <Text id="eventDate" text="{view>dateText}" class="approvalSecondaryText" />
+                  </HBox>
+                  <Text id="eventActor" text="{view>actor}" class="approvalSecondaryText" />
+                  <Text
+                    id="eventDetail"
+                    text="{view>detail}"
+                    wrapping="true"
+                    visible="{= !!${view>detail} }"
+                    class="sapUiTinyMarginTop" />
+                </VBox>
+              </HBox>
+            </CustomListItem>
+          </items>
+        </List>
+      </VBox>
+    </content>
+    <buttons>
+      <Button
+        id="detailApproveButton"
+        text="{i18n>approve}"
+        icon="sap-icon://accept"
+        type="Emphasized"
+        visible="{view>/selectedTask/canApprove}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onApproveSelected" />
+      <Button
+        id="detailRejectButton"
+        text="{i18n>reject}"
+        icon="sap-icon://decline"
+        type="Reject"
+        visible="{view>/selectedTask/canReject}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onRejectSelected" />
+      <Button
+        id="detailForwardButton"
+        text="{i18n>forward}"
+        icon="sap-icon://forward"
+        visible="{view>/selectedTask/canForward}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onForwardSelected" />
+      <Button id="detailCloseButton" text="{i18n>close}" press=".onCloseTaskDetail" />
+    </buttons>
+  </Dialog>
+</core:FragmentDefinition>

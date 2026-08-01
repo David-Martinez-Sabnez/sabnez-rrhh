@@ -1,9 +1,11 @@
-codigo;descripcion;remunerada;descuentaSaldo;requiereSoporte;unidadConsumo;controlaSaldoHoras;horasAnuales;diasAnticipacion;tipoDiasAnticipacion;maximoHorasDia;maximoHorasSemana;maximoSolicitudesSemana;requiereMismoDia;permiteCruzarAnio
-VA;Vacaciones;true;true;false;DIAS;false;;0;CALENDARIO;;;;false;true
-CA;Calamidad doméstica;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
-LI;Licencia no remunerada;false;false;false;DIAS;false;;0;CALENDARIO;;;;false;true
-IN;Incapacidad médica;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
-LU;Licencia por luto;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
-PA;Licencia de paternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
-MA;Licencia de maternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;false;true
-VE;Valera emocional (horas personales);true;false;false;HORAS;true;40;3;CALENDARIO;4;4;;true;false
+codigo;descripcion;remunerada;descuentaSaldo;requiereSoporte;unidadConsumo;controlaSaldoHoras;horasAnuales;diasAnticipacion;tipoDiasAnticipacion;minimoHorasSolicitud;maximoHorasDia;maximoHorasSemana;maximoSolicitudesSemana;requiereMismoDia;permiteCruzarAnio;politicaFecha;requiereContratoVigente
+VA;Vacaciones;true;true;false;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+CA;Calamidad doméstica;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+LI;Licencia no remunerada;false;false;false;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+IN;Incapacidad médica;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+LU;Licencia por luto;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+PA;Licencia de paternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+MA;Licencia de maternidad;true;false;true;DIAS;false;;0;CALENDARIO;;;;;false;true;LIBRE;false
+VE;Valera emocional (horas personales);true;false;false;HORAS;true;40;3;CALENDARIO;;4;4;;true;false;LIBRE;false
+CU;Beneficio de cumpleaños;true;false;false;HORAS;true;4;0;CALENDARIO;4;4;4;1;true;false;SEMANA_CUMPLEANOS;true
+VO;Permiso por votación;true;false;false;HORAS;false;;0;CALENDARIO;4;4;;;true;false;LIBRE;false

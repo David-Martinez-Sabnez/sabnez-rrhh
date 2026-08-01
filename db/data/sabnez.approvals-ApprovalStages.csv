@@ -1,0 +1,2 @@
+ID;proceso_ID;secuencia;nombre;resolver;rolRequerido
+a1200000-0000-4000-8000-000000000001;a1100000-0000-4000-8000-000000000001;1;Aprobación del jefe directo;DIRECT_MANAGER;

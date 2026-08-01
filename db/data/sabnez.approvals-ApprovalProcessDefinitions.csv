@@ -1,0 +1,2 @@
+ID;codigo;version;dominio;descripcion;activo;horasVencimiento;rutaOrigen
+a1100000-0000-4000-8000-000000000001;ABSENCE;1;RRHH;Aprobación de solicitudes de ausencia;true;72;Ausencias-display

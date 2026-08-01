@@ -1,0 +1,83 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog
+    id="delegationDialog"
+    title="{i18n>newDelegation}"
+    contentWidth="38rem"
+    horizontalScrolling="false"
+    verticalScrolling="true"
+    busy="{view>/actionBusy}"
+    busyIndicatorDelay="0"
+    afterClose=".onDelegationDialogAfterClose">
+    <content>
+      <VBox id="delegationDialogContent" width="100%" class="approvalDialogContent">
+        <MessageStrip
+          id="delegationHelp"
+          text="{i18n>delegationHelp}"
+          type="Information"
+          showIcon="true"
+          showCloseButton="false"
+          class="sapUiSmallMarginBottom" />
+        <Label id="delegationTypeLabel" text="{i18n>delegationType}" required="true" labelFor="delegationTypeSelect" />
+        <SegmentedButton id="delegationTypeSelect" selectedKey="{view>/delegationForm/type}" width="100%">
+          <items>
+            <SegmentedButtonItem id="backupTypeItem" key="BACKUP" text="{i18n>backupType}" icon="sap-icon://group" />
+            <SegmentedButtonItem id="substituteTypeItem" key="SUBSTITUTE" text="{i18n>substituteType}" icon="sap-icon://employee-rejections" />
+          </items>
+        </SegmentedButton>
+
+        <Label id="delegateLabel" text="{i18n>delegate}" required="true" labelFor="delegateSelect" class="sapUiSmallMarginTop" />
+        <ComboBox
+          id="delegateSelect"
+          selectedKey="{view>/delegationForm/recipientID}"
+          placeholder="{i18n>selectEmployee}"
+          width="100%"
+          showSecondaryValues="true"
+          items="{view>/eligibleEmployees}">
+          <core:ListItem id="delegateItem" key="{view>ID}" text="{view>name}" additionalText="{view>email}" />
+        </ComboBox>
+
+        <HBox id="delegationDates" width="100%" wrap="Wrap" class="approvalDateFields sapUiSmallMarginTop">
+          <VBox id="delegationStartBox" class="approvalDateField">
+            <Label id="delegationStartLabel" text="{i18n>validFrom}" required="true" labelFor="delegationStartDate" />
+            <DatePicker
+              id="delegationStartDate"
+              value="{view>/delegationForm/startDate}"
+              valueFormat="yyyy-MM-dd"
+              displayFormat="medium"
+              width="100%" />
+          </VBox>
+          <VBox id="delegationEndBox" class="approvalDateField">
+            <Label id="delegationEndLabel" text="{i18n>validUntil}" required="true" labelFor="delegationEndDate" />
+            <DatePicker
+              id="delegationEndDate"
+              value="{view>/delegationForm/endDate}"
+              valueFormat="yyyy-MM-dd"
+              displayFormat="medium"
+              width="100%" />
+          </VBox>
+        </HBox>
+
+        <Label id="delegationReasonLabel" text="{i18n>delegationReason}" labelFor="delegationReason" class="sapUiSmallMarginTop" />
+        <TextArea
+          id="delegationReason"
+          value="{view>/delegationForm/reason}"
+          placeholder="{i18n>delegationReasonPlaceholder}"
+          rows="3"
+          maxLength="500"
+          width="100%" />
+      </VBox>
+    </content>
+    <beginButton>
+      <Button
+        id="saveDelegationButton"
+        text="{i18n>saveDelegation}"
+        icon="sap-icon://save"
+        type="Emphasized"
+        enabled="{= !!${view>/delegationForm/recipientID} &amp;&amp; !!${view>/delegationForm/startDate} &amp;&amp; !!${view>/delegationForm/endDate} &amp;&amp; !${view>/actionBusy} }"
+        press=".onSaveDelegation" />
+    </beginButton>
+    <endButton>
+      <Button id="cancelDelegationButton" text="{i18n>cancel}" press=".onCloseDelegationDialog" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

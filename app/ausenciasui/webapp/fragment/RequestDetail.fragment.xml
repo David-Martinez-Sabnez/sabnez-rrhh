@@ -1,0 +1,182 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.ui.layout.form">
+  <Dialog
+    id="requestDetailDialog"
+    title="{i18n>requestDetail}"
+    contentWidth="40rem"
+    horizontalScrolling="false"
+    verticalScrolling="true"
+    draggable="true"
+    resizable="true"
+    busy="{view>/actionBusy}"
+    busyIndicatorDelay="0"
+    afterClose=".onDetailDialogAfterClose">
+    <content>
+      <VBox
+        id="detailContent"
+        width="100%"
+        class="sapUiResponsiveContentPadding absenceDialogContent">
+        <HBox id="detailHeader" alignItems="Start" justifyContent="SpaceBetween" wrap="Wrap">
+          <VBox id="detailIdentity">
+            <Title
+              id="detailTypeTitle"
+              text="{view>/selectedRequest/tipoAusenciaDescripcion}"
+              level="H2" />
+            <Text id="detailTypeCode" text="{view>/selectedRequest/tipoAusenciaCodigo}" />
+          </VBox>
+          <ObjectStatus
+            id="detailStatus"
+            text="{view>/selectedRequest/estadoDescripcion}"
+            state="{view>/selectedRequest/statusState}"
+            icon="{view>/selectedRequest/statusIcon}"
+            class="sapUiTinyMarginTop" />
+        </HBox>
+
+        <f:SimpleForm
+          id="detailSimpleForm"
+          editable="false"
+          layout="ResponsiveGridLayout"
+          labelSpanXL="4"
+          labelSpanL="4"
+          labelSpanM="4"
+          labelSpanS="12"
+          adjustLabelSpan="false"
+          emptySpanXL="0"
+          emptySpanL="0"
+          emptySpanM="0"
+          emptySpanS="0"
+          columnsXL="1"
+          columnsL="1"
+          columnsM="1"
+          class="sapUiSmallMarginTop">
+          <Label id="detailPeriodLabel" text="{i18n>period}" />
+          <Text id="detailPeriod" text="{view>/selectedRequest/periodText}" />
+
+          <Label id="detailQuantityLabel" text="{i18n>quantity}" />
+          <ObjectNumber
+            id="detailQuantity"
+            number="{view>/selectedRequest/quantityNumber}"
+            unit="{view>/selectedRequest/quantityUnit}" />
+
+          <Label id="detailReasonLabel" text="{i18n>reason}" />
+          <Text id="detailReason" text="{view>/selectedRequest/motivoDisplay}" wrapping="true" />
+
+          <Label
+            id="detailDecisionCommentLabel"
+            text="{i18n>decisionComment}"
+            visible="{view>/selectedRequest/hasDecision}" />
+          <Text
+            id="detailDecisionComment"
+            text="{view>/selectedRequest/decisionCommentDisplay}"
+            wrapping="true"
+            visible="{view>/selectedRequest/hasDecision}" />
+
+          <Label
+            id="detailDecisionByLabel"
+            text="{i18n>decidedBy}"
+            visible="{view>/selectedRequest/hasDecision}" />
+          <Text
+            id="detailDecisionBy"
+            text="{view>/selectedRequest/decisionByDisplay}"
+            visible="{view>/selectedRequest/hasDecision}" />
+
+          <Label
+            id="detailDecisionDateLabel"
+            text="{i18n>decisionDate}"
+            visible="{view>/selectedRequest/hasDecision}" />
+          <Text
+            id="detailDecisionDate"
+            text="{view>/selectedRequest/decisionDateText}"
+            visible="{view>/selectedRequest/hasDecision}" />
+
+          <Label id="detailSupportLabel" text="{i18n>supportingDocuments}" />
+          <VBox id="detailSupportContent">
+            <ObjectStatus
+              id="detailSupportStatus"
+              text="{view>/selectedRequest/supportCountLabel}"
+              state="{= ${view>/selectedRequest/requiereSoporte} &amp;&amp; ${view>/selectedRequest/cantidadSoportes} === 0 ? 'Warning' : 'None' }"
+              icon="sap-icon://attachment" />
+            <List
+              id="detailSupportList"
+              items="{view>/selectedRequestAttachments}"
+              showSeparators="Inner"
+              visible="{= ${view>/selectedRequestAttachments}.length > 0 }">
+              <items>
+                <CustomListItem id="detailSupportItem">
+                  <HBox id="detailSupportRow" width="100%" alignItems="Center">
+                    <core:Icon
+                      id="detailSupportIcon"
+                      src="{view>icon}"
+                      decorative="true"
+                      class="sapUiTinyMarginEnd" />
+                    <VBox id="detailSupportInfo">
+                      <layoutData>
+                        <FlexItemData id="detailSupportFlexData" growFactor="1" shrinkFactor="1" />
+                      </layoutData>
+                      <Link
+                        id="detailSupportLink"
+                        text="{view>filename}"
+                        href="{view>downloadUrl}"
+                        enabled="{= ${view>status} === 'Clean' }"
+                        press=".onDownloadAttachment"
+                        wrapping="true" />
+                      <ObjectStatus
+                        id="detailSupportScanStatus"
+                        text="{view>statusText}"
+                        state="{view>statusState}" />
+                    </VBox>
+                  </HBox>
+                </CustomListItem>
+              </items>
+            </List>
+          </VBox>
+
+          <Label id="detailCreatedLabel" text="{i18n>created}" />
+          <Text id="detailCreated" text="{view>/selectedRequest/createdText}" />
+
+          <Label id="detailModifiedLabel" text="{i18n>modified}" />
+          <Text id="detailModified" text="{view>/selectedRequest/modifiedText}" />
+        </f:SimpleForm>
+      </VBox>
+    </content>
+    <buttons>
+      <Button
+        id="editRequestButton"
+        text="{i18n>edit}"
+        icon="sap-icon://edit"
+        type="Emphasized"
+        visible="{view>/selectedRequest/puedeEditar}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onEditSelectedRequest" />
+      <Button
+        id="submitRequestButton"
+        text="{i18n>submit}"
+        icon="sap-icon://paper-plane"
+        visible="{view>/selectedRequest/puedeEnviar}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onSubmitSelectedRequest" />
+      <Button
+        id="cancelSelectedRequestButton"
+        text="{i18n>cancelRequest}"
+        icon="sap-icon://sys-cancel"
+        visible="{view>/selectedRequest/puedeCancelar}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onCancelSelectedRequest" />
+      <Button
+        id="deleteDraftButton"
+        text="{i18n>deleteDraft}"
+        icon="sap-icon://delete"
+        type="Reject"
+        visible="{view>/selectedRequest/puedeEliminar}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onDeleteSelectedDraft" />
+      <Button
+        id="closeDetailButton"
+        text="{i18n>close}"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onCloseDetail" />
+    </buttons>
+  </Dialog>
+</core:FragmentDefinition>

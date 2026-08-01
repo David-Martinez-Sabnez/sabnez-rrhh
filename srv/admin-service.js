@@ -1,4 +1,10 @@
 const cds = require("@sap/cds");
+const absenceRules = require("./lib/absence-rules");
+const {
+  normalizarSideEffectFotoInline,
+  obtenerHeaderHttp,
+  obtenerRutaServicioPublica,
+} = require("./lib/request-url-rules");
 
 const { SELECT } = cds.ql;
 
@@ -7,7 +13,10 @@ module.exports = cds.service.impl(function () {
     Empleados: EmpleadosSrv,
     Contratos: ContratosSrv,
     Ausencias: AusenciasSrv,
+    SaldosValeraEmocional: SaldosValeraSrv,
   } = this.entities;
+
+  const SoportesAusenciaSrv = this.entities["Ausencias.soportes"];
 
   const {
     Empleados,
@@ -26,28 +35,38 @@ module.exports = cds.service.impl(function () {
     CiudadesColombia,
   } = cds.entities("sabnez.rrhh");
 
-  const colombiaDateFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  const SoportesAusencia =
+    cds.entities("sabnez.rrhh")["Ausencias.soportes"];
 
-  const ESTADOS_CONSUMO_AUSENCIA = new Set([
-    "SOLICITADA",
-    "APROBADA",
+  const {
+    ESTADOS_CONSUMO_AUSENCIA,
+    ESTADOS_RESERVA_AUSENCIA,
+    ESTADOS_RESERVA_CUMPLEANIOS,
+    ESTADOS_UTILIZACION_AUSENCIA,
+    ESTADOS_UTILIZACION_CUMPLEANIOS,
+  } = absenceRules;
+  const POLITICA_SEMANA_CUMPLEANOS = "SEMANA_CUMPLEANOS";
+  const ORIGEN_AUTOSERVICIO = "AUTOSERVICIO";
+  const ORIGEN_LEGADO_RRHH = "LEGADO_RRHH";
+  const ESTADOS_TERMINALES_LEGADO = new Set([
     "FINALIZADA",
+    "RECHAZADA",
+    "CANCELADA",
   ]);
 
-  const today = () => {
-    const parts = Object.fromEntries(
-      colombiaDateFormatter
-        .formatToParts(new Date())
-        .map(({ type, value }) => [type, value]),
-    );
+  const today = () => absenceRules.todayInColombia();
 
-    return `${parts.year}-${parts.month}-${parts.day}`;
+  // En un $batch, CAP crea una petición interna cuya URL ya no incluye
+  // `/admin`. Normalizarla aquí evita que @cap-js/attachments confunda un
+  // side effect de entidad con una descarga de stream por terminar en
+  // `foto_content`.
+  const normalizarLecturaFotoInline = (req) => {
+    if (req.req?.url) {
+      req.req.url = normalizarSideEffectFotoInline(req.req.url, "GET");
+    }
   };
+  this.before("READ", EmpleadosSrv, normalizarLecturaFotoInline);
+  this.before("READ", EmpleadosSrv.drafts, normalizarLecturaFotoInline);
 
   const keyFrom = (req) => {
     if (req.data.ID) return req.data.ID;
@@ -84,6 +103,174 @@ module.exports = cds.service.impl(function () {
 
   function hasOwn(data, property) {
     return Object.prototype.hasOwnProperty.call(data, property);
+  }
+
+  function esRegistroLegado(data) {
+    return data?.origenRegistro === ORIGEN_LEGADO_RRHH;
+  }
+
+  const CAMPOS_TECNICOS_AUSENCIA = new Set([
+    "createdAt",
+    "createdBy",
+    "modifiedAt",
+    "modifiedBy",
+    "IsActiveEntity",
+    "HasActiveEntity",
+    "HasDraftEntity",
+    "DraftAdministrativeData_DraftUUID",
+  ]);
+  const TIPOS_NUMERICOS_CDS = new Set([
+    "cds.Decimal",
+    "cds.DecimalFloat",
+    "cds.Double",
+    "cds.Integer",
+    "cds.Integer64",
+    "cds.UInt8",
+  ]);
+  const CAMPOS_SOPORTE_AUTOSERVICIO = [
+    "ID",
+    "up__ID",
+    "filename",
+    "mimeType",
+    "hash",
+    "note",
+  ];
+
+  function rechazarMutacionAutoservicioAdmin(req, target = "ausencias") {
+    req.error({
+      code: "AUSENCIA_AUTOSERVICIO_SOLO_WORKFLOW",
+      message:
+        "Las solicitudes de autoservicio son de solo lectura en Administración. Sus cambios y decisiones deben realizarse exclusivamente mediante el flujo de aprobaciones.",
+      target,
+      status: 403,
+    });
+  }
+
+  function camposPersistidosAusencia() {
+    return Object.entries(AusenciasSrv?.elements || {}).filter(
+      ([nombre, elemento]) =>
+        !CAMPOS_TECNICOS_AUSENCIA.has(nombre) &&
+        !elemento.virtual &&
+        !elemento.target &&
+        elemento.type !== "cds.Association" &&
+        elemento.type !== "cds.Composition",
+    );
+  }
+
+  function valorPersistidoComparable(valor, elemento = {}) {
+    if (valor === undefined || valor === null) return null;
+    if (Buffer.isBuffer(valor)) return valor.toString("base64");
+    if (valor instanceof Date) return valor.toISOString();
+
+    if (TIPOS_NUMERICOS_CDS.has(elemento.type)) {
+      const numero = Number(valor);
+      return Number.isNaN(numero) ? String(valor) : numero;
+    }
+
+    return valor;
+  }
+
+  function camposAusenciaModificados(actual = {}, candidato = {}) {
+    return camposPersistidosAusencia()
+      .filter(([nombre, elemento]) => {
+        const anterior = valorPersistidoComparable(actual[nombre], elemento);
+        const siguiente = valorPersistidoComparable(
+          candidato[nombre],
+          elemento,
+        );
+        return !Object.is(anterior, siguiente);
+      })
+      .map(([nombre]) => nombre);
+  }
+
+  function soportesAutoservicioIguales(activos = [], borradores = []) {
+    if (activos.length !== borradores.length) return false;
+
+    const borradorPorID = new Map(
+      borradores.map((soporte) => [soporte.ID, soporte]),
+    );
+
+    return activos.every((soporteActivo) => {
+      const soporteBorrador = borradorPorID.get(soporteActivo.ID);
+      if (!soporteBorrador) return false;
+
+      return CAMPOS_SOPORTE_AUTOSERVICIO.every((campo) =>
+        Object.is(
+          valorPersistidoComparable(soporteActivo[campo]),
+          valorPersistidoComparable(soporteBorrador[campo]),
+        ),
+      );
+    });
+  }
+
+  async function validarAutoservicioSinCambiosEnBorrador(
+    req,
+    activas,
+    borradores,
+  ) {
+    const activaPorID = new Map(
+      activas.map((ausencia) => [ausencia.ID, ausencia]),
+    );
+    const borradorPorID = new Map(
+      borradores.map((ausencia) => [ausencia.ID, ausencia]),
+    );
+    const payloadPorID = new Map(
+      (Array.isArray(req.data?.ausencias) ? req.data.ausencias : [])
+        .filter((ausencia) => ausencia?.ID)
+        .map((ausencia) => [ausencia.ID, ausencia]),
+    );
+    const idsProtegidos = new Set([
+      ...activas
+        .filter(
+          (ausencia) => ausencia.origenRegistro === ORIGEN_AUTOSERVICIO,
+        )
+        .map((ausencia) => ausencia.ID),
+      ...borradores
+        .filter(
+          (ausencia) => ausencia.origenRegistro === ORIGEN_AUTOSERVICIO,
+        )
+        .map((ausencia) => ausencia.ID),
+      ...[...payloadPorID.values()]
+        .filter(
+          (ausencia) => ausencia.origenRegistro === ORIGEN_AUTOSERVICIO,
+        )
+        .map((ausencia) => ausencia.ID),
+    ]);
+
+    for (const ausenciaID of idsProtegidos) {
+      const activa = activaPorID.get(ausenciaID);
+      const borradorBase = borradorPorID.get(ausenciaID);
+
+      if (!activa || !borradorBase) {
+        rechazarMutacionAutoservicioAdmin(req);
+        return false;
+      }
+
+      const borrador = {
+        ...borradorBase,
+        ...(payloadPorID.get(ausenciaID) || {}),
+      };
+      if (camposAusenciaModificados(activa, borrador).length > 0) {
+        rechazarMutacionAutoservicioAdmin(req);
+        return false;
+      }
+
+      const [soportesActivos, soportesBorrador] = await Promise.all([
+        SELECT.from(SoportesAusencia)
+          .columns(...CAMPOS_SOPORTE_AUTOSERVICIO)
+          .where({ up__ID: ausenciaID }),
+        SELECT.from(SoportesAusenciaSrv.drafts)
+          .columns(...CAMPOS_SOPORTE_AUTOSERVICIO)
+          .where({ up__ID: ausenciaID }),
+      ]);
+
+      if (!soportesAutoservicioIguales(soportesActivos, soportesBorrador)) {
+        rechazarMutacionAutoservicioAdmin(req, "ausencias/soportes");
+        return false;
+      }
+    }
+
+    return true;
   }
 
   function normalizeAfiliacionInput(req) {
@@ -182,14 +369,18 @@ module.exports = cds.service.impl(function () {
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   }
 
-  function construirFotoUrl(empleado, fotoMeta) {
+  function construirFotoUrl(empleado, fotoMeta, req) {
     if (
       empleado.ID &&
       fotoMeta?.foto_url &&
       fotoMeta.foto_status === "Clean"
     ) {
       const isActive = empleado.IsActiveEntity === false ? "false" : "true";
-      return `/admin/Empleados(ID=${empleado.ID},IsActiveEntity=${isActive})/foto_content`;
+      const forwardedPath =
+        obtenerHeaderHttp(req, "x-forwarded-path") ||
+        obtenerHeaderHttp(cds.context, "x-forwarded-path");
+      const servicePath = obtenerRutaServicioPublica(forwardedPath);
+      return `${servicePath}/Empleados(ID=${empleado.ID},IsActiveEntity=${isActive})/foto_content`;
     }
 
     return construirAvatarIniciales(empleado);
@@ -367,10 +558,17 @@ module.exports = cds.service.impl(function () {
     validateAfiliaciones(req, data, true);
     await validateCiudadSeleccionada(req, data, previous);
 
+    // Serializa toda activación del árbol del empleado con los envíos de
+    // ausencias, incluidos cambios profundos de contratos y saldos.
+    const empleadoID = keyFrom(req);
+    if (empleadoID) {
+      await bloquearEmpleadoParaReglas(req, empleadoID, true);
+    }
+
     // La activación del borrador se realiza sobre el root Empleados.
     // Por eso las reglas definitivas de las ausencias compuestas deben
     // validarse aquí y no depender únicamente del PATCH del detalle.
-    await validarValerasBorradorEmpleado(req);
+    await validarAusenciasBorradorEmpleado(req);
   });
 
   this.before(["CREATE", "UPDATE"], EmpleadosSrv, async (req) => {
@@ -494,9 +692,18 @@ module.exports = cds.service.impl(function () {
     normalizeText(req.data, ["moneda", "observaciones"]);
     if (req.data.moneda) req.data.moneda = req.data.moneda.toUpperCase();
 
-    const previous =
+    let previous =
       req.event === "UPDATE" ? await currentRow(Contratos, req) : {};
-    const data = { ...previous, ...req.data };
+    let data = { ...previous, ...req.data };
+
+    if (data.empleado_ID) {
+      if (!(await bloquearEmpleadoParaReglas(req, data.empleado_ID))) return;
+      if (req.event === "UPDATE") {
+        previous = await currentRow(Contratos, req);
+        data = { ...previous, ...req.data };
+      }
+    }
+
     const ID = data.ID || keyFrom(req);
 
     if (data.vigente === true) {
@@ -511,6 +718,7 @@ module.exports = cds.service.impl(function () {
         "La fecha final no puede ser anterior a la fecha inicial.",
         "fechaFin",
       );
+      return;
     }
 
     if (data.moneda && !/^[A-Z]{3}$/.test(data.moneda)) {
@@ -564,6 +772,13 @@ module.exports = cds.service.impl(function () {
     }
   });
 
+  this.before("DELETE", ContratosSrv, async (req) => {
+    const contrato = await currentRow(Contratos, req);
+    if (contrato.empleado_ID) {
+      await bloquearEmpleadoParaReglas(req, contrato.empleado_ID);
+    }
+  });
+
   // Si se marca nuevamente como vigente,
   // la fecha final se elimina del borrador.
   this.before("PATCH", ContratosSrv.drafts, (req) => {
@@ -574,6 +789,25 @@ module.exports = cds.service.impl(function () {
       req.data.fechaFin = null;
     }
   });
+
+  // El saldo configurado y las solicitudes toman el mismo lock de empleado.
+  // Así un ajuste administrativo no puede intercalarse con un envío que esté
+  // calculando el saldo anual de Valera.
+  this.before(
+    ["CREATE", "UPDATE", "DELETE"],
+    SaldosValeraSrv,
+    async (req) => {
+      const previous =
+        req.event === "CREATE"
+          ? {}
+          : await currentRow(SaldosValeraEmocional, req);
+      const empleadoID = req.data?.empleado_ID || previous.empleado_ID;
+
+      if (empleadoID) {
+        await bloquearEmpleadoParaReglas(req, empleadoID);
+      }
+    },
+  );
 
   // ----------------------------------------------------------
   // CONTACTOS DE EMERGENCIA
@@ -612,9 +846,58 @@ module.exports = cds.service.impl(function () {
   // ----------------------------------------------------------
   // AUSENCIAS
   // ----------------------------------------------------------
-  this.before("PATCH", AusenciasSrv.drafts, async (req) => {
+  // Toda ausencia creada desde la ficha administrativa corresponde a una
+  // carga histórica. El origen no depende de un valor enviado por la UI.
+  this.before("NEW", AusenciasSrv.drafts, (req) => {
+    req.data.origenRegistro = ORIGEN_LEGADO_RRHH;
+    req.data.estadoa_codigo = "FINALIZADA";
+  });
+
+  // Protege también el entity set técnico de adjuntos. Los cambios sobre el
+  // draft se validan al activar el árbol; los cambios activos solo son válidos
+  // mientras la solicitud subyacente siga en BORRADOR. CAP normaliza PUT y
+  // PATCH como UPDATE, por lo que este handler global también cubre /content.
+  this.before(
+    ["CREATE", "NEW", "UPDATE", "DELETE", "CANCEL"],
+    async (req) => {
+      if (!esPeticionDeSoporteAdmin(req)) return;
+      await protegerMutacionSoporteAdmin(req);
+    },
+  );
+
+  this.before(["NEW", "PATCH"], AusenciasSrv.drafts, async (req) => {
     const previous = await currentAbsenceDraft(req);
     const data = { ...previous, ...req.data };
+
+    if (previous.origenRegistro === ORIGEN_AUTOSERVICIO) {
+      if (camposAusenciaModificados(previous, data).length > 0) {
+        rechazarMutacionAutoservicioAdmin(req);
+      }
+
+      // Una escritura sin cambios puede formar parte de la activación del
+      // draft raíz. No se vuelven a calcular ni validar solicitudes que la
+      // ficha administrativa solo está transportando sin modificarlas.
+      return;
+    }
+
+    if (
+      hasOwn(req.data, "origenRegistro") &&
+      previous.origenRegistro &&
+      req.data.origenRegistro !== previous.origenRegistro
+    ) {
+      error(
+        req,
+        "ORIGEN_AUSENCIA_INMUTABLE",
+        "El origen de una ausencia no puede modificarse.",
+        "origenRegistro",
+      );
+      return;
+    }
+
+    if (!data.origenRegistro) {
+      req.data.origenRegistro = ORIGEN_LEGADO_RRHH;
+      data.origenRegistro = ORIGEN_LEGADO_RRHH;
+    }
 
     let absenceType;
     if (data.tipoAusencia_codigo) {
@@ -630,6 +913,8 @@ module.exports = cds.service.impl(function () {
     data.unidadConsumo = unidadConsumo;
 
     if (unidadConsumo === "HORAS") {
+      const nombreTipo = absenceType.descripcion || "el beneficio por horas";
+
       req.data.diasHabiles = 0;
       data.diasHabiles = 0;
 
@@ -679,75 +964,42 @@ module.exports = cds.service.impl(function () {
         return;
       }
 
-      const maximoHorasSolicitud = Number(absenceType.maximoHorasDia || 0);
-      const excedeMaximoSolicitud =
-        maximoHorasSolicitud > 0 && horas > maximoHorasSolicitud;
+      if (!esRegistroLegado(data)) {
+        const maximoHorasSolicitud = Number(absenceType.maximoHorasDia || 0);
+        const excedeMaximoSolicitud =
+          maximoHorasSolicitud > 0 && horas > maximoHorasSolicitud;
 
-      if (excedeMaximoSolicitud) {
-        // En PATCH solo se informa y se conserva el valor inválido en el
-        // borrador. La validación dura se ejecuta al activar el root.
-        // Si se rechazara este PATCH, Fiori conservaría visualmente la hora
-        // inválida, pero el draft mantendría el último valor válido y podría
-        // activarlo, que es justamente el comportamiento que queremos evitar.
-        warning(
-          req,
-          "MAXIMO_HORAS_SOLICITUD_EXCEDIDO",
-          `Cada solicitud de valera emocional puede ser de máximo ${maximoHorasSolicitud.toFixed(2)} horas.`,
-          "horaFin",
-        );
-      }
-
-      if (
-        !excedeMaximoSolicitud &&
-        ESTADOS_CONSUMO_AUSENCIA.has(data.estadoa_codigo || "SOLICITADA") &&
-        data.empleado_ID &&
-        data.fechaInicio &&
-        horas > 0
-      ) {
-        const ausenciaID = data.ID || keyFrom(req);
-        const ausenciasHoras = await obtenerAusenciasHoras(
-          data.empleado_ID,
-          ausenciaID,
-        );
-
-        const horasMismoDia = round2(
-          ausenciasHoras
-            .filter((ausencia) => ausencia.fechaInicio === data.fechaInicio)
-            .reduce(
-              (total, ausencia) =>
-                total + Number(ausencia.horasSolicitadas || 0),
-              0,
-            ),
-        );
-
-        if (
-          maximoHorasSolicitud > 0 &&
-          round2(horasMismoDia + horas) > maximoHorasSolicitud
-        ) {
+        if (excedeMaximoSolicitud) {
+          // La advertencia operativa se conserva para solicitudes de
+          // autoservicio editadas por RR. HH., pero no para datos legados.
           warning(
             req,
-            "MAXIMO_HORAS_DIA_EXCEDIDO",
-            `El máximo diario es ${maximoHorasSolicitud.toFixed(2)} horas. Para esa fecha ya hay ${horasMismoDia.toFixed(2)} horas reservadas.`,
+            "MAXIMO_HORAS_SOLICITUD_EXCEDIDO",
+            `Cada solicitud de ${nombreTipo} puede ser de máximo ${maximoHorasSolicitud.toFixed(2)} horas.`,
             "horaFin",
           );
         }
 
-        const maximoHorasSemana = Number(
-          absenceType.maximoHorasSemana || 0,
-        );
-
-        if (maximoHorasSemana > 0) {
-          const inicioSemana = obtenerInicioSemana(data.fechaInicio);
-          const finSemana = formatISODate(
-            addDays(parseISODate(inicioSemana), 6),
+        if (
+          !excedeMaximoSolicitud &&
+          ESTADOS_CONSUMO_AUSENCIA.has(data.estadoa_codigo || "SOLICITADA") &&
+          data.empleado_ID &&
+          data.fechaInicio &&
+          horas > 0
+        ) {
+          const ausenciaID = data.ID || keyFrom(req);
+          const ausenciasHoras = await obtenerAusenciasHoras(
+            data.empleado_ID,
+            ausenciaID,
+            data.tipoAusencia_codigo,
+            absenceType.politicaFecha === POLITICA_SEMANA_CUMPLEANOS
+              ? POLITICA_SEMANA_CUMPLEANOS
+              : null,
           );
-          const horasSemana = round2(
+
+          const horasMismoDia = round2(
             ausenciasHoras
-              .filter(
-                (ausencia) =>
-                  ausencia.fechaInicio >= inicioSemana &&
-                  ausencia.fechaInicio <= finSemana,
-              )
+              .filter((ausencia) => ausencia.fechaInicio === data.fechaInicio)
               .reduce(
                 (total, ausencia) =>
                   total + Number(ausencia.horasSolicitadas || 0),
@@ -755,13 +1007,49 @@ module.exports = cds.service.impl(function () {
               ),
           );
 
-          if (round2(horasSemana + horas) > maximoHorasSemana) {
+          if (
+            maximoHorasSolicitud > 0 &&
+            round2(horasMismoDia + horas) > maximoHorasSolicitud
+          ) {
             warning(
               req,
-              "MAXIMO_HORAS_SEMANA_EXCEDIDO",
-              `El máximo semanal es ${maximoHorasSemana.toFixed(2)} horas, de lunes a domingo. En esa semana ya hay ${horasSemana.toFixed(2)} horas reservadas.`,
+              "MAXIMO_HORAS_DIA_EXCEDIDO",
+              `El máximo diario es ${maximoHorasSolicitud.toFixed(2)} horas. Para esa fecha ya hay ${horasMismoDia.toFixed(2)} horas reservadas.`,
               "horaFin",
             );
+          }
+
+          const maximoHorasSemana = Number(
+            absenceType.maximoHorasSemana || 0,
+          );
+
+          if (maximoHorasSemana > 0) {
+            const inicioSemana = obtenerInicioSemana(data.fechaInicio);
+            const finSemana = formatISODate(
+              addDays(parseISODate(inicioSemana), 6),
+            );
+            const horasSemana = round2(
+              ausenciasHoras
+                .filter(
+                  (ausencia) =>
+                    ausencia.fechaInicio >= inicioSemana &&
+                    ausencia.fechaInicio <= finSemana,
+                )
+                .reduce(
+                  (total, ausencia) =>
+                    total + Number(ausencia.horasSolicitadas || 0),
+                  0,
+                ),
+            );
+
+            if (round2(horasSemana + horas) > maximoHorasSemana) {
+              warning(
+                req,
+                "MAXIMO_HORAS_SEMANA_EXCEDIDO",
+                `El máximo semanal es ${maximoHorasSemana.toFixed(2)} horas, de lunes a domingo. En esa semana ya hay ${horasSemana.toFixed(2)} horas reservadas.`,
+                "horaFin",
+              );
+            }
           }
         }
       }
@@ -801,13 +1089,104 @@ module.exports = cds.service.impl(function () {
     }
   });
 
+  this.before("DELETE", AusenciasSrv.drafts, async (req) => {
+    // Descartar el draft completo no altera la solicitud activa y debe seguir
+    // siendo posible desde la ficha del empleado.
+    if (req._?.event === "draftCancel") return;
+
+    const ausencia = await currentAbsenceDraft(req);
+    if (ausencia.origenRegistro === ORIGEN_AUTOSERVICIO) {
+      rechazarMutacionAutoservicioAdmin(req);
+    }
+  });
+
   this.before(["CREATE", "UPDATE"], AusenciasSrv, async (req) => {
     normalizeText(req.data, ["motivo"]);
 
-    const previous =
+    if (req.event === "CREATE") {
+      if (req.data.origenRegistro === ORIGEN_AUTOSERVICIO) {
+        rechazarMutacionAutoservicioAdmin(req);
+        return;
+      }
+      req.data.origenRegistro = ORIGEN_LEGADO_RRHH;
+    }
+
+    let previous =
       req.event === "UPDATE" ? await currentRow(Ausencias, req) : {};
-    const data = { ...previous, ...req.data };
+    let data = { ...previous, ...req.data };
     const ID = data.ID || keyFrom(req);
+
+    if (
+      req.event === "UPDATE" &&
+      previous.origenRegistro === ORIGEN_AUTOSERVICIO
+    ) {
+      if (camposAusenciaModificados(previous, data).length > 0) {
+        rechazarMutacionAutoservicioAdmin(req);
+      }
+
+      // CAP activa el árbol completo del empleado. Una copia idéntica de la
+      // ausencia de autoservicio no debe impedir guardar otros datos.
+      return;
+    }
+
+    if (
+      req.event === "UPDATE" &&
+      previous.origenRegistro &&
+      data.origenRegistro !== previous.origenRegistro
+    ) {
+      error(
+        req,
+        "ORIGEN_AUSENCIA_INMUTABLE",
+        "El origen de una ausencia no puede modificarse.",
+        "origenRegistro",
+      );
+      return;
+    }
+
+    if (
+      ![ORIGEN_AUTOSERVICIO, ORIGEN_LEGADO_RRHH].includes(
+        data.origenRegistro,
+      )
+    ) {
+      error(
+        req,
+        "ORIGEN_AUSENCIA_INVALIDO",
+        "No fue posible determinar el origen de la ausencia.",
+        "origenRegistro",
+      );
+      return;
+    }
+
+    let registroLegado = esRegistroLegado(data);
+
+    if (data.empleado_ID) {
+      if (!(await bloquearEmpleadoParaReglas(req, data.empleado_ID))) return;
+      if (req.event === "UPDATE") {
+        previous = await currentRow(Ausencias, req);
+        data = { ...previous, ...req.data };
+        registroLegado = esRegistroLegado(data);
+      }
+    }
+
+    if (
+      !registroLegado &&
+      req.event === "UPDATE" &&
+      previous.estadoa_codigo &&
+      data.estadoa_codigo &&
+      previous.estadoa_codigo !== data.estadoa_codigo &&
+      !esTransicionEstadoAusenciaPermitida(
+        previous.estadoa_codigo,
+        data.estadoa_codigo,
+      )
+    ) {
+      error(
+        req,
+        "TRANSICION_ESTADO_AUSENCIA_INVALIDA",
+        `No se permite cambiar una ausencia de ${previous.estadoa_codigo} a ${data.estadoa_codigo}.`,
+        "estadoa_codigo",
+      );
+      return;
+    }
 
     let absenceType;
     if (data.tipoAusencia_codigo) {
@@ -826,6 +1205,22 @@ module.exports = cds.service.impl(function () {
       return;
     }
 
+    if (!esActivacionBorrador(req)) {
+      if (
+        !(await validarSoportesAusencia(
+          req,
+          absenceType,
+          data.estadoa_codigo || "SOLICITADA",
+          ID,
+          "soportes",
+          "active",
+          !registroLegado,
+        ))
+      ) {
+        return;
+      }
+    }
+
     const unidadConsumo = absenceType.unidadConsumo || "DIAS";
     req.data.unidadConsumo = unidadConsumo;
     data.unidadConsumo = unidadConsumo;
@@ -837,9 +1232,19 @@ module.exports = cds.service.impl(function () {
         "La fecha final no puede ser anterior a la fecha inicial.",
         "fechaFin",
       );
+      return;
+    }
+
+    if (
+      registroLegado &&
+      !validarRegistroLegadoAdministrativo(req, data, "fechaFin")
+    ) {
+      return;
     }
 
     if (unidadConsumo === "HORAS") {
+      const nombreTipo = absenceType.descripcion || "el beneficio por horas";
+
       req.data.diasHabiles = 0;
       data.diasHabiles = 0;
 
@@ -847,7 +1252,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "FECHA_VALERA_REQUERIDA",
-          "Indica la fecha en la que se utilizará la valera emocional.",
+          `Indica la fecha en la que se utilizará ${nombreTipo}.`,
           "fechaInicio",
         );
       }
@@ -866,7 +1271,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "VALERA_MISMO_DIA_REQUERIDO",
-          "La valera emocional debe solicitarse para una sola fecha.",
+          `${nombreTipo} debe solicitarse para una sola fecha.`,
           "fechaFin",
         );
       }
@@ -875,7 +1280,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "HORA_INICIO_REQUERIDA",
-          "Indica la hora inicial de la valera emocional.",
+          `Indica la hora inicial de ${nombreTipo}.`,
           "horaInicio",
         );
       }
@@ -884,7 +1289,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "HORA_FIN_REQUERIDA",
-          "Indica la hora final de la valera emocional.",
+          `Indica la hora final de ${nombreTipo}.`,
           "horaFin",
         );
       }
@@ -893,7 +1298,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "VALERA_SOLO_HORAS_MINUTOS",
-          "La valera emocional solo permite seleccionar horas y minutos; los segundos deben ser 00.",
+          `${nombreTipo} solo permite seleccionar horas y minutos; los segundos deben ser 00.`,
           tieneSegundos(data.horaInicio) ? "horaInicio" : "horaFin",
         );
         return;
@@ -904,7 +1309,7 @@ module.exports = cds.service.impl(function () {
         data.horaFin,
       );
 
-      if (horasSolicitadas < 0) {
+      if (horasSolicitadas <= 0) {
         error(
           req,
           "HORA_FIN_INVALIDA",
@@ -916,6 +1321,23 @@ module.exports = cds.service.impl(function () {
       req.data.horasSolicitadas = Math.max(0, horasSolicitadas);
       data.horasSolicitadas = Math.max(0, horasSolicitadas);
 
+      const minimoHorasSolicitud = Number(
+        absenceType.minimoHorasSolicitud || 0,
+      );
+
+      if (
+        minimoHorasSolicitud > 0 &&
+        data.horasSolicitadas < minimoHorasSolicitud
+      ) {
+        error(
+          req,
+          "MINIMO_HORAS_SOLICITUD_NO_ALCANZADO",
+          `${nombreTipo} debe solicitarse por ${minimoHorasSolicitud.toFixed(2)} horas.`,
+          "horaFin",
+        );
+        return;
+      }
+
       const maximoHorasSolicitud = Number(absenceType.maximoHorasDia || 0);
       if (
         maximoHorasSolicitud > 0 &&
@@ -924,13 +1346,14 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "MAXIMO_HORAS_SOLICITUD_EXCEDIDO",
-          `Cada solicitud de valera emocional puede ser de máximo ${maximoHorasSolicitud.toFixed(2)} horas.`,
+          `Cada solicitud de ${nombreTipo} puede ser de máximo ${maximoHorasSolicitud.toFixed(2)} horas.`,
           "horaFin",
         );
         return;
       }
 
       if (
+        !registroLegado &&
         absenceType.permiteCruzarAnio === false &&
         data.fechaInicio &&
         data.fechaFin &&
@@ -939,7 +1362,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "VALERA_CRUCE_ANIO_NO_PERMITIDO",
-          "La valera emocional no puede cruzar de un año a otro.",
+          `${nombreTipo} no puede cruzar de un año a otro.`,
           "fechaFin",
         );
       }
@@ -950,6 +1373,7 @@ module.exports = cds.service.impl(function () {
         previous.tipoAusencia_codigo !== data.tipoAusencia_codigo;
 
       if (
+        !registroLegado &&
         fechasModificadas &&
         data.fechaInicio &&
         Number(absenceType.diasAnticipacion || 0) > 0
@@ -965,13 +1389,20 @@ module.exports = cds.service.impl(function () {
           error(
             req,
             "ANTICIPACION_VALERA_INSUFICIENTE",
-            `La valera emocional debe solicitarse con mínimo ${minimo} días de anticipación.`,
+            `${nombreTipo} debe solicitarse con mínimo ${minimo} días de anticipación.`,
             "fechaInicio",
           );
         }
       }
 
+      const anioBeneficio = registroLegado
+        ? obtenerAnio(data.fechaInicio)
+        : await validarPoliticaFechaAusencia(req, data, absenceType);
+
+      if (!anioBeneficio) return;
+
       if (
+        !registroLegado &&
         ESTADOS_CONSUMO_AUSENCIA.has(data.estadoa_codigo) &&
         data.empleado_ID &&
         data.fechaInicio &&
@@ -980,6 +1411,10 @@ module.exports = cds.service.impl(function () {
         const ausenciasHoras = await obtenerAusenciasHoras(
           data.empleado_ID,
           ID,
+          data.tipoAusencia_codigo,
+          absenceType.politicaFecha === POLITICA_SEMANA_CUMPLEANOS
+            ? POLITICA_SEMANA_CUMPLEANOS
+            : null,
         );
 
         const horasMismoDia = round2(
@@ -1052,17 +1487,18 @@ module.exports = cds.service.impl(function () {
           );
         }
 
-        const saldo = await calcularSaldoValera(
+        const saldo = await calcularSaldoBeneficioHoras(
           data.empleado_ID,
-          obtenerAnio(data.fechaInicio),
+          data.tipoAusencia_codigo,
+          anioBeneficio,
           ID,
         );
 
-        if (data.horasSolicitadas > saldo.horasValeraDisponibles) {
+        if (data.horasSolicitadas > saldo.horasDisponibles) {
           error(
             req,
-            "SALDO_VALERA_INSUFICIENTE",
-            `La solicitud es de ${data.horasSolicitadas.toFixed(2)} horas y el saldo disponible es ${saldo.horasValeraDisponibles.toFixed(2)}.`,
+            "SALDO_HORAS_INSUFICIENTE",
+            `La solicitud es de ${data.horasSolicitadas.toFixed(2)} horas y el saldo disponible para ${absenceType.descripcion} es ${saldo.horasDisponibles.toFixed(2)}.`,
             "horasSolicitadas",
           );
         }
@@ -1086,6 +1522,7 @@ module.exports = cds.service.impl(function () {
       }
 
       if (
+        !registroLegado &&
         absenceType.descuentaSaldo &&
         Number(data.diasHabiles) > 0 &&
         ["SOLICITADA", "APROBADA"].includes(data.estadoa_codigo)
@@ -1105,6 +1542,7 @@ module.exports = cds.service.impl(function () {
     }
 
     if (
+      !registroLegado &&
       ESTADOS_CONSUMO_AUSENCIA.has(data.estadoa_codigo) &&
       data.empleado_ID &&
       data.fechaInicio &&
@@ -1122,7 +1560,7 @@ module.exports = cds.service.impl(function () {
       }
     }
 
-    if (data.estadoa_codigo === "APROBADA") {
+    if (!registroLegado && data.estadoa_codigo === "APROBADA") {
       if (!data.aprobadaPor_ID) {
         error(
           req,
@@ -1141,6 +1579,13 @@ module.exports = cds.service.impl(function () {
         "Indica el motivo del rechazo.",
         "motivo",
       );
+    }
+  });
+
+  this.before("DELETE", AusenciasSrv, async (req) => {
+    const ausencia = await currentRow(Ausencias, req);
+    if (ausencia.origenRegistro === ORIGEN_AUTOSERVICIO) {
+      rechazarMutacionAutoservicioAdmin(req);
     }
   });
 
@@ -1195,6 +1640,255 @@ module.exports = cds.service.impl(function () {
   }
 
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+  function esActivacionBorrador(req) {
+    return req._?.event === "draftActivate";
+  }
+
+  function esPeticionDeSoporteAdmin(req) {
+    if (
+      req.target === SoportesAusenciaSrv ||
+      req.target === SoportesAusenciaSrv?.drafts
+    ) {
+      return true;
+    }
+
+    const targetName = req.target?.name || "";
+    if (
+      targetName.includes(".Ausencias.soportes") ||
+      targetName.includes(".Ausencias_soportes")
+    ) {
+      return true;
+    }
+
+    const url =
+      req.req?.originalUrl ||
+      req.req?.url ||
+      req._?.req?.originalUrl ||
+      req._?.req?.url ||
+      "";
+
+    return /\/(?:Ausencias(?:\([^)]*\))?\/soportes|Ausencias_soportes)(?:\([^)]*\))?(?:\/content)?(?:\?|$)/i.test(
+      url,
+    );
+  }
+
+  function esMutacionSoporteBorrador(req) {
+    if (
+      req.target?.isDraft ||
+      req.target?.name?.endsWith(".drafts") ||
+      req.event === "NEW" ||
+      req.event === "CANCEL"
+    ) {
+      return true;
+    }
+
+    const parametroIsActive = [...(req.params || [])]
+      .reverse()
+      .find((param) => param?.IsActiveEntity !== undefined)?.IsActiveEntity;
+    const valorIsActive =
+      req.data?.IsActiveEntity !== undefined
+        ? req.data.IsActiveEntity
+        : parametroIsActive;
+
+    if (
+      valorIsActive === false ||
+      String(valorIsActive).toLowerCase() === "false"
+    ) {
+      return true;
+    }
+
+    const url =
+      req.req?.originalUrl ||
+      req.req?.url ||
+      req._?.req?.originalUrl ||
+      req._?.req?.url ||
+      "";
+    return /IsActiveEntity(?:%20|\s)*=(?:%20|\s)*false/i.test(url);
+  }
+
+  async function obtenerAusenciaIDDeSoporteAdmin(req, esBorrador) {
+    const params = req.params || [];
+    const explicitParent = params.find((param) => param?.up__ID)?.up__ID;
+    if (explicitParent) return explicitParent;
+    if (req.data?.up__ID) return req.data.up__ID;
+    if (req.data?.up_?.ID) return req.data.up_.ID;
+
+    const attachmentID =
+      req.data?.ID || [...params].reverse().find((param) => param?.ID)?.ID;
+
+    if (attachmentID) {
+      const fuentes = esBorrador
+        ? [SoportesAusenciaSrv?.drafts, SoportesAusencia]
+        : [SoportesAusencia, SoportesAusenciaSrv?.drafts];
+
+      for (const fuente of fuentes.filter(Boolean)) {
+        const soporte = await SELECT.one
+          .from(fuente)
+          .columns("up__ID")
+          .where({ ID: attachmentID });
+        if (soporte?.up__ID) return soporte.up__ID;
+      }
+    }
+
+    const idsNavegacion = params
+      .filter((param) => param?.ID)
+      .map((param) => param.ID);
+    if (["CREATE", "NEW"].includes(req.event)) {
+      return idsNavegacion.at(-1) || null;
+    }
+    return idsNavegacion.length > 1
+      ? idsNavegacion.at(-2)
+      : null;
+  }
+
+  async function protegerMutacionSoporteAdmin(req) {
+    if (esActivacionBorrador(req)) return;
+
+    const esBorrador = esMutacionSoporteBorrador(req);
+    const ausenciaID = await obtenerAusenciaIDDeSoporteAdmin(req, esBorrador);
+    if (!ausenciaID) {
+      error(
+        req,
+        "SOLICITUD_SOPORTE_NO_IDENTIFICADA",
+        "No fue posible identificar la solicitud asociada al soporte.",
+        "soportes",
+      );
+      return;
+    }
+
+    const fuenteAusencia = esBorrador ? AusenciasSrv.drafts : Ausencias;
+    let ausencia = await SELECT.one
+      .from(fuenteAusencia)
+      .columns("ID", "empleado_ID", "estadoa_codigo", "origenRegistro")
+      .where({ ID: ausenciaID });
+
+    if (!ausencia) {
+      error(
+        req,
+        "SOLICITUD_SOPORTE_NO_ENCONTRADA",
+        "No existe la solicitud asociada al soporte.",
+        "soportes",
+      );
+      return;
+    }
+
+    if (ausencia.origenRegistro === ORIGEN_AUTOSERVICIO) {
+      rechazarMutacionAutoservicioAdmin(req, "soportes");
+      return;
+    }
+
+    if (
+      !(await bloquearEmpleadoParaReglas(
+        req,
+        ausencia.empleado_ID,
+        esBorrador,
+      ))
+    ) {
+      return;
+    }
+
+    if (!esBorrador) {
+      const ausenciaActual = await SELECT.one
+        .from(Ausencias)
+        .columns("ID", "empleado_ID", "estadoa_codigo", "origenRegistro")
+        .where({ ID: ausenciaID });
+
+      if (
+        !ausenciaActual ||
+        ausenciaActual.empleado_ID !== ausencia.empleado_ID
+      ) {
+        error(
+          req,
+          "SOLICITUD_SOPORTE_MODIFICADA_CONCURRENTEMENTE",
+          "La solicitud asociada al soporte cambió en otra sesión. Actualiza la información antes de continuar.",
+          "soportes",
+        );
+        return;
+      }
+      ausencia = ausenciaActual;
+    }
+
+    if (!esBorrador && ausencia.estadoa_codigo !== "BORRADOR") {
+      error(
+        req,
+        "SOPORTES_AUSENCIA_BLOQUEADOS",
+        "Los soportes activos solo pueden modificarse mientras la solicitud está en borrador. Para otros estados, edita el draft administrativo.",
+        "soportes",
+      );
+    }
+  }
+
+  function esTransicionEstadoAusenciaPermitida(origen, destino) {
+    if (origen === destino) return true;
+
+    const transiciones = {
+      BORRADOR: new Set(["SOLICITADA", "CANCELADA"]),
+      SOLICITADA: new Set(["APROBADA", "RECHAZADA", "CANCELADA"]),
+      APROBADA: new Set(["FINALIZADA", "CANCELADA"]),
+      RECHAZADA: new Set(),
+      CANCELADA: new Set(),
+      FINALIZADA: new Set(),
+    };
+
+    return transiciones[origen]?.has(destino) === true;
+  }
+
+  function validarRegistroLegadoAdministrativo(
+    req,
+    data,
+    targetFecha = "fechaFin",
+    targetEstado = "estadoa_codigo",
+  ) {
+    let valido = true;
+    const estado = data.estadoa_codigo || "SOLICITADA";
+
+    if (!ESTADOS_TERMINALES_LEGADO.has(estado)) {
+      error(
+        req,
+        "ESTADO_REGISTRO_LEGADO_INVALIDO",
+        "Una ausencia histórica debe registrarse como finalizada, rechazada o cancelada.",
+        targetEstado,
+      );
+      valido = false;
+    }
+
+    const ultimaFecha = data.fechaFin || data.fechaInicio;
+    if (ultimaFecha && ultimaFecha > today()) {
+      error(
+        req,
+        "FECHA_REGISTRO_LEGADO_FUTURA",
+        "Una ausencia histórica no puede finalizar en una fecha futura.",
+        targetFecha,
+      );
+      valido = false;
+    }
+
+    return valido;
+  }
+
+  async function bloquearEmpleadoParaReglas(
+    req,
+    empleadoID,
+    permitirInexistente = false,
+  ) {
+    const empleado = await SELECT.one
+      .from(Empleados)
+      .columns("ID")
+      .where({ ID: empleadoID })
+      .forUpdate({ wait: 10 });
+
+    if (!empleado && !permitirInexistente) {
+      error(
+        req,
+        "EMPLEADO_REGLAS_NO_ENCONTRADO",
+        "No existe el empleado asociado al registro que se intenta modificar.",
+        "empleado_ID",
+      );
+    }
+
+    return Boolean(empleado) || permitirInexistente;
+  }
 
   function parseISODate(value) {
     return new Date(`${value}T00:00:00.000Z`);
@@ -1331,30 +2025,7 @@ module.exports = cds.service.impl(function () {
   }
 
   function calcularDiasHabilesColombia(fechaInicio, fechaFin) {
-    if (!fechaInicio || !fechaFin) {
-      return 0;
-    }
-
-    if (fechaFin < fechaInicio) {
-      return 0;
-    }
-
-    const start = parseISODate(fechaInicio);
-    const end = parseISODate(fechaFin);
-
-    let businessDays = 0;
-
-    for (let current = start; current <= end; current = addDays(current, 1)) {
-      const dayOfWeek = current.getUTCDay();
-
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-      if (!isWeekend && !isColombianHoliday(current)) {
-        businessDays += 1;
-      }
-    }
-
-    return businessDays;
+    return absenceRules.calcularDiasHabilesColombia(fechaInicio, fechaFin);
   }
 
   function round2(value) {
@@ -1364,6 +2035,138 @@ module.exports = cds.service.impl(function () {
 
   function obtenerAnio(fecha) {
     return fecha ? Number(fecha.slice(0, 4)) : null;
+  }
+
+  function esAnioBisiesto(anio) {
+    return anio % 4 === 0 && (anio % 100 !== 0 || anio % 400 === 0);
+  }
+
+  function obtenerFechaCumpleanios(fechaNacimiento, anio) {
+    if (!fechaNacimiento || !anio) return null;
+
+    let mesDia = fechaNacimiento.slice(5, 10);
+    if (mesDia === "02-29" && !esAnioBisiesto(anio)) {
+      mesDia = "02-28";
+    }
+
+    return `${anio}-${mesDia}`;
+  }
+
+  function obtenerOcurrenciaCumpleanios(fechaSolicitud, fechaNacimiento) {
+    if (!fechaSolicitud || !fechaNacimiento) return null;
+
+    const anioSolicitud = obtenerAnio(fechaSolicitud);
+
+    for (const anio of [anioSolicitud - 1, anioSolicitud, anioSolicitud + 1]) {
+      const fechaCumpleanios = obtenerFechaCumpleanios(fechaNacimiento, anio);
+      const semanaInicio = obtenerInicioSemana(fechaCumpleanios);
+      const semanaFin = formatISODate(addDays(parseISODate(semanaInicio), 6));
+
+      if (fechaSolicitud >= semanaInicio && fechaSolicitud <= semanaFin) {
+        return { anio, fechaCumpleanios, semanaInicio, semanaFin };
+      }
+    }
+
+    return null;
+  }
+
+  function obtenerAnioBeneficioDesdeFecha(
+    tipoAusencia,
+    fechaSolicitud,
+    fechaNacimiento,
+  ) {
+    if (tipoAusencia?.politicaFecha !== POLITICA_SEMANA_CUMPLEANOS) {
+      return obtenerAnio(fechaSolicitud);
+    }
+
+    return (
+      obtenerOcurrenciaCumpleanios(fechaSolicitud, fechaNacimiento)?.anio ??
+      obtenerAnio(fechaSolicitud)
+    );
+  }
+
+  async function validarPoliticaFechaAusencia(req, data, tipoAusencia) {
+    if (!data.fechaInicio) return null;
+
+    if (tipoAusencia.politicaFecha !== POLITICA_SEMANA_CUMPLEANOS) {
+      return obtenerAnio(data.fechaInicio);
+    }
+
+    const empleado = await SELECT.one
+      .from(Empleados)
+      .columns(
+        "ID",
+        "fechaNacimiento",
+        "fechaIngreso",
+        "fechaRetiro",
+        "estado_codigo",
+      )
+      .where({ ID: data.empleado_ID });
+
+    if (!empleado?.fechaNacimiento) {
+      error(
+        req,
+        "FECHA_NACIMIENTO_REQUERIDA",
+        "El empleado debe tener registrada su fecha de nacimiento para solicitar el beneficio de cumpleaños.",
+        "fechaInicio",
+      );
+      return null;
+    }
+
+    const ocurrencia = obtenerOcurrenciaCumpleanios(
+      data.fechaInicio,
+      empleado.fechaNacimiento,
+    );
+
+    if (!ocurrencia) {
+      error(
+        req,
+        "FECHA_FUERA_SEMANA_CUMPLEANOS",
+        "El beneficio de cumpleaños solo puede solicitarse de lunes a domingo en la misma semana del cumpleaños del empleado.",
+        "fechaInicio",
+      );
+      return null;
+    }
+
+    if (
+      empleado.estado_codigo !== "AC" ||
+      !empleado.fechaIngreso ||
+      empleado.fechaIngreso > data.fechaInicio ||
+      (empleado.fechaRetiro && empleado.fechaRetiro < data.fechaInicio)
+    ) {
+      error(
+        req,
+        "EMPLEADO_NO_ACTIVO_EN_FECHA",
+        "El beneficio de cumpleaños requiere que la relación laboral esté activa en la fecha seleccionada.",
+        "fechaInicio",
+      );
+    }
+
+    if (tipoAusencia.requiereContratoVigente) {
+      const contratos = await SELECT.from(Contratos)
+        .columns("ID", "fechaInicio", "fechaFin")
+        .where({
+          empleado_ID: data.empleado_ID,
+          vigente: true,
+        });
+
+      const contrato = contratos.find(
+        (actual) =>
+          actual.fechaInicio <= data.fechaInicio &&
+          (!actual.fechaFin || actual.fechaFin >= data.fechaInicio),
+      );
+
+      if (!contrato) {
+        error(
+          req,
+          "CONTRATO_VIGENTE_REQUERIDO",
+          "El beneficio de cumpleaños requiere un contrato vigente.",
+          "fechaInicio",
+        );
+      }
+    }
+
+    return ocurrencia.anio;
   }
 
   function tieneSegundos(value) {
@@ -1391,14 +2194,7 @@ module.exports = cds.service.impl(function () {
   }
 
   function calcularHorasSolicitadas(horaInicio, horaFin) {
-    if (!horaInicio || !horaFin) return 0;
-
-    const inicio = minutosDesdeMedianoche(horaInicio);
-    const fin = minutosDesdeMedianoche(horaFin);
-
-    if (inicio === null || fin === null || fin <= inicio) return -1;
-
-    return round2((fin - inicio) / 60);
+    return absenceRules.calcularHorasSolicitadas(horaInicio, horaFin);
   }
 
   function calcularDiasAnticipacion(
@@ -1406,56 +2202,23 @@ module.exports = cds.service.impl(function () {
     fechaInicio,
     tipoDias = "CALENDARIO",
   ) {
-    if (!fechaSolicitud || !fechaInicio || fechaInicio <= fechaSolicitud) {
-      return 0;
-    }
-
-    if (tipoDias !== "HABILES") {
-      return differenceInDays(fechaSolicitud, fechaInicio);
-    }
-
-    const end = parseISODate(fechaInicio);
-    let count = 0;
-
-    for (
-      let current = addDays(parseISODate(fechaSolicitud), 1);
-      current <= end;
-      current = addDays(current, 1)
-    ) {
-      const dayOfWeek = current.getUTCDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-      if (!isWeekend && !isColombianHoliday(current)) {
-        count += 1;
-      }
-    }
-
-    return count;
+    return absenceRules.calcularDiasAnticipacion(
+      fechaSolicitud,
+      fechaInicio,
+      tipoDias,
+    );
   }
 
   function obtenerInicioSemana(fecha) {
-    const value = parseISODate(fecha);
-    const dayOfWeek = value.getUTCDay();
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-
-    return formatISODate(addDays(value, -daysFromMonday));
+    return absenceRules.obtenerInicioSemanaISO(fecha);
   }
 
   function fechasSeCruzan(inicio1, fin1, inicio2, fin2) {
-    return inicio1 <= fin2 && fin1 >= inicio2;
+    return absenceRules.fechasSeCruzan(inicio1, fin1, inicio2, fin2);
   }
 
   function horasSeCruzan(inicio1, fin1, inicio2, fin2) {
-    const start1 = minutosDesdeMedianoche(inicio1);
-    const end1 = minutosDesdeMedianoche(fin1);
-    const start2 = minutosDesdeMedianoche(inicio2);
-    const end2 = minutosDesdeMedianoche(fin2);
-
-    if ([start1, end1, start2, end2].some((value) => value === null)) {
-      return true;
-    }
-
-    return start1 < end2 && end1 > start2;
+    return absenceRules.horasSeCruzan(inicio1, fin1, inicio2, fin2);
   }
 
   /**
@@ -1464,74 +2227,383 @@ module.exports = cds.service.impl(function () {
    * Empleados; por eso un SAVE registrado únicamente sobre Ausencias.drafts
    * no es suficiente para garantizar el bloqueo.
    */
-  async function validarValerasBorradorEmpleado(req) {
+  async function validarAusenciasBorradorEmpleado(req) {
     const empleadoID = keyFrom(req);
     if (!empleadoID) return;
 
-    const columnasAusencia = [
-      "ID",
-      "empleado_ID",
-      "tipoAusencia_codigo",
-      "estadoa_codigo",
-      "fechaInicio",
-      "fechaFin",
-      "horaInicio",
-      "horaFin",
-      "horasSolicitadas",
-      "unidadConsumo",
-    ];
+    const columnasAusencia = camposPersistidosAusencia().map(
+      ([nombre]) => nombre,
+    );
 
     const borradores = await SELECT.from(AusenciasSrv.drafts)
       .columns(...columnasAusencia)
       .where({ empleado_ID: empleadoID });
 
-    if (borradores.length === 0) return;
-
     const tipos = await SELECT.from(TiposAusencia).columns(
       "codigo",
+      "descripcion",
       "unidadConsumo",
+      "descuentaSaldo",
       "controlaSaldoHoras",
       "horasAnuales",
       "diasAnticipacion",
       "tipoDiasAnticipacion",
+      "minimoHorasSolicitud",
       "maximoHorasDia",
       "maximoHorasSemana",
+      "maximoSolicitudesSemana",
       "requiereMismoDia",
       "permiteCruzarAnio",
+      "politicaFecha",
+      "requiereContratoVigente",
+      "requiereSoporte",
     );
 
     const tipoPorCodigo = new Map(tipos.map((tipo) => [tipo.codigo, tipo]));
-    const codigosValera = new Set(
+    const codigosBeneficiosHoras = new Set(
       tipos
         .filter((tipo) => tipo.controlaSaldoHoras)
         .map((tipo) => tipo.codigo),
     );
 
-    if (codigosValera.size === 0) return;
-
     const activas = await SELECT.from(Ausencias)
       .columns(...columnasAusencia)
       .where({ empleado_ID: empleadoID });
 
-    const activasPorID = new Map(activas.map((ausencia) => [ausencia.ID, ausencia]));
+    if (
+      !(await validarAutoservicioSinCambiosEnBorrador(
+        req,
+        activas,
+        borradores,
+      ))
+    ) {
+      return;
+    }
+
+    // Las solicitudes de autoservicio ya fueron comparadas byte a byte en
+    // sus campos persistidos y en la composición de soportes. Al estar sin
+    // cambios, no se revalidan con reglas dependientes del tiempo o del saldo:
+    // eso permitiría que bloquearan la edición de otros datos del empleado.
+    const borradoresAdministrativos = borradores.filter(esRegistroLegado);
+    if (borradoresAdministrativos.length === 0) return;
+
+    const empleado = await SELECT.one
+      .from(Empleados)
+      .columns("fechaNacimiento", "fechaIngreso", "fechaRetiro")
+      .where({ ID: empleadoID });
+
+    const activasPorID = new Map(
+      activas.map((ausencia) => [ausencia.ID, ausencia]),
+    );
+    const borradoresPayloadPorID = new Map(
+      (Array.isArray(req.data?.ausencias) ? req.data.ausencias : [])
+        .filter((ausencia) => ausencia?.ID)
+        .map((ausencia) => [ausencia.ID, ausencia]),
+    );
     const idsBorrador = new Set(borradores.map((ausencia) => ausencia.ID));
 
-    // El borrador sustituye a la versión activa con el mismo ID. Así no se
-    // duplica una ausencia que está siendo editada al sumar día, semana o año.
+    // El borrador sustituye a la versión activa con el mismo ID. Así las
+    // validaciones comunes usan exactamente el árbol que se va a activar.
     const ausenciasEfectivas = [
       ...activas.filter((ausencia) => !idsBorrador.has(ausencia.ID)),
       ...borradores,
     ];
+    const ausenciasQueConsumen = ausenciasEfectivas.filter((ausencia) =>
+      ESTADOS_CONSUMO_AUSENCIA.has(
+        ausencia.estadoa_codigo || "SOLICITADA",
+      ),
+    );
 
-    const ausenciasQueConsumen = ausenciasEfectivas.filter(
+    for (const ausencia of borradoresAdministrativos) {
+      const tipo = tipoPorCodigo.get(ausencia.tipoAusencia_codigo);
+      const estado = ausencia.estadoa_codigo || "SOLICITADA";
+      const registroLegado = esRegistroLegado(ausencia);
+
+      if (!tipo) {
+        error(
+          req,
+          "TIPO_AUSENCIA_INVALIDO",
+          "Selecciona un tipo de ausencia válido.",
+          "ausencias",
+        );
+        return;
+      }
+
+      if (
+        ![ORIGEN_AUTOSERVICIO, ORIGEN_LEGADO_RRHH].includes(
+          ausencia.origenRegistro,
+        )
+      ) {
+        error(
+          req,
+          "ORIGEN_AUSENCIA_INVALIDO",
+          "No fue posible determinar el origen de la ausencia.",
+          "ausencias",
+        );
+        return;
+      }
+
+      if (
+        ausencia.origenRegistro === ORIGEN_AUTOSERVICIO &&
+        !activasPorID.has(ausencia.ID)
+      ) {
+        error(
+          req,
+          "ORIGEN_AUTOSERVICIO_NO_PERMITIDO",
+          "Las solicitudes de autoservicio solo pueden crearse desde la aplicación de ausencias del empleado.",
+          "ausencias",
+        );
+        return;
+      }
+
+      if (
+        ausencia.fechaInicio &&
+        ausencia.fechaFin &&
+        ausencia.fechaFin < ausencia.fechaInicio
+      ) {
+        error(
+          req,
+          "FECHA_FIN_AUSENCIA_INVALIDA",
+          "La fecha final no puede ser anterior a la fecha inicial.",
+          "ausencias",
+        );
+        return;
+      }
+
+      if (
+        registroLegado &&
+        !validarRegistroLegadoAdministrativo(
+          req,
+          ausencia,
+          "ausencias",
+          "ausencias",
+        )
+      ) {
+        return;
+      }
+
+      if (!registroLegado) {
+        const versionActiva = activasPorID.get(ausencia.ID);
+
+        if (
+          versionActiva?.estadoa_codigo &&
+          versionActiva.estadoa_codigo !== estado &&
+          !esTransicionEstadoAusenciaPermitida(
+            versionActiva.estadoa_codigo,
+            estado,
+          )
+        ) {
+          error(
+            req,
+            "TRANSICION_ESTADO_AUSENCIA_INVALIDA",
+            `No se permite cambiar una ausencia de ${versionActiva.estadoa_codigo} a ${estado}.`,
+            "ausencias",
+          );
+          return;
+        }
+
+        if (estado === "APROBADA" && !ausencia.aprobadaPor_ID) {
+          error(
+            req,
+            "APROBADOR_REQUERIDO",
+            "Indica quién aprobó la ausencia.",
+            "ausencias",
+          );
+          return;
+        }
+
+        if (estado === "APROBADA" && !ausencia.fechaAprobacion) {
+          const fechaAprobacion = today();
+          ausencia.fechaAprobacion = fechaAprobacion;
+          const ausenciaPayload = borradoresPayloadPorID.get(ausencia.ID);
+          if (ausenciaPayload) ausenciaPayload.fechaAprobacion = fechaAprobacion;
+        }
+
+        if (
+          estado === "RECHAZADA" &&
+          !String(ausencia.motivo || "").trim()
+        ) {
+          error(
+            req,
+            "MOTIVO_RECHAZO_REQUERIDO",
+            "Indica el motivo del rechazo.",
+            "ausencias",
+          );
+          return;
+        }
+      }
+
+      if (registroLegado && tipo.unidadConsumo === "HORAS") {
+        if (!ausencia.fechaInicio || !ausencia.horaInicio || !ausencia.horaFin) {
+          error(
+            req,
+            "HORARIO_AUSENCIA_REQUERIDO",
+            "Indica la fecha, la hora inicial y la hora final de la ausencia histórica.",
+            "ausencias",
+          );
+          return;
+        }
+
+        if (
+          tipo.requiereMismoDia &&
+          ausencia.fechaFin &&
+          ausencia.fechaInicio !== ausencia.fechaFin
+        ) {
+          error(
+            req,
+            "AUSENCIA_MISMO_DIA_REQUERIDA",
+            "Una ausencia expresada en horas debe corresponder a una sola fecha.",
+            "ausencias",
+          );
+          return;
+        }
+
+        if (
+          tieneSegundos(ausencia.horaInicio) ||
+          tieneSegundos(ausencia.horaFin) ||
+          calcularHorasSolicitadas(ausencia.horaInicio, ausencia.horaFin) <= 0
+        ) {
+          error(
+            req,
+            "HORARIO_AUSENCIA_INVALIDO",
+            "La hora final debe ser posterior a la inicial y las horas deben expresarse con precisión de minutos.",
+            "ausencias",
+          );
+          return;
+        }
+      }
+
+      if (
+        !(await validarSoportesAusencia(
+          req,
+          tipo,
+          estado,
+          ausencia.ID,
+          "ausencias",
+          "draft",
+          !registroLegado,
+        ))
+      ) {
+        return;
+      }
+    }
+
+    const borradoresAutoservicioQueConsumen = borradoresAdministrativos.filter(
       (ausencia) =>
+        !esRegistroLegado(ausencia) &&
         ESTADOS_CONSUMO_AUSENCIA.has(
           ausencia.estadoa_codigo || "SOLICITADA",
         ),
-    );
+      );
 
-    const valerasQueConsumen = ausenciasQueConsumen
-      .filter((ausencia) => codigosValera.has(ausencia.tipoAusencia_codigo))
+    for (const ausencia of borradoresAutoservicioQueConsumen) {
+      if (!ausencia.fechaInicio || !ausencia.fechaFin) continue;
+
+      const unidad =
+        tipoPorCodigo.get(ausencia.tipoAusencia_codigo)?.unidadConsumo ||
+        ausencia.unidadConsumo ||
+        "DIAS";
+
+      for (const otra of ausenciasQueConsumen) {
+        if (
+          otra.ID === ausencia.ID ||
+          !otra.fechaInicio ||
+          !otra.fechaFin ||
+          !fechasSeCruzan(
+            ausencia.fechaInicio,
+            ausencia.fechaFin,
+            otra.fechaInicio,
+            otra.fechaFin,
+          )
+        ) {
+          continue;
+        }
+
+        const unidadOtra =
+          tipoPorCodigo.get(otra.tipoAusencia_codigo)?.unidadConsumo ||
+          otra.unidadConsumo ||
+          "DIAS";
+
+        if (
+          unidad === "HORAS" &&
+          unidadOtra === "HORAS" &&
+          ausencia.fechaInicio === otra.fechaInicio &&
+          !horasSeCruzan(
+            ausencia.horaInicio,
+            ausencia.horaFin,
+            otra.horaInicio,
+            otra.horaFin,
+          )
+        ) {
+          continue;
+        }
+
+        error(
+          req,
+          "AUSENCIA_SUPERPUESTA",
+          "No se puede guardar: la ausencia se superpone con otra ausencia del empleado.",
+          "ausencias",
+        );
+        return;
+      }
+    }
+
+    const borradoresVacacionesAutoservicio =
+      borradoresAdministrativos.filter((ausencia) => {
+        const tipo = tipoPorCodigo.get(ausencia.tipoAusencia_codigo);
+        return (
+          !esRegistroLegado(ausencia) &&
+          tipo?.descuentaSaldo === true &&
+          ["SOLICITADA", "APROBADA"].includes(
+            ausencia.estadoa_codigo || "SOLICITADA",
+          )
+        );
+      });
+
+    if (borradoresVacacionesAutoservicio.length > 0) {
+      const saldoVacaciones = await calcularSaldoVacaciones(empleadoID);
+      const totalVacacionesConsumidas = round2(
+        ausenciasEfectivas
+          .filter((ausencia) => {
+            const tipo = tipoPorCodigo.get(ausencia.tipoAusencia_codigo);
+            return (
+              tipo?.descuentaSaldo === true &&
+              ["SOLICITADA", "APROBADA", "FINALIZADA"].includes(
+                ausencia.estadoa_codigo || "SOLICITADA",
+              )
+            );
+          })
+          .reduce((total, ausencia) => {
+            const dias = idsBorrador.has(ausencia.ID)
+              ? calcularDiasHabilesColombia(
+                  ausencia.fechaInicio,
+                  ausencia.fechaFin,
+                )
+              : Number(ausencia.diasHabiles || 0);
+            return total + Number(dias || 0);
+          }, 0),
+      );
+
+      if (
+        totalVacacionesConsumidas >
+        Number(saldoVacaciones.diasVacacionesCausados || 0)
+      ) {
+        error(
+          req,
+          "SALDO_VACACIONES_INSUFICIENTE",
+          `No se puede guardar: el total de vacaciones disfrutadas o reservadas sería ${totalVacacionesConsumidas.toFixed(2)} días y el empleado solo ha causado ${Number(saldoVacaciones.diasVacacionesCausados || 0).toFixed(2)} días.`,
+          "ausencias",
+        );
+        return;
+      }
+    }
+
+    if (codigosBeneficiosHoras.size === 0) return;
+
+    const beneficiosHorasQueConsumen = ausenciasQueConsumen
+      .filter((ausencia) =>
+        codigosBeneficiosHoras.has(ausencia.tipoAusencia_codigo),
+      )
       .map((ausencia) => {
         const horasCalculadas = calcularHorasSolicitadas(
           ausencia.horaInicio,
@@ -1547,19 +2619,27 @@ module.exports = cds.service.impl(function () {
         };
       });
 
-    const borradoresValera = borradores.filter((ausencia) =>
-      codigosValera.has(ausencia.tipoAusencia_codigo),
+    const borradoresBeneficiosHoras = borradoresAdministrativos.filter(
+      (ausencia) =>
+        !esRegistroLegado(ausencia) &&
+        codigosBeneficiosHoras.has(ausencia.tipoAusencia_codigo),
     );
+    const perteneceMismaBolsa = (otra, ausencia, tipo) =>
+      tipo.politicaFecha === POLITICA_SEMANA_CUMPLEANOS
+        ? tipoPorCodigo.get(otra.tipoAusencia_codigo)?.politicaFecha ===
+          POLITICA_SEMANA_CUMPLEANOS
+        : otra.tipoAusencia_codigo === ausencia.tipoAusencia_codigo;
 
-    for (const ausencia of borradoresValera) {
+    for (const ausencia of borradoresBeneficiosHoras) {
       const tipo = tipoPorCodigo.get(ausencia.tipoAusencia_codigo);
       const estado = ausencia.estadoa_codigo || "SOLICITADA";
+      const nombreTipo = tipo.descripcion || "el beneficio por horas";
 
       if (!ausencia.fechaInicio) {
         error(
           req,
           "FECHA_VALERA_REQUERIDA",
-          "Indica la fecha en la que se utilizará la valera emocional.",
+          `Indica la fecha en la que se utilizará ${nombreTipo}.`,
           "ausencias",
         );
         return;
@@ -1573,7 +2653,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "VALERA_MISMO_DIA_REQUERIDO",
-          "La valera emocional debe solicitarse para una sola fecha.",
+          `${nombreTipo} debe solicitarse para una sola fecha.`,
           "ausencias",
         );
         return;
@@ -1583,7 +2663,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "HORARIO_VALERA_REQUERIDO",
-          "Indica la hora inicial y la hora final de la valera emocional.",
+          `Indica la hora inicial y la hora final de ${nombreTipo}.`,
           "ausencias",
         );
         return;
@@ -1596,7 +2676,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "VALERA_SOLO_HORAS_MINUTOS",
-          "La valera emocional solo permite seleccionar horas y minutos.",
+          `${nombreTipo} solo permite seleccionar horas y minutos.`,
           "ausencias",
         );
         return;
@@ -1617,12 +2697,23 @@ module.exports = cds.service.impl(function () {
         return;
       }
 
+      const minimoHorasSolicitud = Number(tipo.minimoHorasSolicitud || 0);
+      if (minimoHorasSolicitud > 0 && horas < minimoHorasSolicitud) {
+        error(
+          req,
+          "MINIMO_HORAS_SOLICITUD_NO_ALCANZADO",
+          `No se puede guardar: ${nombreTipo} debe solicitarse por ${minimoHorasSolicitud.toFixed(2)} horas.`,
+          "ausencias",
+        );
+        return;
+      }
+
       const maximoHorasSolicitud = Number(tipo.maximoHorasDia || 0);
       if (maximoHorasSolicitud > 0 && horas > maximoHorasSolicitud) {
         error(
           req,
           "MAXIMO_HORAS_SOLICITUD_EXCEDIDO",
-          `No se puede guardar: cada solicitud de valera emocional puede ser de máximo ${maximoHorasSolicitud.toFixed(2)} horas. La solicitud actual corresponde a ${horas.toFixed(2)} horas.`,
+          `No se puede guardar: cada solicitud de ${nombreTipo} puede ser de máximo ${maximoHorasSolicitud.toFixed(2)} horas. La solicitud actual corresponde a ${horas.toFixed(2)} horas.`,
           "ausencias",
         );
         return;
@@ -1636,7 +2727,7 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "VALERA_CRUCE_ANIO_NO_PERMITIDO",
-          "La valera emocional no puede cruzar de un año a otro.",
+          `${nombreTipo} no puede cruzar de un año a otro.`,
           "ausencias",
         );
         return;
@@ -1662,20 +2753,30 @@ module.exports = cds.service.impl(function () {
           error(
             req,
             "ANTICIPACION_VALERA_INSUFICIENTE",
-            `No se puede guardar: la valera emocional debe solicitarse con mínimo ${diasAnticipacion} días de anticipación.`,
+            `No se puede guardar: ${nombreTipo} debe solicitarse con mínimo ${diasAnticipacion} días de anticipación.`,
             "ausencias",
           );
           return;
         }
       }
 
+      const anioBeneficio = await validarPoliticaFechaAusencia(
+        req,
+        { ...ausencia, empleado_ID: empleadoID },
+        tipo,
+      );
+
+      if (!anioBeneficio) return;
+
       // Los límites de consumo aplican solo a estados que reservan o consumen.
       if (!ESTADOS_CONSUMO_AUSENCIA.has(estado)) continue;
 
       const totalDia = round2(
-        valerasQueConsumen
+        beneficiosHorasQueConsumen
           .filter(
-            (otra) => otra.fechaInicio === ausencia.fechaInicio,
+            (otra) =>
+              perteneceMismaBolsa(otra, ausencia, tipo) &&
+              otra.fechaInicio === ausencia.fechaInicio,
           )
           .reduce((total, otra) => total + Number(otra._horas || 0), 0),
       );
@@ -1684,23 +2785,24 @@ module.exports = cds.service.impl(function () {
         error(
           req,
           "MAXIMO_HORAS_DIA_EXCEDIDO",
-          `No se puede guardar: el máximo diario de valera emocional es ${maximoHorasSolicitud.toFixed(2)} horas. Para ${ausencia.fechaInicio} el total sería ${totalDia.toFixed(2)} horas.`,
+          `No se puede guardar: el máximo diario de ${nombreTipo} es ${maximoHorasSolicitud.toFixed(2)} horas. Para ${ausencia.fechaInicio} el total sería ${totalDia.toFixed(2)} horas.`,
           "ausencias",
         );
         return;
       }
 
       const maximoHorasSemana = Number(tipo.maximoHorasSemana || 0);
-      if (maximoHorasSemana > 0) {
-        const inicioSemana = obtenerInicioSemana(ausencia.fechaInicio);
-        const finSemana = formatISODate(
-          addDays(parseISODate(inicioSemana), 6),
-        );
+      const inicioSemana = obtenerInicioSemana(ausencia.fechaInicio);
+      const finSemana = formatISODate(
+        addDays(parseISODate(inicioSemana), 6),
+      );
 
+      if (maximoHorasSemana > 0) {
         const totalSemana = round2(
-          valerasQueConsumen
+          beneficiosHorasQueConsumen
             .filter(
               (otra) =>
+                perteneceMismaBolsa(otra, ausencia, tipo) &&
                 otra.fechaInicio >= inicioSemana &&
                 otra.fechaInicio <= finSemana,
             )
@@ -1711,60 +2813,44 @@ module.exports = cds.service.impl(function () {
           error(
             req,
             "MAXIMO_HORAS_SEMANA_EXCEDIDO",
-            `No se puede guardar: el máximo semanal de valera emocional es ${maximoHorasSemana.toFixed(2)} horas, de lunes a domingo. En la semana ${inicioSemana} a ${finSemana} el total sería ${totalSemana.toFixed(2)} horas.`,
+            `No se puede guardar: el máximo semanal de ${nombreTipo} es ${maximoHorasSemana.toFixed(2)} horas, de lunes a domingo. En la semana ${inicioSemana} a ${finSemana} el total sería ${totalSemana.toFixed(2)} horas.`,
             "ausencias",
           );
           return;
         }
       }
 
-      // Verifica solapamientos contra el estado efectivo completo del árbol.
-      for (const otra of ausenciasQueConsumen) {
-        if (
-          otra.ID === ausencia.ID ||
-          !otra.fechaInicio ||
-          !otra.fechaFin ||
-          !fechasSeCruzan(
-            ausencia.fechaInicio,
-            ausencia.fechaFin || ausencia.fechaInicio,
-            otra.fechaInicio,
-            otra.fechaFin,
-          )
-        ) {
-          continue;
-        }
+      const maximoSolicitudesSemana = Number(
+        tipo.maximoSolicitudesSemana || 0,
+      );
+      const solicitudesSemana = beneficiosHorasQueConsumen.filter(
+        (otra) =>
+          perteneceMismaBolsa(otra, ausencia, tipo) &&
+          otra.fechaInicio >= inicioSemana &&
+          otra.fechaInicio <= finSemana,
+      ).length;
 
-        const tipoOtra = tipoPorCodigo.get(otra.tipoAusencia_codigo);
-        const unidadOtra =
-          otra.unidadConsumo || tipoOtra?.unidadConsumo || "DIAS";
-
-        if (
-          unidadOtra === "HORAS" &&
-          ausencia.fechaInicio === otra.fechaInicio &&
-          !horasSeCruzan(
-            ausencia.horaInicio,
-            ausencia.horaFin,
-            otra.horaInicio,
-            otra.horaFin,
-          )
-        ) {
-          continue;
-        }
-
+      if (
+        maximoSolicitudesSemana > 0 &&
+        solicitudesSemana > maximoSolicitudesSemana
+      ) {
         error(
           req,
-          "AUSENCIA_SUPERPUESTA",
-          "No se puede guardar: la valera emocional se superpone con otra ausencia del empleado.",
+          "MAXIMO_SOLICITUDES_SEMANA_EXCEDIDO",
+          `No se puede guardar: ${nombreTipo} permite máximo ${maximoSolicitudesSemana} solicitud(es) por semana.`,
           "ausencias",
         );
         return;
       }
 
       // Saldo anual efectivo: activas no reemplazadas + todas las del draft.
-      const anio = obtenerAnio(ausencia.fechaInicio);
-      const saldoConfigurado = await SELECT.one
-        .from(SaldosValeraEmocional)
-        .where({ empleado_ID: empleadoID, anio });
+      const anio = anioBeneficio;
+      const saldoConfigurado =
+        ausencia.tipoAusencia_codigo === "VE"
+          ? await SELECT.one
+              .from(SaldosValeraEmocional)
+              .where({ empleado_ID: empleadoID, anio })
+          : null;
 
       const horasAsignadas = round2(
         Number(saldoConfigurado?.horasBase ?? tipo.horasAnuales ?? 0) +
@@ -1772,16 +2858,24 @@ module.exports = cds.service.impl(function () {
       );
 
       const totalAnio = round2(
-        valerasQueConsumen
-          .filter((otra) => obtenerAnio(otra.fechaInicio) === anio)
+        beneficiosHorasQueConsumen
+          .filter(
+            (otra) =>
+              perteneceMismaBolsa(otra, ausencia, tipo) &&
+              obtenerAnioBeneficioDesdeFecha(
+                tipo,
+                otra.fechaInicio,
+                empleado?.fechaNacimiento,
+              ) === anio,
+          )
           .reduce((total, otra) => total + Number(otra._horas || 0), 0),
       );
 
       if (totalAnio > horasAsignadas) {
         error(
           req,
-          "SALDO_VALERA_INSUFICIENTE",
-          `No se puede guardar: para ${anio} hay ${horasAsignadas.toFixed(2)} horas asignadas y el total solicitado/reservado sería ${totalAnio.toFixed(2)} horas.`,
+          "SALDO_HORAS_INSUFICIENTE",
+          `No se puede guardar: para ${nombreTipo} en ${anio} hay ${horasAsignadas.toFixed(2)} horas asignadas y el total solicitado/reservado sería ${totalAnio.toFixed(2)} horas.`,
           "ausencias",
         );
         return;
@@ -1789,15 +2883,79 @@ module.exports = cds.service.impl(function () {
     }
   }
 
-  async function obtenerAusenciasHoras(empleadoID, ausenciaExcluirID = null) {
+  async function validarSoportesAusencia(
+    req,
+    tipoAusencia,
+    estado,
+    ausenciaID,
+    target = "soportes",
+    fuente = "active",
+    exigirSoporteRequerido = true,
+  ) {
+    const soportes = await obtenerSoportesAusencia(ausenciaID, fuente);
+    if (
+      ESTADOS_CONSUMO_AUSENCIA.has(estado) &&
+      exigirSoporteRequerido &&
+      tipoAusencia.requiereSoporte &&
+      soportes.length === 0
+    ) {
+      error(
+        req,
+        "SOPORTE_AUSENCIA_REQUERIDO",
+        `${tipoAusencia.descripcion} requiere al menos un soporte antes de guardar.`,
+        target,
+      );
+      return false;
+    }
+
+    if (soportes.some((soporte) => soporte.status !== "Clean")) {
+      error(
+        req,
+        "SOPORTE_AUSENCIA_NO_VALIDADO",
+        "Todos los soportes deben terminar de cargarse y superar la validación de seguridad antes de guardar.",
+        target,
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  async function obtenerSoportesAusencia(ausenciaID, fuente = "active") {
+    if (!ausenciaID) return [];
+
+    const entidad =
+      fuente === "draft" ? SoportesAusenciaSrv?.drafts : SoportesAusencia;
+    if (!entidad) return [];
+
+    return SELECT.from(entidad).columns("ID", "status").where({
+      up__ID: ausenciaID,
+    });
+  }
+
+  async function obtenerAusenciasHoras(
+    empleadoID,
+    ausenciaExcluirID = null,
+    tipoAusenciaCodigo = null,
+    politicaFecha = null,
+  ) {
     if (!empleadoID) return [];
 
     const tiposHoras = await SELECT.from(TiposAusencia)
-      .columns("codigo")
+      .columns("codigo", "politicaFecha")
       .where({ controlaSaldoHoras: true });
 
     const codigos = new Set(tiposHoras.map((tipo) => tipo.codigo));
     if (codigos.size === 0) return [];
+    const codigosFiltrados = politicaFecha
+      ? new Set(
+          tiposHoras
+            .filter((tipo) => tipo.politicaFecha === politicaFecha)
+            .map((tipo) => tipo.codigo),
+        )
+      : tipoAusenciaCodigo
+        ? new Set([tipoAusenciaCodigo])
+        : codigos;
 
     const ausencias = await SELECT.from(Ausencias)
       .columns(
@@ -1817,6 +2975,7 @@ module.exports = cds.service.impl(function () {
       (ausencia) =>
         ausencia.ID !== ausenciaExcluirID &&
         codigos.has(ausencia.tipoAusencia_codigo) &&
+        codigosFiltrados.has(ausencia.tipoAusencia_codigo) &&
         ESTADOS_CONSUMO_AUSENCIA.has(ausencia.estadoa_codigo),
     );
   }
@@ -1887,35 +3046,41 @@ module.exports = cds.service.impl(function () {
     return null;
   }
 
-  async function calcularSaldoValera(
+  async function calcularSaldoBeneficioHoras(
     empleadoID,
+    tipoAusenciaCodigo,
     anio = obtenerAnio(today()),
     ausenciaExcluirID = null,
   ) {
     const resultadoVacio = {
-      valeraAnioActual: anio,
-      horasValeraAsignadas: 0,
-      horasValeraUtilizadas: 0,
-      horasValeraReservadas: 0,
-      horasValeraDisponibles: 0,
-      vencimientoValera: `${anio}-12-31`,
-      proximaRecargaValera: `${anio + 1}-01-01`,
+      anio,
+      horasAsignadas: 0,
+      horasUtilizadas: 0,
+      horasReservadas: 0,
+      horasDisponibles: 0,
     };
 
-    if (!empleadoID || !anio) return resultadoVacio;
+    if (!empleadoID || !tipoAusenciaCodigo || !anio) return resultadoVacio;
 
-    const tiposHoras = await SELECT.from(TiposAusencia)
-      .columns("codigo", "horasAnuales")
-      .where({ controlaSaldoHoras: true });
+    const tipoAusencia = await SELECT.one
+      .from(TiposAusencia)
+      .columns("codigo", "horasAnuales", "politicaFecha")
+      .where({
+        codigo: tipoAusenciaCodigo,
+        controlaSaldoHoras: true,
+      });
 
-    if (tiposHoras.length === 0) return resultadoVacio;
+    if (!tipoAusencia) return resultadoVacio;
 
-    const saldoConfigurado = await SELECT.one
-      .from(SaldosValeraEmocional)
-      .where({ empleado_ID: empleadoID, anio });
+    const saldoConfigurado =
+      tipoAusenciaCodigo === "VE"
+        ? await SELECT.one
+            .from(SaldosValeraEmocional)
+            .where({ empleado_ID: empleadoID, anio })
+        : null;
 
     const horasBase = Number(
-      saldoConfigurado?.horasBase ?? tiposHoras[0].horasAnuales ?? 0,
+      saldoConfigurado?.horasBase ?? tipoAusencia.horasAnuales ?? 0,
     );
     const horasAjuste = Number(saldoConfigurado?.horasAjuste || 0);
     const horasAsignadas = round2(horasBase + horasAjuste);
@@ -1923,15 +3088,41 @@ module.exports = cds.service.impl(function () {
     const ausencias = await obtenerAusenciasHoras(
       empleadoID,
       ausenciaExcluirID,
+      tipoAusenciaCodigo,
+      tipoAusencia.politicaFecha === POLITICA_SEMANA_CUMPLEANOS
+        ? POLITICA_SEMANA_CUMPLEANOS
+        : null,
     );
 
+    const empleado =
+      tipoAusencia.politicaFecha === POLITICA_SEMANA_CUMPLEANOS
+        ? await SELECT.one
+            .from(Empleados)
+            .columns("fechaNacimiento")
+            .where({ ID: empleadoID })
+        : null;
+
     const ausenciasDelAnio = ausencias.filter(
-      (ausencia) => obtenerAnio(ausencia.fechaInicio) === anio,
+      (ausencia) =>
+        obtenerAnioBeneficioDesdeFecha(
+          tipoAusencia,
+          ausencia.fechaInicio,
+          empleado?.fechaNacimiento,
+        ) === anio,
     );
+
+    const esBeneficioCumpleanios =
+      tipoAusencia.politicaFecha === POLITICA_SEMANA_CUMPLEANOS;
+    const estadosUtilizacion = esBeneficioCumpleanios
+      ? ESTADOS_UTILIZACION_CUMPLEANIOS
+      : ESTADOS_UTILIZACION_AUSENCIA;
+    const estadosReserva = esBeneficioCumpleanios
+      ? ESTADOS_RESERVA_CUMPLEANIOS
+      : ESTADOS_RESERVA_AUSENCIA;
 
     const horasUtilizadas = round2(
       ausenciasDelAnio
-        .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+        .filter((ausencia) => estadosUtilizacion.has(ausencia.estadoa_codigo))
         .reduce(
           (total, ausencia) =>
             total + Number(ausencia.horasSolicitadas || 0),
@@ -1941,9 +3132,7 @@ module.exports = cds.service.impl(function () {
 
     const horasReservadas = round2(
       ausenciasDelAnio
-        .filter((ausencia) =>
-          ["SOLICITADA", "APROBADA"].includes(ausencia.estadoa_codigo),
-        )
+        .filter((ausencia) => estadosReserva.has(ausencia.estadoa_codigo))
         .reduce(
           (total, ausencia) =>
             total + Number(ausencia.horasSolicitadas || 0),
@@ -1952,15 +3141,124 @@ module.exports = cds.service.impl(function () {
     );
 
     return {
-      valeraAnioActual: anio,
-      horasValeraAsignadas: horasAsignadas,
-      horasValeraUtilizadas: horasUtilizadas,
-      horasValeraReservadas: horasReservadas,
-      horasValeraDisponibles: round2(
+      anio,
+      horasAsignadas,
+      horasUtilizadas,
+      horasReservadas,
+      horasDisponibles: round2(
         horasAsignadas - horasUtilizadas - horasReservadas,
       ),
+    };
+  }
+
+  async function calcularSaldoValera(
+    empleadoID,
+    anio = obtenerAnio(today()),
+    ausenciaExcluirID = null,
+  ) {
+    const saldo = await calcularSaldoBeneficioHoras(
+      empleadoID,
+      "VE",
+      anio,
+      ausenciaExcluirID,
+    );
+
+    return {
+      valeraAnioActual: anio,
+      horasValeraAsignadas: saldo.horasAsignadas,
+      horasValeraUtilizadas: saldo.horasUtilizadas,
+      horasValeraReservadas: saldo.horasReservadas,
+      horasValeraDisponibles: saldo.horasDisponibles,
       vencimientoValera: `${anio}-12-31`,
       proximaRecargaValera: `${anio + 1}-01-01`,
+    };
+  }
+
+  async function calcularSaldoCumpleanios(
+    empleadoID,
+    anio = null,
+  ) {
+    const resultadoVacio = (anioOcurrencia = null) => ({
+      cumpleaniosAnioBeneficio: anioOcurrencia,
+      horasCumpleaniosAsignadas: 0,
+      horasCumpleaniosUtilizadas: 0,
+      horasCumpleaniosReservadas: 0,
+      horasCumpleaniosDisponibles: 0,
+    });
+
+    let anioBeneficio = anio;
+    let ventana = null;
+    let empleado = null;
+    if (!anioBeneficio) {
+      empleado = await SELECT.one
+        .from(Empleados)
+        .columns(
+          "fechaNacimiento",
+          "fechaIngreso",
+          "fechaRetiro",
+          "estado_codigo",
+        )
+        .where({ ID: empleadoID });
+      anioBeneficio = Number(today().slice(0, 4));
+      ventana = absenceRules.obtenerVentanaCumpleaniosAnioActual(
+        empleado?.fechaNacimiento,
+        today(),
+      );
+    }
+
+    if (!anioBeneficio || (!ventana && !anio)) return resultadoVacio();
+
+    const tipoCumpleanios = await SELECT.one
+      .from(TiposAusencia)
+      .columns("codigo")
+      .where({
+        politicaFecha: POLITICA_SEMANA_CUMPLEANOS,
+        controlaSaldoHoras: true,
+      });
+    if (!tipoCumpleanios) return resultadoVacio(anioBeneficio);
+
+    const saldo = await calcularSaldoBeneficioHoras(
+      empleadoID,
+      tipoCumpleanios.codigo,
+      anioBeneficio,
+    );
+    const tieneConsumoRegistrado =
+      saldo.horasUtilizadas > 0 || saldo.horasReservadas > 0;
+
+    if (ventana && !tieneConsumoRegistrado) {
+      const inicioRelacion =
+        empleado?.fechaIngreso > ventana.semanaInicio
+          ? empleado.fechaIngreso
+          : ventana.semanaInicio;
+      const finRelacion =
+        empleado?.fechaRetiro && empleado.fechaRetiro < ventana.semanaFin
+          ? empleado.fechaRetiro
+          : ventana.semanaFin;
+      if (
+        empleado?.estado_codigo !== "AC" ||
+        !empleado?.fechaIngreso ||
+        inicioRelacion > finRelacion
+      ) {
+        return resultadoVacio(anioBeneficio);
+      }
+
+      const contratos = await SELECT.from(Contratos)
+        .columns("fechaInicio", "fechaFin")
+        .where({ empleado_ID: empleadoID, vigente: true });
+      const contratoCubreAlgunDia = contratos.some(
+        (contrato) =>
+          contrato.fechaInicio <= finRelacion &&
+          (!contrato.fechaFin || contrato.fechaFin >= inicioRelacion),
+      );
+      if (!contratoCubreAlgunDia) return resultadoVacio(anioBeneficio);
+    }
+
+    return {
+      cumpleaniosAnioBeneficio: anioBeneficio,
+      horasCumpleaniosAsignadas: saldo.horasAsignadas,
+      horasCumpleaniosUtilizadas: saldo.horasUtilizadas,
+      horasCumpleaniosReservadas: saldo.horasReservadas,
+      horasCumpleaniosDisponibles: saldo.horasDisponibles,
     };
   }
 
@@ -2122,7 +3420,9 @@ module.exports = cds.service.impl(function () {
 
     const diasDisfrutados = round2(
       vacaciones
-        .filter((ausencia) => ausencia.estadoa_codigo === "FINALIZADA")
+        .filter((ausencia) =>
+          ESTADOS_UTILIZACION_AUSENCIA.has(ausencia.estadoa_codigo),
+        )
         .reduce(
           (total, ausencia) => total + Number(ausencia.diasHabiles || 0),
           0,
@@ -2132,7 +3432,7 @@ module.exports = cds.service.impl(function () {
     const diasReservados = round2(
       vacaciones
         .filter((ausencia) =>
-          ["SOLICITADA", "APROBADA"].includes(ausencia.estadoa_codigo),
+          ESTADOS_RESERVA_AUSENCIA.has(ausencia.estadoa_codigo),
         )
         .reduce(
           (total, ausencia) => total + Number(ausencia.diasHabiles || 0),
@@ -2185,15 +3485,28 @@ module.exports = cds.service.impl(function () {
             empleado.IsActiveEntity ?? requestedIsActiveEntity ?? true,
         };
 
-        const [saldoVacaciones, compensacion, saldoValera] = await Promise.all([
+        const [
+          saldoVacaciones,
+          compensacion,
+          saldoValera,
+          saldoCumpleanios,
+        ] = await Promise.all([
           calcularSaldoVacaciones(empleadoID),
           calcularCompensacion(empleadoID),
           calcularSaldoValera(empleadoID),
+          calcularSaldoCumpleanios(empleadoID),
         ]);
 
-        Object.assign(empleado, saldoVacaciones, compensacion, saldoValera, {
-          fotoUrl: construirFotoUrl(empleadoCompleto, empleadoBase),
-        });
+        Object.assign(
+          empleado,
+          saldoVacaciones,
+          compensacion,
+          saldoValera,
+          saldoCumpleanios,
+          {
+            fotoUrl: construirFotoUrl(empleadoCompleto, empleadoBase, req),
+          },
+        );
       }),
     );
   });
