@@ -63,8 +63,17 @@ service EmployeeTimeService @(
     soporteID : UUID;
   }
 
+  type DiaNoHabil {
+    fecha  : Date;
+    tipo   : String(15);
+    motivo : String(120);
+  }
+
+  type RegistroID { ID: UUID; }
+
   function obtenerMisAsignaciones(fecha: Date) returns many AsignacionDisponible;
   function obtenerMisRegistros(semanaInicio: Date) returns many RegistroTiempo;
+  function obtenerDiasNoHabiles(desde: Date, hasta: Date) returns many DiaNoHabil;
 
   action guardarBorrador(
     ID: UUID,
@@ -86,6 +95,8 @@ service EmployeeTimeService @(
     mimeType: String(100),
     contenido: LargeBinary
   ) returns ResultadoSoporte;
+
+  action eliminarRegistros(registros: many RegistroID) returns Integer;
 
   action enviarSemana(semanaInicio: Date) returns ResultadoEnvioSemanal;
 }

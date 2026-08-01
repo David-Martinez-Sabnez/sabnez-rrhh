@@ -6,6 +6,7 @@ const {
   exceedsDailyWarning,
   validateTimeEntry,
 } = require("./lib/time-entry-rules");
+const { isColombianHoliday } = require("./lib/absence-rules");
 
 const { SELECT, INSERT, UPDATE, DELETE } = cds.ql;
 
@@ -85,6 +86,20 @@ module.exports = cds.service.impl(function () {
       .where({ employee_ID: employee.ID, workDate: { between: weekStart, and: weekEnd } });
 
     return Promise.all(entries.map((entry) => enrichEntry(entry, Evidence)));
+  });
+
+  this.on("obtenerDiasNoHabiles", (req) => {
+    const from = requireDate(req, req.data?.desde, "desde");
+    const to = requireDate(req, req.data?.hasta, "hasta");
+    if (to < from) reject(req, 400, "RANGO_FECHAS_INVALIDO", "La fecha final no puede ser anterior a la inicial.");
+    const days = [];
+    for (let value = from; value <= to; value = addDays(value, 1)) {
+      const date = new Date(`${value}T00:00:00Z`);
+      const day = date.getUTCDay();
+      if (isColombianHoliday(date)) days.push({ fecha: value, tipo: "HOLIDAY", motivo: "Festivo nacional" });
+      else if (day === 0 || day === 6) days.push({ fecha: value, tipo: "WEEKEND", motivo: day === 6 ? "Sábado" : "Domingo" });
+    }
+    return days;
   });
 
   this.on("guardarBorrador", async (req) => {
@@ -289,6 +304,17 @@ module.exports = cds.service.impl(function () {
       reject(req, 422, "ARCHIVO_INFECTADO", "El soporte fue rechazado por la validación de seguridad.");
     }
     return { exito: true, mensaje: "El soporte se cargó y validó correctamente.", soporteID: supportID };
+  });
+
+  this.on("eliminarRegistros", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const IDs = [...new Set((req.data?.registros || []).map((row) => row?.ID).filter(Boolean))];
+    if (!IDs.length) reject(req, 400, "REGISTROS_NO_SELECCIONADOS", "Selecciona al menos un registro para eliminar.");
+    const entries = await SELECT.from(TimeEntries).columns("ID", "status").where({ ID: { in: IDs }, employee_ID: employee.ID });
+    if (entries.length !== IDs.length) reject(req, 404, "REGISTRO_NO_ENCONTRADO", "Uno o más registros no existen o no pertenecen al empleado autenticado.");
+    const locked = entries.filter((entry) => !new Set(["DRAFT", "RETURNED"]).has(entry.status));
+    if (locked.length) reject(req, 409, "REGISTRO_NO_EDITABLE", "Solo se pueden eliminar registros en borrador o devueltos.");
+    return DELETE.from(TimeEntries).where({ ID: { in: IDs }, employee_ID: employee.ID });
   });
 });
 

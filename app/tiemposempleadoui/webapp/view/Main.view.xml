@@ -18,13 +18,14 @@
         <ScrollContainer horizontal="true" vertical="false" width="100%" class="weekDaysScroll">
           <HBox items="{view>/weekDays}" class="weekDayStrip" renderType="Bare">
             <CustomTile press=".onDaySelect" class="weekDayTile">
-              <customData><core:CustomData key="day-state" value="{view>state}" writeToDom="true"/></customData>
+              <customData><core:CustomData key="day-state" value="{view>state}" writeToDom="true"/><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/></customData>
               <VBox alignItems="Center" justifyContent="Center" class="weekDayContent">
                 <Text text="{view>weekdayLabel}" class="weekDayName"/>
                 <Title text="{view>dayNumber}" level="H3" class="weekDayNumber"/>
                 <Text text="{view>monthLabel}" class="weekDayMonth"/>
                 <ObjectNumber number="{view>hours}" unit="h" class="weekDayHours"/>
                 <Text text="{view>entryLabel}" class="weekDayEntries"/>
+                <ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }" class="weekDayNonWorking"/>
               </VBox>
             </CustomTile>
           </HBox>
@@ -34,7 +35,7 @@
       <Panel headerText="Registrar tiempo" expandable="true" expanded="true" class="entryForm sapUiSmallMarginBottom">
         <content>
           <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="3" columnsL="3" columnsM="2">
-            <Label text="Día seleccionado" required="true"/><ObjectIdentifier title="{view>/form/dayFullLabel}" text="Selecciona otro día en la franja superior"/>
+            <Label text="Día seleccionado" required="true"/><ObjectIdentifier title="{view>/form/dayFullLabel}"/>
             <Label text="Proyecto" required="true"/><Select selectedKey="{view>/form/asignacionID}" items="{view>/assignments}" change=".onAssignmentChange"><core:Item key="{view>ID}" text="{= ${view>proyectoNombre} + ' · ' + ${view>clienteNombre} }"/></Select>
             <Label text="Horas" required="true"/><StepInput value="{view>/form/duracionHoras}" min="0.5" max="24" step="0.5" displayValuePrecision="1"/>
             <Label text="Tipo" required="true"/><Select selectedKey="{view>/form/tipoSolicitado}" change=".onTypeChange"><core:Item key="REGULAR" text="Regular"/><core:Item key="OVERTIME" text="Extra"/></Select>
@@ -50,9 +51,10 @@
         </content>
       </Panel>
 
-      <Panel headerText="Registros de la semana" class="entryForm">
+      <Panel class="entryForm">
+        <headerToolbar><Toolbar><Title text="Registros de la semana" level="H3"/><ToolbarSpacer/><Text text="{= ${view>/selectedCount} + ' seleccionado(s)' }" visible="{= ${view>/selectedCount} > 0 }"/><Button text="Eliminar seleccionados" icon="sap-icon://delete" type="Negative" press=".onDeleteSelected" enabled="{= ${view>/selectedCount} > 0 }"/></Toolbar></headerToolbar>
         <content>
-          <Table items="{view>/entries}" noDataText="Aún no has registrado horas para esta semana" growing="true">
+          <Table id="entriesTable" items="{view>/entries}" noDataText="Aún no has registrado horas para esta semana" growing="true" mode="MultiSelect" includeItemInSelection="true" selectionChange=".onEntrySelectionChange">
             <columns>
               <Column><Text text="Día"/></Column><Column><Text text="Proyecto"/></Column><Column hAlign="End"><Text text="Horas"/></Column><Column><Text text="Tipo"/></Column><Column><Text text="Detalle y soporte"/></Column><Column><Text text="Estado"/></Column><Column hAlign="End"><Text text="Acciones"/></Column>
             </columns>
@@ -64,7 +66,7 @@
                 <ObjectStatus text="{view>typeLabel}" state="{= ${view>tipoSolicitado} === 'REGULAR' ? 'None' : 'Warning' }"/>
                 <VBox><Text text="{view>descripcion}" maxLines="2"/><ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }" icon="sap-icon://attachment" state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }"/></VBox>
                 <ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/>
-                <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar a varios días" type="Transparent" press=".onOpenCopy" enabled="{view>puedeEditar}"/></HBox>
+                <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar a varios días" type="Transparent" press=".onOpenCopy" enabled="{view>puedeEditar}"/><Button icon="sap-icon://delete" tooltip="Eliminar registro" type="Transparent" press=".onDeleteEntry" enabled="{view>puedeEditar}"/></HBox>
               </cells>
             </ColumnListItem></items>
           </Table>

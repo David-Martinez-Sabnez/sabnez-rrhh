@@ -13,7 +13,7 @@
           <Button text="Limpiar" type="Transparent" press=".onClearCopyDays"/>
         </Toolbar>
         <List id="copyDaysList" items="{view>/copyDays}" mode="MultiSelect" includeItemInSelection="true">
-          <StandardListItem title="{view>fullLabel}" description="{view>currentSummary}" selected="{view>selected}" enabled="{view>enabled}" info="{view>info}" infoState="{view>infoState}"/>
+          <StandardListItem title="{view>fullLabel}" description="{view>currentSummary}" selected="{view>selected}" enabled="{view>enabled}" info="{view>info}" infoState="{view>infoState}" highlight="{view>highlight}"/>
         </List>
       </VBox>
     </content>

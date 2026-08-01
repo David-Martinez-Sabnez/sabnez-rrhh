@@ -15,7 +15,7 @@ sap.ui.define([
       var monday = this._startOfWeek(new Date());
       this.getView().setModel(new JSONModel({
         busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "",
-        assignments: [], entries: [], weekDays: [], totalHours: "0.0",
+        assignments: [], entries: [], weekDays: [], nonWorkingDays: [], totalHours: "0.0", selectedCount: 0,
         copySource: null, copyDays: [], form: this._emptyForm(this._iso(new Date()))
       }), "view");
       this._loadWeek();
@@ -50,6 +50,7 @@ sap.ui.define([
     onAssignmentChange: function () { this._applyRules(); },
     onTypeChange: function () { this._applyRules(); },
     onFileSelected: function (event) { this._selectedFile = event.getParameter("files")?.[0] || null; },
+    onEntrySelectionChange: function (event) { this.getView().getModel("view").setProperty("/selectedCount", event.getSource().getSelectedItems().length); },
 
     onClearForm: function () {
       var model = this.getView().getModel("view");
@@ -62,6 +63,16 @@ sap.ui.define([
     onEdit: function (event) {
       var row = event.getSource().getBindingContext("view").getObject();
       this._setFormFromEntry(row, row.fecha);
+    },
+
+    onDeleteEntry: function (event) {
+      var row = event.getSource().getBindingContext("view").getObject();
+      this._confirmDeleteEntries([row.ID], "¿Deseas eliminar este registro de " + row.duracionHoras + " horas?");
+    },
+
+    onDeleteSelected: function () {
+      var IDs = this.byId("entriesTable").getSelectedItems().map(function (item) { return item.getBindingContext("view").getProperty("ID"); });
+      this._confirmDeleteEntries(IDs, "¿Deseas eliminar los " + IDs.length + " registros seleccionados? Esta acción no se puede deshacer.");
     },
 
     onOpenCopy: async function (event) {
@@ -77,7 +88,8 @@ sap.ui.define([
           selected: false,
           enabled: !isSource,
           info: isSource ? "Día de origen" : "",
-          infoState: isSource ? "Information" : "None"
+          infoState: isSource ? "Information" : (day.dayKind !== "WORKDAY" ? "Warning" : "None"),
+          highlight: day.dayKind !== "WORKDAY" ? "Warning" : "None"
         };
       }));
       if (!this._copyDialog) {
@@ -176,11 +188,13 @@ sap.ui.define([
       model.setProperty("/error", null); this._setWeekLabel();
       try {
         var start = model.getProperty("/weekStart");
-        var data = await Promise.all([this._get("obtenerMisAsignaciones(fecha=" + start + ")"), this._get("obtenerMisRegistros(semanaInicio=" + start + ")")]);
+        var data = await Promise.all([this._get("obtenerMisAsignaciones(fecha=" + start + ")"), this._get("obtenerMisRegistros(semanaInicio=" + start + ")"), this._get("obtenerDiasNoHabiles(desde=" + start + ",hasta=" + this._addDays(start, 6) + ")")]);
         model.setProperty("/assignments", data[0].value || data[0] || []);
         var entries = (data[1].value || data[1] || []).map(this._decorateEntry.bind(this));
         entries.sort(function (a,b) { return a.fecha.localeCompare(b.fecha) || a.proyectoNombre.localeCompare(b.proyectoNombre); });
         model.setProperty("/entries", entries);
+        model.setProperty("/nonWorkingDays", data[2].value || data[2] || []);
+        model.setProperty("/selectedCount", 0);
         model.setProperty("/totalHours", entries.reduce(function (sum,e) { return sum + Number(e.duracionHoras || 0); }, 0).toFixed(1));
         this._buildWeekDays();
         this._ensureDefaultAssignment();
@@ -237,9 +251,10 @@ sap.ui.define([
     _token: async function () { if (this._csrfToken) return this._csrfToken; var response=await fetch(this._root(),{headers:{"X-CSRF-Token":"Fetch"},credentials:"same-origin"}); this._csrfToken=response.headers.get("X-CSRF-Token"); return this._csrfToken; },
     _json: async function (response) { var payload={}; try { payload=await response.json(); } catch (_) {} if (!response.ok) throw new Error(payload?.error?.message || "No fue posible completar la operación."); return payload.value !== undefined && Object.keys(payload).length===1 ? payload.value : payload; },
     _root: function () { return "/tiempos-empleado/"; },
+    _confirmDeleteEntries: function (IDs, message) { if(!IDs.length)return; MessageBox.confirm(message,{emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);try{await this._post("eliminarRegistros",{registros:IDs.map(function(ID){return {ID:ID};})});model.setProperty("/success",IDs.length===1?"Registro eliminado correctamente.":IDs.length+" registros eliminados correctamente.");await this._loadWeek(false);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}}.bind(this)}); },
     _setCopyDaySelection: function (predicate) { this.byId("copyDaysList").getItems().forEach(function(item){var day=item.getBindingContext("view").getObject();item.setSelected(Boolean(day.enabled&&predicate(day.date)));}); },
     _copyEntryToDate: function (source, date) { return this._post("guardarBorrador", { ID:null, asignacionID:source.asignacionID, fecha:date, duracionHoras:Number(source.duracionHoras), tipoSolicitado:source.tipoSolicitado, descripcion:source.descripcion||null, horaInicioAproximada:source.horaInicioAproximada||null, horaFinAproximada:source.horaFinAproximada||null, zonaHoraria:source.zonaHoraria||"America/Bogota", autorizacionPrevia:Boolean(source.autorizacionPrevia), motivoExcepcional:source.motivoExcepcional||null }); },
-    _buildWeekDays: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),selected=model.getProperty("/form/fecha"),today=this._iso(new Date()),entries=model.getProperty("/entries")||[],days=[]; for(var i=0;i<7;i+=1){var date=this._addDays(start,i),dayEntries=entries.filter(function(entry){return entry.fecha===date;}),hours=dayEntries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0),state=date===selected?"selected":date===today?"today":dayEntries.length?"filled":"empty"; days.push({date:date,weekdayLabel:new Intl.DateTimeFormat("es-CO",{weekday:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),dayNumber:String(Number(date.slice(8,10))),monthLabel:new Intl.DateTimeFormat("es-CO",{month:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),fullLabel:this._fullDate(date),hours:hours.toFixed(1),entryCount:dayEntries.length,entryLabel:dayEntries.length?dayEntries.length+" registro(s)":"Sin registros",state:state});} model.setProperty("/weekDays",days); model.setProperty("/form/dayFullLabel",this._fullDate(selected)); },
+    _buildWeekDays: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),selected=model.getProperty("/form/fecha"),today=this._iso(new Date()),entries=model.getProperty("/entries")||[],nonWorking=model.getProperty("/nonWorkingDays")||[],days=[]; for(var i=0;i<7;i+=1){var date=this._addDays(start,i),dayEntries=entries.filter(function(entry){return entry.fecha===date;}),hours=dayEntries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0),exception=nonWorking.find(function(item){return item.fecha===date;}),state=date===selected?"selected":date===today?"today":dayEntries.length?"filled":"empty"; days.push({date:date,weekdayLabel:new Intl.DateTimeFormat("es-CO",{weekday:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),dayNumber:String(Number(date.slice(8,10))),monthLabel:new Intl.DateTimeFormat("es-CO",{month:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),fullLabel:this._fullDate(date),hours:hours.toFixed(1),entryCount:dayEntries.length,entryLabel:dayEntries.length?dayEntries.length+" registro(s)":"Sin registros",state:state,dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||""});} model.setProperty("/weekDays",days); model.setProperty("/form/dayFullLabel",this._fullDate(selected)); },
     _moveWeek: function (days) { var model=this.getView().getModel("view"),newStart=this._addDays(model.getProperty("/weekStart"),days); model.setProperty("/weekStart",newStart); model.setProperty("/form",this._emptyForm(newStart)); this._selectedFile=null; this.byId("supportUploader").clear(); this._loadWeek(); },
     _setWeekLabel: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),end=this._addDays(start,6); model.setProperty("/weekLabel",this._prettyDate(start)+" – "+this._prettyDate(end)); },
     _setFormFromEntry: function (row,date,copy) { var model=this.getView().getModel("view"); model.setProperty("/form",Object.assign(this._emptyForm(date),{ ID:copy?null:row.ID, asignacionID:row.asignacionID, duracionHoras:Number(row.duracionHoras), tipoSolicitado:row.tipoSolicitado, descripcion:row.descripcion||"", horaInicioAproximada:row.horaInicioAproximada||"", horaFinAproximada:row.horaFinAproximada||"", autorizacionPrevia:Boolean(row.autorizacionPrevia), motivoExcepcional:row.motivoExcepcional||"" })); this._selectedFile=null; this.byId("supportUploader").clear(); this._applyRules(); },
