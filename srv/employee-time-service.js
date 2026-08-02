@@ -88,6 +88,19 @@ module.exports = cds.service.impl(function () {
     return Promise.all(entries.map((entry) => enrichEntry(entry, Evidence)));
   });
 
+  this.on("obtenerMisRegistrosMes", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const monthStart = requireDate(req, req.data?.mesInicio, "mesInicio");
+    if (!monthStart.endsWith("-01")) reject(req, 400, "MES_INVALIDO", "La fecha del mes debe corresponder al primer día.");
+    const monthEnd = addDays(addMonths(monthStart, 1), -1);
+    const entries = await SELECT.from(TimeEntries).columns(
+      "ID", "timesheet_ID", "assignment_ID", "assignment.project.name as projectName", "workDate", "durationHours",
+      "requestedType", "description", "evidenceRequired", "approximateStartTime", "approximateEndTime", "timeZone",
+      "priorAuthorization", "exceptionalReason", "status", "dailyHoursWarning", "version",
+    ).where({ employee_ID: employee.ID, workDate: { between: monthStart, and: monthEnd } });
+    return Promise.all(entries.map((entry) => enrichEntry(entry, Evidence)));
+  });
+
   this.on("obtenerDiasNoHabiles", (req) => {
     const from = requireDate(req, req.data?.desde, "desde");
     const to = requireDate(req, req.data?.hasta, "hasta");
@@ -412,6 +425,12 @@ function startOfISOWeek(value) {
 function addDays(value, days) {
   const date = new Date(`${value}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function addMonths(value, months) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + months);
   return date.toISOString().slice(0, 10);
 }
 

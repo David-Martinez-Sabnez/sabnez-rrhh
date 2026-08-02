@@ -37,6 +37,11 @@
         </ScrollContainer>
       </VBox>
 
+      <Panel expandable="true" expanded="false" class="entryForm timeSectionGap">
+        <headerToolbar><Toolbar><Title text="Vista mensual" level="H3"/><ToolbarSpacer/><Button text="Deshacer copia" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{= ${view>/lastBulkCopy/length} > 0 }"/><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth"/><Button text="{view>/monthLabel}" press=".onCurrentMonth"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth"/><Button text="Repetir mes" icon="sap-icon://duplicate" press=".onOpenMonthPlan"/></Toolbar></headerToolbar>
+        <content><HBox class="monthWeekHeaders"><Text text="Lun"/><Text text="Mar"/><Text text="Mié"/><Text text="Jue"/><Text text="Vie"/><Text text="Sáb"/><Text text="Dom"/></HBox><VBox items="{view>/monthDays}" class="monthGrid"><CustomTile press=".onMonthDaySelect" class="monthDayTile"><customData><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/><core:CustomData key="blank" value="{view>isBlank}" writeToDom="true"/></customData><VBox class="monthDayContent"><Title text="{view>dayNumber}" level="H4"/><ObjectNumber number="{view>hours}" unit="h" visible="{= !${view>isBlank} }"/><Text text="{view>summary}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox></CustomTile></VBox></content>
+      </Panel>
+
       <Panel headerText="Registrar tiempo" expandable="true" expanded="true" class="entryForm timeSectionGap">
         <content>
           <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="2" columnsL="2" columnsM="1" class="timeEntryFields">
@@ -71,7 +76,7 @@
                 <ObjectStatus text="{view>typeLabel}" state="{= ${view>tipoSolicitado} === 'REGULAR' ? 'None' : 'Warning' }"/>
                 <VBox><Text text="{view>descripcion}" maxLines="2"/><ObjectStatus text="Posible duplicado" icon="sap-icon://warning2" state="Warning" visible="{view>posibleDuplicado}"/><ObjectStatus text="{view>alertaHorasTexto}" icon="sap-icon://time-entry-request" state="Warning" visible="{view>alertaHorasDiarias}"/><ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }" icon="sap-icon://attachment" state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }"/></VBox>
                 <ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/>
-                <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar a varios días" type="Transparent" press=".onOpenCopy" enabled="{view>puedeEditar}"/><Button icon="sap-icon://delete" tooltip="Eliminar registro" type="Transparent" press=".onDeleteEntry" enabled="{view>puedeEditar}"/></HBox>
+                <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar a varios días de la semana" type="Transparent" press=".onOpenCopy" enabled="{view>puedeEditar}"/><Button icon="sap-icon://calendar" tooltip="Copiar este registro a un mes" type="Transparent" press=".onOpenCopyMonth" enabled="{view>puedeEditar}"/><Button icon="sap-icon://delete" tooltip="Eliminar registro" type="Transparent" press=".onDeleteEntry" enabled="{view>puedeEditar}"/></HBox>
               </cells>
             </ColumnListItem></items>
           </Table>

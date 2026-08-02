@@ -1,0 +1,15 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog title="Copiar registro a un mes" contentWidth="34rem" stretchOnPhone="false" class="copyEntryDialog">
+    <content><VBox class="sapUiMediumMargin">
+      <ObjectIdentifier title="{view>/copySource/proyectoNombre}" text="{= ${view>/copySource/duracionHoras} + ' h · Regular' }" class="sapUiSmallMarginBottom"/>
+      <Label text="Mes de destino" required="true"/><DatePicker value="{view>/monthCopy/targetMonth}" valueFormat="yyyy-MM-dd" displayFormat="MMMM yyyy" change=".onMonthCopyChange" class="sapUiSmallMarginBottom"/>
+      <Label text="Días que recibirán el registro"/>
+      <RadioButtonGroup id="monthCopyMode" selectedIndex="0" select=".onMonthCopyChange" columns="1">
+        <buttons><RadioButton text="Solo días hábiles de Colombia"/><RadioButton text="Lunes a viernes, incluidos festivos"/><RadioButton text="Todos los días calendario"/></buttons>
+      </RadioButtonGroup>
+      <ObjectStatus text="{view>/monthCopy/preview}" state="Information" class="sapUiSmallMarginTop"/>
+      <MessageStrip text="Los soportes no se copian y los registros equivalentes existentes se omiten." type="Information" showIcon="true" class="sapUiSmallMarginTop"/>
+    </VBox></content>
+    <beginButton><Button text="Copiar al mes" type="Emphasized" icon="sap-icon://calendar" press=".onConfirmMonthCopy"/></beginButton><endButton><Button text="Cancelar" press=".onCancelMonthCopy"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>

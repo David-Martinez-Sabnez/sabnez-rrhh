@@ -73,6 +73,7 @@ service EmployeeTimeService @(
 
   function obtenerMisAsignaciones(fecha: Date) returns many AsignacionDisponible;
   function obtenerMisRegistros(semanaInicio: Date) returns many RegistroTiempo;
+  function obtenerMisRegistrosMes(mesInicio: Date) returns many RegistroTiempo;
   function obtenerDiasNoHabiles(desde: Date, hasta: Date) returns many DiaNoHabil;
 
   action guardarBorrador(
