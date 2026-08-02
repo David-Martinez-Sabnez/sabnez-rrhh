@@ -13,8 +13,7 @@
     busyIndicatorDelay="0"
     fitContent="true"
     preserveHeaderStateOnScroll="true"
-    toggleHeaderOnTitleClick="true"
-    stateChange=".onHeaderStateChange">
+    toggleHeaderOnTitleClick="true">
 
     <f:title>
         <f:DynamicPageTitle id="pageTitle">
