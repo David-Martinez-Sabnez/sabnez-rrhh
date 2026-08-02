@@ -270,6 +270,14 @@
                     navButtonPress=".onCloseTaskDetail"
                     busy="{view>/actionBusy}"
                     class="approvalInlineDetailPage">
+                    <subHeader>
+                      <OverflowToolbar class="approvalDecisionBar">
+                        <Button text="{i18n>forward}" icon="sap-icon://forward" visible="{view>/selectedTask/canForward}" enabled="{= !${view>/actionBusy} }" press=".onForwardSelected" />
+                        <ToolbarSpacer />
+                        <Button text="{view>/selectedTask/secondaryActionText}" icon="{view>/selectedTask/secondaryActionIcon}" type="Reject" visible="{view>/selectedTask/canReject}" enabled="{= !${view>/actionBusy} }" press=".onRejectSelected" />
+                        <Button text="{i18n>approve}" icon="sap-icon://accept" type="Emphasized" visible="{view>/selectedTask/canApprove}" enabled="{= !${view>/actionBusy} }" press=".onApproveSelected" />
+                      </OverflowToolbar>
+                    </subHeader>
                     <content>
                       <VBox width="100%" class="approvalInlineDetailContent">
                         <HBox alignItems="Start" justifyContent="SpaceBetween" wrap="Wrap" class="approvalDetailHeader approvalInlineHeader">
@@ -319,14 +327,6 @@
                         </Panel>
                       </VBox>
                     </content>
-                    <footer>
-                      <OverflowToolbar>
-                        <Button text="{i18n>forward}" icon="sap-icon://forward" visible="{view>/selectedTask/canForward}" enabled="{= !${view>/actionBusy} }" press=".onForwardSelected" />
-                        <ToolbarSpacer />
-                        <Button text="{view>/selectedTask/secondaryActionText}" icon="{view>/selectedTask/secondaryActionIcon}" type="Reject" visible="{view>/selectedTask/canReject}" enabled="{= !${view>/actionBusy} }" press=".onRejectSelected" />
-                        <Button text="{i18n>approve}" icon="sap-icon://accept" type="Emphasized" visible="{view>/selectedTask/canApprove}" enabled="{= !${view>/actionBusy} }" press=".onApproveSelected" />
-                      </OverflowToolbar>
-                    </footer>
                   </Page>
                 </detailPages>
               </SplitApp>

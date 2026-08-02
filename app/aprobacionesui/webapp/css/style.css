@@ -134,6 +134,11 @@
   padding: 1rem;
 }
 
+.approvalDecisionBar {
+  border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
+  background: var(--sapGroup_ContentBackground) !important;
+}
+
 .approvalInlineHeader,
 .approvalDetailSummary,
 .approvalInlinePanel {
