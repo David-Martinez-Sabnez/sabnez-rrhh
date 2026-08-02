@@ -37,7 +37,7 @@
           <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="2" columnsL="2" columnsM="1" class="timeEntryFields">
             <Label text="Día seleccionado" required="true"/><ObjectIdentifier title="{view>/form/dayFullLabel}"/>
             <Label text="Proyecto" required="true"/><Select selectedKey="{view>/form/asignacionID}" items="{view>/assignments}" change=".onAssignmentChange"><core:Item key="{view>ID}" text="{= ${view>proyectoNombre} + ' · ' + ${view>clienteNombre} }"/></Select>
-            <Label text="Horas" required="true"/><StepInput value="{view>/form/duracionHoras}" min="0.5" max="24" step="0.5" displayValuePrecision="1"/>
+            <Label text="Horas" required="true"/><StepInput value="{view>/form/duracionHoras}" min="0.5" max="24" step="0.5" displayValuePrecision="1" width="9rem" class="compactHoursInput"/>
             <Label text="Tipo" required="true"/><Select selectedKey="{view>/form/tipoSolicitado}" change=".onTypeChange"><core:Item key="REGULAR" text="Regular"/><core:Item key="OVERTIME" text="Extra"/></Select>
             <Label text="Hora aproximada de inicio" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaInicioAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
             <Label text="Hora aproximada de fin" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaFinAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>

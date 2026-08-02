@@ -18,3 +18,13 @@ body,
 .adminSection { padding: 1rem; }
 .sapMITBContent { border-radius: 0 0 .75rem .75rem; }
 .sapUiFormResGrid { background: #fff; border-radius: .5rem; }
+.commercialForm {
+  width: 100%;
+  max-width: 82rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 900px) {
+  .commercialForm { max-width: none; margin-left: 0; margin-right: 0; }
+}
