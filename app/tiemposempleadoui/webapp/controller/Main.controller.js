@@ -185,7 +185,21 @@ sap.ui.define([
     },
 
     onSubmitWeek: function () {
-      MessageBox.confirm("Después de enviar la semana no podrás editar sus registros hasta que sean devueltos. ¿Deseas continuar?", {
+      var entries = this.getView().getModel("view").getProperty("/entries") || [];
+      var missingEvidence = entries.filter(function (entry) { return entry.requiereSoporte && Number(entry.cantidadSoportes || 0) === 0; });
+      if (missingEvidence.length) {
+        MessageBox.error("No es posible enviar la semana: " + missingEvidence.length + " registro(s) requieren soporte. Revisa los proyectos y adjunta los archivos pendientes.", { title: "Semana incompleta" });
+        return;
+      }
+      var warningDays = Array.from(new Set(entries.filter(function (entry) { return entry.alertaHorasDiarias; }).map(function (entry) { return entry.fecha; }))).length;
+      var duplicateGroups = Array.from(new Set(entries.filter(function (entry) { return entry.posibleDuplicado; }).map(function (entry) { return entry.duplicateKey; }))).length;
+      var projectSummaries = [];
+      entries.forEach(function (entry) { if (!projectSummaries.includes(entry.projectGroupLabel)) projectSummaries.push(entry.projectGroupLabel); });
+      var details = projectSummaries.join("\n");
+      if (warningDays) details += "\n\n• " + warningDays + " día(s) superan las 12 horas.";
+      if (duplicateGroups) details += "\n• " + duplicateGroups + " posible(s) grupo(s) duplicado(s).";
+      MessageBox.confirm("Revisa el resumen antes de enviar:\n\n" + details + "\n\nDespués del envío no podrás editar hasta que la semana sea devuelta. ¿Deseas continuar?", {
+        title: warningDays || duplicateGroups ? "Revisar alertas de la semana" : "Confirmar envío semanal",
         emphasizedAction: MessageBox.Action.OK,
         onClose: async function (action) {
           if (action !== MessageBox.Action.OK) return;
@@ -209,6 +223,7 @@ sap.ui.define([
         model.setProperty("/assignments", data[0].value || data[0] || []);
         var entries = (data[1].value || data[1] || []).map(this._decorateEntry.bind(this));
         entries.sort(function (a,b) { return a.fecha.localeCompare(b.fecha) || a.proyectoNombre.localeCompare(b.proyectoNombre); });
+        this._analyzeWeekEntries(entries);
         model.setProperty("/entries", entries);
         model.setProperty("/nonWorkingDays", data[2].value || data[2] || []);
         model.setProperty("/selectedCount", 0);
@@ -276,6 +291,29 @@ sap.ui.define([
     _setWeekLabel: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),end=this._addDays(start,6); model.setProperty("/weekLabel",this._prettyDate(start)+" – "+this._prettyDate(end)); },
     _setFormFromEntry: function (row,date,copy) { var model=this.getView().getModel("view"); model.setProperty("/form",Object.assign(this._emptyForm(date),{ ID:copy?null:row.ID, asignacionID:row.asignacionID, duracionHoras:Number(row.duracionHoras), tipoSolicitado:row.tipoSolicitado, descripcion:row.descripcion||"", horaInicioAproximada:row.horaInicioAproximada||"", horaFinAproximada:row.horaFinAproximada||"", autorizacionPrevia:Boolean(row.autorizacionPrevia), motivoExcepcional:row.motivoExcepcional||"" })); this._selectedFile=null; this.byId("supportUploader").clear(); this._applyRules(); },
     _decorateEntry: function (entry) { var labels={REGULAR:"Regular",OVERTIME:"Extra",NIGHT:"Nocturna",SUNDAY:"Dominical",HOLIDAY:"Festiva",COMPENSATORY:"Compensatoria"}, states={DRAFT:["Borrador","Information"],RETURNED:["Devuelto","Error"],SUBMITTED:["Enviado","Success"],LEADER_APPROVED:["Aprobado por líder","Success"],INTERNALLY_APPROVED:["Aprobado","Success"]},state=states[entry.estado]||[entry.estado,"None"]; return Object.assign({},entry,{dateLabel:this._weekday(entry.fecha),typeLabel:labels[entry.tipoSolicitado]||entry.tipoSolicitado,statusLabel:state[0],statusState:state[1]}); },
+    _analyzeWeekEntries: function (entries) {
+      var dailyTotals = {}, duplicateCounts = {}, projectTotals = {};
+      entries.forEach(function (entry) {
+        dailyTotals[entry.fecha] = (dailyTotals[entry.fecha] || 0) + Number(entry.duracionHoras || 0);
+        var normalizedDescription = String(entry.descripcion || "").trim().toLocaleLowerCase("es-CO").replace(/\s+/g, " ");
+        entry.duplicateKey = [entry.asignacionID, entry.fecha, entry.tipoSolicitado, Number(entry.duracionHoras || 0).toFixed(2), normalizedDescription].join("|");
+        duplicateCounts[entry.duplicateKey] = (duplicateCounts[entry.duplicateKey] || 0) + 1;
+        var projectKey = entry.asignacionID || entry.proyectoNombre;
+        if (!projectTotals[projectKey]) projectTotals[projectKey] = { name: entry.proyectoNombre, hours: 0, regular: 0, extra: 0, count: 0 };
+        projectTotals[projectKey].hours += Number(entry.duracionHoras || 0);
+        projectTotals[projectKey].count += 1;
+        if (entry.tipoSolicitado === "REGULAR") projectTotals[projectKey].regular += Number(entry.duracionHoras || 0);
+        else projectTotals[projectKey].extra += Number(entry.duracionHoras || 0);
+      });
+      entries.forEach(function (entry) {
+        var project = projectTotals[entry.asignacionID || entry.proyectoNombre];
+        entry.totalHorasDia = dailyTotals[entry.fecha].toFixed(1);
+        entry.alertaHorasDiarias = dailyTotals[entry.fecha] > 12;
+        entry.alertaHorasTexto = entry.alertaHorasDiarias ? "El total del día es " + entry.totalHorasDia + " horas." : "";
+        entry.posibleDuplicado = duplicateCounts[entry.duplicateKey] > 1;
+        entry.projectGroupLabel = project.name + " · " + project.hours.toFixed(1) + " h · " + project.count + " registro(s) · " + project.regular.toFixed(1) + " h regulares" + (project.extra ? " · " + project.extra.toFixed(1) + " h extras" : "");
+      });
+    },
     _emptyForm: function (date) { return { ID:null,fecha:date,dayFullLabel:this._fullDate(date),asignacionID:"",duracionHoras:8,tipoSolicitado:"REGULAR",descripcion:"",horaInicioAproximada:"",horaFinAproximada:"",zonaHoraria:"America/Bogota",autorizacionPrevia:false,motivoExcepcional:"",isSpecial:false,descriptionRequired:false,supportRequired:false,rulesText:"" }; },
     _startOfWeek: function (date) { var d=new Date(date.getFullYear(),date.getMonth(),date.getDate()),day=d.getDay()||7; d.setDate(d.getDate()-day+1); return d; },
     _iso: function (date) { var y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0"); return y+"-"+m+"-"+d; },

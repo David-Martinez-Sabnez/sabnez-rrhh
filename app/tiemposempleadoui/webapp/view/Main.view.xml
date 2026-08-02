@@ -59,7 +59,7 @@
       <Panel class="entryForm">
         <headerToolbar><Toolbar><Title text="Registros de la semana" level="H3"/><ToolbarSpacer/><Text text="{= ${view>/selectedCount} + ' seleccionado(s)' }" visible="{= ${view>/selectedCount} > 0 }"/><Button text="Eliminar seleccionados" icon="sap-icon://delete" type="Negative" press=".onDeleteSelected" enabled="{= ${view>/selectedCount} > 0 }"/></Toolbar></headerToolbar>
         <content>
-          <Table id="entriesTable" items="{view>/entries}" noDataText="Aún no has registrado horas para esta semana" growing="true" mode="MultiSelect" includeItemInSelection="true" selectionChange=".onEntrySelectionChange">
+          <Table id="entriesTable" items="{path:'view>/entries', sorter:[{path:'projectGroupLabel', group:true},{path:'fecha'},{path:'tipoSolicitado'}]}" noDataText="Aún no has registrado horas para esta semana" growing="true" mode="MultiSelect" includeItemInSelection="true" selectionChange=".onEntrySelectionChange">
             <columns>
               <Column><Text text="Día"/></Column><Column><Text text="Proyecto"/></Column><Column hAlign="End"><Text text="Horas"/></Column><Column><Text text="Tipo"/></Column><Column><Text text="Detalle y soporte"/></Column><Column><Text text="Estado"/></Column><Column hAlign="End"><Text text="Acciones"/></Column>
             </columns>
@@ -67,9 +67,9 @@
               <cells>
                 <ObjectIdentifier title="{view>dateLabel}" text="{view>fecha}"/>
                 <Text text="{view>proyectoNombre}"/>
-                <ObjectNumber number="{view>duracionHoras}" unit="h" state="{= ${view>alertaHorasDiarias} ? 'Warning' : 'None' }"/>
+                <ObjectNumber number="{view>duracionHoras}" unit="h" state="{= ${view>alertaHorasDiarias} ? 'Warning' : 'None' }" tooltip="{view>alertaHorasTexto}"/>
                 <ObjectStatus text="{view>typeLabel}" state="{= ${view>tipoSolicitado} === 'REGULAR' ? 'None' : 'Warning' }"/>
-                <VBox><Text text="{view>descripcion}" maxLines="2"/><ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }" icon="sap-icon://attachment" state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }"/></VBox>
+                <VBox><Text text="{view>descripcion}" maxLines="2"/><ObjectStatus text="Posible duplicado" icon="sap-icon://warning2" state="Warning" visible="{view>posibleDuplicado}"/><ObjectStatus text="{view>alertaHorasTexto}" icon="sap-icon://time-entry-request" state="Warning" visible="{view>alertaHorasDiarias}"/><ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }" icon="sap-icon://attachment" state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }"/></VBox>
                 <ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/>
                 <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar a varios días" type="Transparent" press=".onOpenCopy" enabled="{view>puedeEditar}"/><Button icon="sap-icon://delete" tooltip="Eliminar registro" type="Transparent" press=".onDeleteEntry" enabled="{view>puedeEditar}"/></HBox>
               </cells>
