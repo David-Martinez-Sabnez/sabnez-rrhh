@@ -170,10 +170,9 @@
           </items>
           <content>
             <VBox id="worklistContent" width="100%">
-              <OverflowToolbar id="filterToolbar" class="approvalFilterToolbar">
+              <FlexBox id="filterToolbar" wrap="Wrap" alignItems="Center" class="approvalFilterToolbar approvalFilterBar">
                 <Title id="worklistTitle" text="{view>/worklistTitle}" level="H2" />
                 <ObjectStatus id="resultCount" text="{view>/resultCountLabel}" state="Information" />
-                <ToolbarSpacer id="filterSpacer" />
                 <SearchField
                   id="taskSearch"
                   width="19rem"
@@ -211,122 +210,127 @@
                   tooltip="{i18n>clearFilters}"
                   type="Transparent"
                   press=".onClearFilters" />
-              </OverflowToolbar>
+              </FlexBox>
 
-              <Table
-                id="tasksTable"
-                items="{view>/filteredTasks}"
-                growing="true"
-                growingScrollToLoad="true"
-                growingThreshold="20"
-                sticky="ColumnHeaders"
-                autoPopinMode="true"
-                busy="{view>/actionBusy}"
-                busyIndicatorDelay="0"
-                class="approvalTasksTable">
-                <columns>
-                  <Column id="employeeColumn" importance="High" minScreenWidth="Tablet">
-                    <Text id="employeeColumnLabel" text="{i18n>employee}" />
-                  </Column>
-                  <Column id="requestColumn" importance="High">
-                    <Text id="requestColumnLabel" text="{i18n>request}" />
-                  </Column>
-                  <Column id="periodColumn" importance="High">
-                    <Text id="periodColumnLabel" text="{i18n>summary}" />
-                  </Column>
-                  <Column id="receivedColumn" importance="Medium">
-                    <Text id="receivedColumnLabel" text="{i18n>received}" />
-                  </Column>
-                  <Column id="statusColumn" importance="High">
-                    <Text id="statusColumnLabel" text="{i18n>status}" />
-                  </Column>
-                  <Column id="actionsColumn" importance="High" hAlign="End" width="10.5rem">
-                    <Text id="actionsColumnLabel" text="{i18n>actions}" />
-                  </Column>
-                </columns>
-                <items>
-                  <ColumnListItem
-                    id="taskItem"
-                    type="Active"
-                    vAlign="Middle"
-                    press=".onOpenTask">
-                    <cells>
-                      <HBox id="employeeCell" alignItems="Center" class="approvalEmployeeCell">
-                        <Avatar
-                          id="employeeAvatar"
-                          initials="{view>employeeInitials}"
-                          displaySize="XS"
-                          displayShape="Circle"
-                          backgroundColor="Accent6"
-                          class="sapUiTinyMarginEnd" />
-                        <VBox id="employeeIdentity">
-                          <Text id="employeeName" text="{view>employeeName}" wrapping="false" class="approvalStrongText" />
-                          <Text id="employeePosition" text="{view>employeePosition}" wrapping="false" class="approvalSecondaryText" />
-                        </VBox>
-                      </HBox>
-                      <VBox id="requestCell">
-                        <ObjectIdentifier id="requestIdentifier" title="{view>requestTitle}" text="{view>processCode}" />
-                        <ObjectStatus
-                          id="assignmentRole"
-                          text="{view>roleText}"
-                          state="{view>roleState}"
-                          visible="{= !!${view>roleText} }" />
+              <SplitApp
+                id="approvalWorkSplit"
+                initialMaster="approvalInboxPage"
+                initialDetail="approvalEmptyPage"
+                mode="ShowHideMode"
+                class="approvalInboxSplit">
+                <masterPages>
+                  <Page id="approvalInboxPage" title="{view>/worklistTitle}" busy="{view>/actionBusy}">
+                    <headerContent>
+                      <ObjectStatus text="{view>/resultCountLabel}" state="Information" />
+                    </headerContent>
+                    <content>
+                      <List
+                        id="tasksList"
+                        items="{view>/filteredTasks}"
+                        growing="true"
+                        growingScrollToLoad="true"
+                        growingThreshold="20"
+                        showSeparators="Inner"
+                        noDataText="{view>/noDataTitle}"
+                        itemPress=".onOpenTask">
+                        <ObjectListItem
+                          id="taskItem"
+                          type="Active"
+                          title="{view>employeeName}"
+                          intro="{view>requestTitle}"
+                          >
+                          <attributes>
+                            <ObjectAttribute text="{view>requestSummary}" />
+                            <ObjectAttribute text="{view>processCode}" />
+                            <ObjectAttribute text="{view>submittedText}" />
+                          </attributes>
+                          <firstStatus>
+                            <ObjectStatus text="{view>statusText}" state="{view>statusState}" icon="{view>statusIcon}" />
+                          </firstStatus>
+                          <secondStatus>
+                            <ObjectStatus text="{view>roleText}" state="{view>roleState}" visible="{= !!${view>roleText} }" />
+                          </secondStatus>
+                        </ObjectListItem>
+                      </List>
+                    </content>
+                  </Page>
+                </masterPages>
+                <detailPages>
+                  <Page id="approvalEmptyPage" title="{i18n>taskDetail}">
+                    <content>
+                      <IllustratedMessage
+                        illustrationType="sapIllus-NoTasks"
+                        title="{i18n>selectApproval}"
+                        description="{i18n>selectApprovalDescription}" />
+                    </content>
+                  </Page>
+                  <Page
+                    id="inlineTaskDetailPage"
+                    title="{i18n>taskDetail}"
+                    showNavButton="true"
+                    navButtonPress=".onCloseTaskDetail"
+                    busy="{view>/actionBusy}"
+                    class="approvalInlineDetailPage">
+                    <content>
+                      <VBox width="100%" class="approvalInlineDetailContent">
+                        <HBox alignItems="Start" justifyContent="SpaceBetween" wrap="Wrap" class="approvalDetailHeader approvalInlineHeader">
+                          <HBox alignItems="Center" class="approvalDetailIdentity">
+                            <Avatar initials="{view>/selectedTask/employeeInitials}" displaySize="M" displayShape="Circle" backgroundColor="Accent6" class="sapUiSmallMarginEnd" />
+                            <VBox>
+                              <Title text="{view>/selectedTask/requestTitle}" level="H2" wrapping="true" />
+                              <Text text="{view>/selectedTask/employeeName}" class="approvalStrongText" />
+                              <Text text="{view>/selectedTask/employeePosition}" visible="{= !!${view>/selectedTask/employeePosition} }" class="approvalSecondaryText" />
+                            </VBox>
+                          </HBox>
+                          <VBox alignItems="End" class="approvalDetailStatuses">
+                            <ObjectStatus text="{view>/selectedTask/statusText}" state="{view>/selectedTask/statusState}" icon="{view>/selectedTask/statusIcon}" />
+                            <ObjectStatus text="{view>/selectedTask/roleText}" state="{view>/selectedTask/roleState}" visible="{= !!${view>/selectedTask/roleText} }" class="sapUiTinyMarginTop" />
+                          </VBox>
+                        </HBox>
+
+                        <MessageStrip text="{i18n>backupContextMessage}" type="Information" showIcon="true" visible="{view>/selectedTask/isBackup}" />
+
+                        <HBox wrap="Wrap" class="approvalDetailSummary">
+                          <VBox class="approvalDetailSummaryItem"><Label text="{i18n>summary}" /><Text text="{view>/selectedTask/requestSummary}" wrapping="true" /></VBox>
+                          <VBox class="approvalDetailSummaryItem"><Label text="{i18n>process}" /><ObjectIdentifier title="{view>/selectedTask/processCode}" text="{view>/selectedTask/businessObjectText}" /></VBox>
+                          <VBox class="approvalDetailSummaryItem"><Label text="{i18n>received}" /><Text text="{view>/selectedTask/submittedText}" /></VBox>
+                          <VBox class="approvalDetailSummaryItem"><Label text="{i18n>priority}" /><ObjectStatus text="{view>/selectedTask/priorityText}" state="{view>/selectedTask/priorityState}" icon="{view>/selectedTask/priorityIcon}" /></VBox>
+                        </HBox>
+
+                        <Panel headerText="{i18n>requestInformation}" class="approvalInlinePanel">
+                          <List items="{view>/selectedTask/facts}" showSeparators="Inner" noDataText="{i18n>noRequestInformation}" class="approvalFactsList">
+                            <CustomListItem>
+                              <HBox width="100%" alignItems="Start" wrap="Wrap" class="approvalFactRow">
+                                <VBox class="approvalFactLabelBox"><Text text="{view>section}" class="approvalFactSection" /><Label text="{view>label}" wrapping="true" /></VBox>
+                                <VBox class="approvalFactValueBox"><Link text="{view>value}" press=".onDownloadAttachment" wrapping="true" visible="{view>isLink}" /><ObjectStatus text="{view>value}" state="{view>state}" visible="{view>isStatus}" /><Text text="{view>value}" visible="{= !${view>isLink} &amp;&amp; !${view>isStatus} }" /></VBox>
+                              </HBox>
+                            </CustomListItem>
+                          </List>
+                        </Panel>
+
+                        <Panel headerText="{i18n>history}" class="approvalInlinePanel">
+                          <List items="{view>/selectedTask/events}" showSeparators="Inner" noDataText="{i18n>noHistoryEvents}" class="approvalEventsList">
+                            <CustomListItem>
+                              <HBox width="100%" alignItems="Start" class="approvalEventRow">
+                                <core:Icon src="{view>icon}" decorative="true" class="approvalEventIcon" />
+                                <VBox class="approvalEventContent"><HBox width="100%" justifyContent="SpaceBetween" wrap="Wrap"><Text text="{view>type}" class="approvalStrongText" /><Text text="{view>dateText}" class="approvalSecondaryText" /></HBox><Text text="{view>actor}" class="approvalSecondaryText" /><Text text="{view>detail}" wrapping="true" visible="{= !!${view>detail} }" class="sapUiTinyMarginTop" /></VBox>
+                              </HBox>
+                            </CustomListItem>
+                          </List>
+                        </Panel>
                       </VBox>
-                      <Text id="periodText" text="{view>requestSummary}" wrapping="true" />
-                      <VBox id="receivedCell">
-                        <Text id="receivedText" text="{view>submittedText}" wrapping="false" />
-                        <ObjectStatus
-                          id="dueStatus"
-                          text="{view>dueText}"
-                          state="{view>dueState}"
-                          icon="{view>dueIcon}"
-                          visible="{= !!${view>dueText} }" />
-                      </VBox>
-                      <ObjectStatus
-                        id="taskStatus"
-                        text="{view>statusText}"
-                        state="{view>statusState}"
-                        icon="{view>statusIcon}" />
-                      <HBox id="rowActions" justifyContent="End" alignItems="Center">
-                        <Button
-                          id="rowApproveButton"
-                          icon="sap-icon://accept"
-                          type="Transparent"
-                          tooltip="{i18n>approve}"
-                          visible="{view>canApprove}"
-                          press=".onApprove" />
-                        <Button
-                          id="rowRejectButton"
-                          icon="sap-icon://decline"
-                          type="Transparent"
-                          tooltip="{i18n>reject}"
-                          visible="{view>canReject}"
-                          press=".onReject" />
-                        <Button
-                          id="rowForwardButton"
-                          icon="sap-icon://forward"
-                          type="Transparent"
-                          tooltip="{i18n>forward}"
-                          visible="{view>canForward}"
-                          press=".onForward" />
-                        <Button
-                          id="rowDetailButton"
-                          icon="sap-icon://slim-arrow-right"
-                          type="Transparent"
-                          tooltip="{i18n>viewDetail}"
-                          press=".onOpenTask" />
-                      </HBox>
-                    </cells>
-                  </ColumnListItem>
-                </items>
-                <noData>
-                  <IllustratedMessage
-                    id="noTasksMessage"
-                    illustrationType="sapIllus-NoTasks"
-                    title="{view>/noDataTitle}"
-                    description="{view>/noDataDescription}" />
-                </noData>
-              </Table>
+                    </content>
+                    <footer>
+                      <OverflowToolbar>
+                        <Button text="{i18n>forward}" icon="sap-icon://forward" visible="{view>/selectedTask/canForward}" enabled="{= !${view>/actionBusy} }" press=".onForwardSelected" />
+                        <ToolbarSpacer />
+                        <Button text="{i18n>reject}" icon="sap-icon://decline" type="Reject" visible="{view>/selectedTask/canReject}" enabled="{= !${view>/actionBusy} }" press=".onRejectSelected" />
+                        <Button text="{i18n>approve}" icon="sap-icon://accept" type="Emphasized" visible="{view>/selectedTask/canApprove}" enabled="{= !${view>/actionBusy} }" press=".onApproveSelected" />
+                      </OverflowToolbar>
+                    </footer>
+                  </Page>
+                </detailPages>
+              </SplitApp>
             </VBox>
           </content>
         </IconTabBar>

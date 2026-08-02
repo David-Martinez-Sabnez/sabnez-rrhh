@@ -89,13 +89,66 @@
 }
 
 .approvalFilterToolbar {
+  gap: 0.5rem;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
 }
 
+.approvalFilterBar .sapMTitle {
+  margin-right: auto;
+}
+
 .approvalTasksTable {
   background: var(--sapGroup_ContentBackground);
+}
+
+.approvalInboxSplit {
+  height: 42rem;
+  background: var(--sapBackgroundColor);
+}
+
+.approvalInboxSplit .sapMSplitContainerMaster {
+  box-sizing: border-box;
+  border-right: 0.3rem solid var(--sapGroup_ContentBorderColor);
+}
+
+.approvalInboxSplit .sapMPage,
+.approvalInlineDetailPage {
+  background: var(--sapBackgroundColor);
+}
+
+.approvalInlineDetailContent {
+  box-sizing: border-box;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.approvalInlineHeader,
+.approvalDetailSummary,
+.approvalInlinePanel {
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-radius: 0.75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.approvalInlineHeader {
+  padding: 1rem;
+}
+
+.approvalDetailSummary {
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.approvalDetailSummaryItem {
+  flex: 1 1 12rem;
+  min-width: 10rem;
 }
 
 .approvalEmployeeCell,
@@ -237,6 +290,18 @@
   .approvalFactValueBox {
     flex-basis: 100%;
     min-width: 100%;
+  }
+
+  .approvalInboxSplit {
+    height: 40rem;
+  }
+
+  .approvalInboxSplit .sapMSplitContainerMaster {
+    border-right: 0;
+  }
+
+  .approvalInlineDetailContent {
+    padding: 0.5rem;
   }
 }
 

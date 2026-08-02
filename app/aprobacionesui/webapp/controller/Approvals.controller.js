@@ -38,7 +38,6 @@ sap.ui.define(
 
       onExit: function () {
         [
-          this._taskDetailDialog,
           this._reasonDialog,
           this._forwardDialog,
           this._delegationDialog,
@@ -154,10 +153,9 @@ sap.ui.define(
       },
 
       onCloseTaskDetail: function () {
-        this._taskDetailDialog?.close();
-      },
-
-      onTaskDetailAfterClose: function () {
+        var oSplit = this.byId("approvalWorkSplit");
+        oSplit.toMaster(this.byId("approvalInboxPage"));
+        oSplit.showMaster();
         this.getView()
           .getModel("view")
           .setProperty("/selectedTask", this._emptyTask());
@@ -614,8 +612,7 @@ sap.ui.define(
           this._forwardDialog?.close();
           this._delegationDialog?.close();
           if (mOptions.closeTask) {
-            this._taskDetailDialog?.close();
-            this.getOwnerComponent().getRouter().navTo("Approvals", {}, true);
+            this.onCloseTaskDetail();
           }
           await this._loadData(true);
         } catch (oError) {
@@ -681,17 +678,9 @@ sap.ui.define(
         } finally {
           oModel.setProperty("/actionBusy", false);
         }
-        if (!this._taskDetailDialog) {
-          this._taskDetailDialog = await Fragment.load({
-            id: this.getView().getId(),
-            name: "sabnez.com.aprobacionesui.fragment.TaskDetail",
-            controller: this,
-          });
-          this.getView().addDependent(this._taskDetailDialog);
-        }
-        if (!this._taskDetailDialog.isOpen()) {
-          this._taskDetailDialog.open();
-        }
+        this.byId("approvalWorkSplit").toDetail(
+          this.byId("inlineTaskDetailPage"),
+        );
       },
 
       _normalizeFacts: function (aFacts) {
