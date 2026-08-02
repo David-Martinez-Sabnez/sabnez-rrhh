@@ -21,7 +21,7 @@ sap.ui.define([
       this.getView().setModel(new JSONModel({
         busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "", weeklyVisible: true,
         assignments: [], entries: [], weekDays: [], nonWorkingDays: [], totalHours: "0.0", selectedCount: 0,
-        copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], monthTotalHours: "0.0",
+        copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], filteredMonthDays: [], monthFilter: "ALL", monthTotalHours: "0.0",
         monthCopy: { targetMonth: this._monthStart(this._iso(new Date())), mode: "BUSINESS", preview: "" },
         monthPlan: { sourceMonth: this._monthStart(this._iso(new Date())), targetMonth: this._monthStart(this._addMonths(this._iso(new Date()), 1)), mode: "BUSINESS", preview: "" },
         form: this._emptyForm(this._iso(new Date()))
@@ -89,6 +89,10 @@ sap.ui.define([
     onPreviousMonth: function () { this._moveMonth(-1); },
     onNextMonth: function () { this._moveMonth(1); },
     onCurrentMonth: function () { this.getView().getModel("view").setProperty("/monthStart", this._monthStart(this._iso(new Date()))); this._loadMonth(); },
+    onMonthFilterChange: function (event) {
+      this.getView().getModel("view").setProperty("/monthFilter", event.getParameter("item").getKey());
+      this._applyMonthFilter();
+    },
     onAssignmentChange: function () { this._applyRules(); },
     onTypeChange: function () { this._applyRules(); },
     onFileSelected: function (event) { this._selectedFile = event.getParameter("files")?.[0] || null; },
@@ -286,9 +290,11 @@ sap.ui.define([
     _buildMonthDays:function(entries,nonWorking){
       var model=this.getView().getModel("view"),start=model.getProperty("/monthStart"),end=this._addDays(this._addMonths(start,1),-1),days=[],firstDay=new Date(start+"T12:00:00").getDay();
       for(var blank=1;blank<(firstDay||7);blank+=1)days.push({date:"",isBlank:true});
-      for(var date=start;date<=end;date=this._addDays(date,1)){var rows=entries.filter(function(e){return e.fecha===date;}),hours=rows.reduce(function(s,e){return s+Number(e.duracionHoras||0);},0),exception=nonWorking.find(function(d){return d.fecha===date;}),needsReview=hours>16;days.push({date:date,isBlank:false,dayNumber:String(Number(date.slice(8,10))),hours:hours.toFixed(1),entryCount:rows.length,summary:rows.length?rows.length+" registro(s)":"Sin registros",dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||"",statusIcon:needsReview?"sap-icon://alert":rows.length?"sap-icon://accept":"",statusText:needsReview?"Revisar":rows.length?"Registrado":"",statusState:needsReview?"Warning":"Success"});}
+      for(var date=start;date<=end;date=this._addDays(date,1)){var rows=entries.filter(function(e){return e.fecha===date;}),hours=rows.reduce(function(s,e){return s+Number(e.duracionHoras||0);},0),exception=nonWorking.find(function(d){return d.fecha===date;}),needsReview=hours>16,weekday=new Intl.DateTimeFormat("es-CO",{weekday:"long"}).format(new Date(date+"T12:00:00"));days.push({date:date,isBlank:false,dayNumber:String(Number(date.slice(8,10))),weekdayLabel:weekday.charAt(0).toUpperCase()+weekday.slice(1),dateLabel:this._prettyDate(date),hours:hours.toFixed(1),entryCount:rows.length,summary:rows.length?rows.length+" registro(s)":"Sin registros",dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||"",statusIcon:needsReview?"sap-icon://alert":rows.length?"sap-icon://accept":"",statusText:needsReview?"Revisar":rows.length?"Registrado":"Sin registro",statusState:needsReview?"Warning":rows.length?"Success":"None"});}
       model.setProperty("/monthDays",days);
+      this._applyMonthFilter();
     },
+    _applyMonthFilter:function(){var model=this.getView().getModel("view"),filter=model.getProperty("/monthFilter")||"ALL",days=(model.getProperty("/monthDays")||[]).filter(function(day){if(day.isBlank)return false;if(filter==="PENDING")return day.entryCount===0;if(filter==="REVIEW")return day.statusState==="Warning";return true;});model.setProperty("/filteredMonthDays",days);},
     _moveMonth:function(months){var model=this.getView().getModel("view");model.setProperty("/monthStart",this._monthStart(this._addMonths(model.getProperty("/monthStart"),months)));this._loadMonth();},
     _updateMonthCopyPreview:async function(){var model=this.getView().getModel("view"),source=model.getProperty("/copySource"),config=model.getProperty("/monthCopy");if(!source)return;var plan=await this._prepareSingleMonthCopy(source,config.targetMonth,config.mode);model.setProperty("/monthCopy/preview",plan.dates.length+" borradores por crear · "+plan.omitted+" días omitidos");},
     _prepareSingleMonthCopy:async function(source,targetMonth,mode){var existing=await this._fetchMonthEntries(targetMonth),dates=await this._eligibleMonthDates(targetMonth,mode),omitted=0;dates=dates.filter(function(date){var duplicate=existing.some(function(e){return this._sameEntry(e,source,date);}.bind(this));if(duplicate)omitted+=1;return !duplicate;}.bind(this));return {dates:dates,omitted:omitted};},

@@ -40,6 +40,8 @@ html, body, #container, #container-uiarea { min-height: 100%; height: 100vh !imp
 .monthDayTile[data-day-kind="WEEKEND"] { background:#fff9ed; border-color:#e7c77b; }
 .monthDayTile[data-day-kind="HOLIDAY"] { background:#fff2f0; border-color:#e6a29b; }
 .monthTotal { min-width: 8rem; text-align: right; }
+.mobileMonthlyList { display: none; }
+.monthMobileRow { padding: .45rem .2rem; box-sizing: border-box; }
 .timeEntryFields { max-width: 84rem; margin-left: auto; margin-right: auto; }
 .compactHoursInput { min-width: 9rem; max-width: 9rem; }
 .compactTypeSelect { min-width: 9rem; max-width: 9rem; }
@@ -51,4 +53,4 @@ html, body, #container, #container-uiarea { min-height: 100%; height: 100vh !imp
 .weekDayNonWorking { margin-top: .1rem; font-size: .68rem; }
 .requiredHint { color: #9c2c2c; }
 @media (max-width: 900px) { .weekDayStrip { justify-content: flex-start; } .weekDayTile.sapMCustomTile { width: 7.6rem; } }
-@media (max-width: 600px) { .desktopWeekAction { display: none !important; } .mobileWeekActions { display: flex; } .copyEntryDialog.sapMDialog { width: calc(100vw - 1rem) !important; max-width: calc(100vw - 1rem) !important; border-radius: .7rem; } .copyEntryDialog .sapMDialogScrollCont { max-height: 72vh; } .timeEntryFields { max-width: none; margin: 0; } .weekTotal { min-width: 7rem; flex-basis: 7rem; padding-left: .35rem; text-align: left; } .compactHoursInput, .compactTypeSelect { width: 9rem !important; } .standardEntryField { max-width: none !important; } }
+@media (max-width: 600px) { .desktopWeekAction { display: none !important; } .mobileWeekActions { display: flex; } .desktopMonthlyCalendar { display: none !important; } .mobileMonthlyList { display: flex; } .monthTotal { min-width: 5.5rem; } .copyEntryDialog.sapMDialog { width: calc(100vw - 1rem) !important; max-width: calc(100vw - 1rem) !important; border-radius: .7rem; } .copyEntryDialog .sapMDialogScrollCont { max-height: 72vh; } .timeEntryFields { max-width: none; margin: 0; } .weekTotal { min-width: 7rem; flex-basis: 7rem; padding-left: .35rem; text-align: left; } .compactHoursInput, .compactTypeSelect { width: 9rem !important; } .standardEntryField { max-width: none !important; } }
