@@ -12,7 +12,12 @@
           <Button icon="sap-icon://navigation-right-arrow" tooltip="Semana siguiente" press=".onNextWeek"/>
           <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin"/>
           <ToolbarSpacer/>
+          <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal desktopWeekAction"/>
+          <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }" class="desktopWeekAction"/>
+        </Toolbar>
+        <Toolbar design="Transparent" class="mobileWeekActions">
           <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal"/>
+          <ToolbarSpacer/>
           <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }"/>
         </Toolbar>
         <ScrollContainer horizontal="true" vertical="false" width="100%" class="weekDaysScroll">
