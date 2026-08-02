@@ -106,7 +106,8 @@
 }
 
 .approvalInboxSplit {
-  height: 42rem;
+  height: calc(100dvh - 18rem);
+  min-height: 22.5rem;
   background: var(--sapBackgroundColor);
 }
 
@@ -274,8 +275,19 @@
   }
 
   .approvalKpiCard {
-    flex-basis: 100%;
-    min-width: 100%;
+    flex: 0 0 16rem;
+    min-width: 16rem;
+    scroll-snap-align: start;
+  }
+
+  .approvalKpiContainer {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.35rem;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
   }
 
   .approvalPageContent {
@@ -300,7 +312,8 @@
   }
 
   .approvalInboxSplit {
-    height: 40rem;
+    height: calc(100dvh - 14rem);
+    min-height: 23.75rem;
   }
 
   .approvalInboxSplit .sapMSplitContainerMaster {

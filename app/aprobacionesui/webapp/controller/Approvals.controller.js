@@ -36,7 +36,18 @@ sap.ui.define(
           .attachPatternMatched(this._onTaskRouteMatched, this);
       },
 
+      onAfterRendering: function () {
+        if (!this._boundResizeHandler) {
+          this._boundResizeHandler = this._scheduleInboxHeight.bind(this);
+          window.addEventListener("resize", this._boundResizeHandler);
+        }
+        this._scheduleInboxHeight();
+      },
+
       onExit: function () {
+        if (this._boundResizeHandler) {
+          window.removeEventListener("resize", this._boundResizeHandler);
+        }
         [
           this._reasonDialog,
           this._forwardDialog,
@@ -46,6 +57,10 @@ sap.ui.define(
           .forEach(function (oDialog) {
             oDialog.destroy();
           });
+      },
+
+      onHeaderStateChange: function () {
+        this._scheduleInboxHeight();
       },
 
       _onRootRouteMatched: async function (oEvent) {
@@ -852,9 +867,7 @@ sap.ui.define(
         try {
           if (oTask.source === "TIME") {
             await this._loadTimeDetail(oTask);
-            this.byId("approvalWorkSplit").toDetail(
-              this.byId("inlineTaskDetailPage"),
-            );
+            this._showTaskDetail();
             return;
           }
           var oRawDetail = this._unwrapObject(
@@ -877,9 +890,37 @@ sap.ui.define(
         } finally {
           oModel.setProperty("/actionBusy", false);
         }
-        this.byId("approvalWorkSplit").toDetail(
-          this.byId("inlineTaskDetailPage"),
+        this._showTaskDetail();
+      },
+
+      _showTaskDetail: function () {
+        var oSplit = this.byId("approvalWorkSplit");
+        oSplit.toDetail(this.byId("inlineTaskDetailPage"));
+        if (window.matchMedia("(max-width: 600px)").matches) {
+          oSplit.hideMaster();
+        }
+        this._scheduleInboxHeight();
+      },
+
+      _scheduleInboxHeight: function () {
+        window.clearTimeout(this._inboxHeightTimer);
+        this._inboxHeightTimer = window.setTimeout(
+          this._adjustInboxHeight.bind(this),
+          80,
         );
+      },
+
+      _adjustInboxHeight: function () {
+        var oSplit = this.byId("approvalWorkSplit");
+        var oDomRef = oSplit?.getDomRef();
+        if (!oDomRef) {
+          return;
+        }
+        var iTop = Math.max(0, oDomRef.getBoundingClientRect().top);
+        var bPhone = window.matchMedia("(max-width: 600px)").matches;
+        var iMinimum = bPhone ? 380 : 360;
+        var iAvailable = Math.floor(window.innerHeight - iTop - 24);
+        oSplit.setHeight(Math.max(iMinimum, iAvailable) + "px");
       },
 
       _normalizeFacts: function (aFacts) {
