@@ -20,11 +20,23 @@ body,
 .sapUiFormResGrid { background: #fff; border-radius: .5rem; }
 .commercialForm {
   width: 100%;
-  max-width: 82rem;
-  margin-left: auto;
-  margin-right: auto;
 }
 
-@media (max-width: 900px) {
-  .commercialForm { max-width: none; margin-left: 0; margin-right: 0; }
+.commercialForm .sapMInputBase,
+.commercialForm .sapMSlt,
+.commercialForm .sapUiFup {
+  width: 100% !important;
+  max-width: 42rem;
+}
+
+.commercialForm .sapMStepInput {
+  max-width: 14rem;
+}
+
+@media (max-width: 600px) {
+  .commercialForm .sapMInputBase,
+  .commercialForm .sapMSlt,
+  .commercialForm .sapUiFup {
+    max-width: none;
+  }
 }
