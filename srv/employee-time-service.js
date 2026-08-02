@@ -7,6 +7,9 @@ const {
   validateTimeEntry,
 } = require("./lib/time-entry-rules");
 const { isColombianHoliday } = require("./lib/absence-rules");
+const { sendApprovalEmail } = require("./lib/approval-mailer");
+
+const LOG = cds.log("employee-time-service");
 
 const { SELECT, INSERT, UPDATE, DELETE } = cds.ql;
 
@@ -19,6 +22,7 @@ module.exports = cds.service.impl(function () {
     ProjectAssignments,
     WeeklyTimesheets,
     TimeEntries,
+    ProjectApprovers,
   } = times;
   const Evidence = times["TimeEntries.evidence"];
 
@@ -37,6 +41,7 @@ module.exports = cds.service.impl(function () {
         "project.requiresDescription as requiresDescription",
         "project.requiresEvidence as requiresEvidence",
         "project.timeZone as timeZone",
+        "project.dailyWarningHours as dailyWarningHours",
         "project.client.tradeName as clientTradeName",
         "project.client.legalName as clientLegalName",
       )
@@ -56,6 +61,7 @@ module.exports = cds.service.impl(function () {
         requiereDescripcion: Boolean(assignment.requiresDescription),
         requiereSoporte: Boolean(assignment.requiresEvidence),
         zonaHoraria: assignment.timeZone,
+        umbralAlertaDiaria: assignment.dailyWarningHours || 16,
       }));
   });
 
@@ -82,6 +88,7 @@ module.exports = cds.service.impl(function () {
         "status",
         "dailyHoursWarning",
         "version",
+        "assignment.project.dailyWarningHours as dailyWarningHours",
       )
       .where({ employee_ID: employee.ID, workDate: { between: weekStart, and: weekEnd } });
 
@@ -96,7 +103,7 @@ module.exports = cds.service.impl(function () {
     const entries = await SELECT.from(TimeEntries).columns(
       "ID", "timesheet_ID", "assignment_ID", "assignment.project.name as projectName", "workDate", "durationHours",
       "requestedType", "description", "evidenceRequired", "approximateStartTime", "approximateEndTime", "timeZone",
-      "priorAuthorization", "exceptionalReason", "status", "dailyHoursWarning", "version",
+      "priorAuthorization", "exceptionalReason", "status", "dailyHoursWarning", "version", "assignment.project.dailyWarningHours as dailyWarningHours",
     ).where({ employee_ID: employee.ID, workDate: { between: monthStart, and: monthEnd } });
     return Promise.all(entries.map((entry) => enrichEntry(entry, Evidence)));
   });
@@ -192,7 +199,7 @@ module.exports = cds.service.impl(function () {
     const dailyWarning = exceedsDailyWarning(
       existingHours,
       canonical.durationHours,
-      16,
+      assignment.dailyWarningHours || 16,
     );
     if (dailyWarning && !canonical.description) {
       reject(req, 400, "DESCRIPCION_ALERTA_DIARIA", "Al superar el umbral diario debe explicar las actividades realizadas.", "descripcion");
@@ -217,7 +224,7 @@ module.exports = cds.service.impl(function () {
     else await INSERT.into(TimeEntries).entries({ ID, ...persistence });
 
     const saved = await SELECT.one.from(TimeEntries)
-      .columns("*", "assignment.project.name as projectName")
+      .columns("*", "assignment.project.name as projectName", "assignment.project.dailyWarningHours as dailyWarningHours")
       .where({ ID, employee_ID: employee.ID });
     return { exito: true, mensaje: "El borrador se guardó correctamente.", registro: await enrichEntry(saved, Evidence) };
   });
@@ -258,6 +265,7 @@ module.exports = cds.service.impl(function () {
       workDate: { between: weekStart, and: weekEnd },
       status: { in: ["DRAFT", "RETURNED"] },
     });
+    await notifyTimesheetApprovers({ sheets, employee, weekStart, weekEnd, WeeklyTimesheets, ProjectApprovers });
     return {
       exito: true,
       mensaje: "La semana se envió correctamente para revisión.",
@@ -331,6 +339,32 @@ module.exports = cds.service.impl(function () {
   });
 });
 
+async function notifyTimesheetApprovers({ sheets, employee, weekStart, weekEnd, WeeklyTimesheets, ProjectApprovers }) {
+  for (const original of sheets) {
+    const sheet = await SELECT.one.from(WeeklyTimesheets).columns(
+      "ID", "assignment.project_ID as projectID", "assignment.project.name as projectName", "assignment.project.approvalScheme as approvalScheme",
+      "assignment.project.client.tradeName as clientTradeName", "assignment.project.client.legalName as clientLegalName",
+    ).where({ ID: original.ID });
+    const today = new Date().toISOString().slice(0, 10);
+    const approvers = await SELECT.from(ProjectApprovers).columns("employee.nombreCompleto as name", "employee.correoCorporativo as email", "validFrom", "validTo").where({ project_ID: sheet.projectID, active: true });
+    const projectRecipients = approvers.filter((row) => row.email && row.validFrom <= today && (!row.validTo || row.validTo >= today));
+    const adminRecipients = String(process.env.TIME_ADMIN_RECIPIENTS || "").split(",").map((email) => ({ email: email.trim(), name: "Administración" })).filter((row) => row.email);
+    const recipients = sheet.approvalScheme === "ADMIN_ONLY" ? adminRecipients : sheet.approvalScheme === "LEADER_OR_ADMIN" ? [...projectRecipients, ...adminRecipients] : projectRecipients;
+    for (const approver of recipients.filter((row, index, all) => all.findIndex((candidate) => candidate.email.toLowerCase() === row.email.toLowerCase()) === index)) {
+      try {
+        await sendApprovalEmail({
+          tipo: "TIME_SUBMITTED", destinatarioID: approver.email, recipientName: approver.name,
+          solicitanteNombre: employee.nombreCompleto, hojaID: sheet.ID, titulo: `${weekStart} a ${weekEnd}`,
+          resumen: `${sheet.clientTradeName || sheet.clientLegalName} · ${sheet.projectName}`,
+          facts: [{ etiqueta: "Empleado", valor: employee.nombreCompleto, orden: 1 }, { etiqueta: "Proyecto", valor: sheet.projectName, orden: 2 }, { etiqueta: "Semana", valor: `${weekStart} a ${weekEnd}`, orden: 3 }],
+        });
+      } catch (error) {
+        LOG.warn("No fue posible notificar por correo la hoja de tiempos", { sheetID: sheet.ID, recipient: approver.email, error: error.message });
+      }
+    }
+  }
+}
+
 async function getOrCreateTimesheet({ assignment, employeeID, weekStart, WeeklyTimesheets }) {
   let sheet = await SELECT.one.from(WeeklyTimesheets).where({ assignment_ID: assignment.ID, weekStart });
   if (sheet) return sheet;
@@ -369,6 +403,7 @@ async function enrichEntry(entry, Evidence) {
     cantidadSoportes: count,
     puedeEditar: new Set(["DRAFT", "RETURNED"]).has(entry.status),
     version: entry.version,
+    umbralAlertaDiaria: entry.dailyWarningHours || 16,
   };
 }
 

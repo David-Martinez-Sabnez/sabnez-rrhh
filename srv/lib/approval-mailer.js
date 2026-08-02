@@ -23,6 +23,12 @@ function graphConfig() {
     absenceAppUrl:
       process.env.ABSENCE_APP_URL ||
       "http://localhost:4004/ausenciasui/webapp/index.html",
+    timeApprovalAppUrl:
+      process.env.TIME_APPROVAL_APP_URL ||
+      "http://localhost:4004/tiemposaprobacionui/webapp/index.html",
+    timeEmployeeAppUrl:
+      process.env.TIME_EMPLOYEE_APP_URL ||
+      "http://localhost:4004/tiemposempleadoui/webapp/index.html",
   };
 }
 
@@ -184,6 +190,11 @@ function approvalUrl(taskID) {
   const baseUrl = graphConfig().approvalAppUrl.replace(/\/$/, "");
 
   return `${baseUrl}&/task/${encodeURIComponent(taskID)}`;
+}
+
+function timeApprovalUrl(sheetID) {
+  const baseUrl = graphConfig().timeApprovalAppUrl.replace(/\/$/, "");
+  return `${baseUrl}?sheetId=${encodeURIComponent(sheetID)}`;
 }
 
 function detailRows(facts = []) {
@@ -439,6 +450,34 @@ function notificationContent(data) {
   const recipientName = data.recipientName || data.destinatarioID || "usuario";
 
   switch (data.tipo) {
+    case "TIME_SUBMITTED":
+      return {
+        subject: `Tiempos pendientes: ${data.solicitanteNombre} · ${data.titulo}`,
+        html: buildHtml({
+          title: "Nueva hoja de tiempos",
+          greeting: `Hola, ${recipientName}.`,
+          introduction: `${data.solicitanteNombre} envió una hoja semanal que requiere revisión.`,
+          summary: data.resumen,
+          facts: data.facts,
+          status: "Pendiente de aprobación",
+          buttonText: "Revisar tiempos",
+          buttonUrl: timeApprovalUrl(data.hojaID),
+        }),
+      };
+    case "TIME_DECIDED":
+      return {
+        subject: `Resultado de tiempos: ${data.titulo}`,
+        html: buildHtml({
+          title: "Resultado de revisión de tiempos",
+          greeting: `Hola, ${recipientName}.`,
+          introduction: data.resumen,
+          summary: data.comentario || "Consulta el detalle en la aplicación.",
+          facts: data.facts,
+          status: data.estadoInstancia,
+          buttonText: "Abrir Mis tiempos",
+          buttonUrl: graphConfig().timeEmployeeAppUrl,
+        }),
+      };
     case "APPROVAL_ASSIGNED":
       return {
         subject: `Nueva solicitud para aprobar: ${data.titulo}`,

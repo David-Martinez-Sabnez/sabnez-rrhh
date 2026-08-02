@@ -261,7 +261,7 @@ sap.ui.define([
       var projectSummaries = [];
       entries.forEach(function (entry) { if (!projectSummaries.includes(entry.projectGroupLabel)) projectSummaries.push(entry.projectGroupLabel); });
       var details = projectSummaries.join("\n");
-      if (warningDays) details += "\n\n• " + warningDays + " día(s) superan las 16 horas.";
+      if (warningDays) details += "\n\n• " + warningDays + " día(s) superan el umbral configurado.";
       if (duplicateGroups) details += "\n• " + duplicateGroups + " posible(s) grupo(s) duplicado(s).";
       MessageBox.confirm("Revisa el resumen antes de enviar:\n\n" + details + "\n\nDespués del envío no podrás editar hasta que la semana sea devuelta. ¿Deseas continuar?", {
         title: warningDays || duplicateGroups ? "Revisar alertas de la semana" : "Confirmar envío semanal",
@@ -290,7 +290,7 @@ sap.ui.define([
     _buildMonthDays:function(entries,nonWorking){
       var model=this.getView().getModel("view"),start=model.getProperty("/monthStart"),end=this._addDays(this._addMonths(start,1),-1),days=[],firstDay=new Date(start+"T12:00:00").getDay();
       for(var blank=1;blank<(firstDay||7);blank+=1)days.push({date:"",isBlank:true});
-      for(var date=start;date<=end;date=this._addDays(date,1)){var rows=entries.filter(function(e){return e.fecha===date;}),hours=rows.reduce(function(s,e){return s+Number(e.duracionHoras||0);},0),exception=nonWorking.find(function(d){return d.fecha===date;}),needsReview=hours>16,weekday=new Intl.DateTimeFormat("es-CO",{weekday:"long"}).format(new Date(date+"T12:00:00"));days.push({date:date,isBlank:false,dayNumber:String(Number(date.slice(8,10))),weekdayLabel:weekday.charAt(0).toUpperCase()+weekday.slice(1),dateLabel:this._prettyDate(date),hours:hours.toFixed(1),entryCount:rows.length,summary:rows.length?rows.length+" registro(s)":"Sin registros",dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||"",statusIcon:needsReview?"sap-icon://alert":rows.length?"sap-icon://accept":"",statusText:needsReview?"Revisar":rows.length?"Registrado":"Sin registro",statusState:needsReview?"Warning":rows.length?"Success":"None"});}
+      for(var date=start;date<=end;date=this._addDays(date,1)){var rows=entries.filter(function(e){return e.fecha===date;}),hours=rows.reduce(function(s,e){return s+Number(e.duracionHoras||0);},0),exception=nonWorking.find(function(d){return d.fecha===date;}),needsReview=rows.some(function(e){return hours>Number(e.umbralAlertaDiaria||16);}),weekday=new Intl.DateTimeFormat("es-CO",{weekday:"long"}).format(new Date(date+"T12:00:00"));days.push({date:date,isBlank:false,dayNumber:String(Number(date.slice(8,10))),weekdayLabel:weekday.charAt(0).toUpperCase()+weekday.slice(1),dateLabel:this._prettyDate(date),hours:hours.toFixed(1),entryCount:rows.length,summary:rows.length?rows.length+" registro(s)":"Sin registros",dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||"",statusIcon:needsReview?"sap-icon://alert":rows.length?"sap-icon://accept":"",statusText:needsReview?"Revisar":rows.length?"Registrado":"Sin registro",statusState:needsReview?"Warning":rows.length?"Success":"None"});}
       model.setProperty("/monthDays",days);
       this._applyMonthFilter();
     },
@@ -400,8 +400,8 @@ sap.ui.define([
       entries.forEach(function (entry) {
         var project = projectTotals[entry.asignacionID || entry.proyectoNombre];
         entry.totalHorasDia = dailyTotals[entry.fecha].toFixed(1);
-        entry.alertaHorasDiarias = dailyTotals[entry.fecha] > 16;
-        entry.alertaHorasTexto = entry.alertaHorasDiarias ? "El total del día es " + entry.totalHorasDia + " horas." : "";
+        entry.alertaHorasDiarias = dailyTotals[entry.fecha] > Number(entry.umbralAlertaDiaria || 16);
+        entry.alertaHorasTexto = entry.alertaHorasDiarias ? "El total del día es " + entry.totalHorasDia + " horas y supera el umbral de " + Number(entry.umbralAlertaDiaria || 16) + "." : "";
         entry.posibleDuplicado = duplicateCounts[entry.duplicateKey] > 1;
         entry.projectGroupLabel = project.name + " · " + project.hours.toFixed(1) + " h · " + project.count + " registro(s) · " + project.regular.toFixed(1) + " h regulares" + (project.extra ? " · " + project.extra.toFixed(1) + " h extras" : "");
       });

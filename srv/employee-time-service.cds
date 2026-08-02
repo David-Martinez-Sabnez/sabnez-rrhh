@@ -16,6 +16,7 @@ service EmployeeTimeService @(
     requiereDescripcion : Boolean;
     requiereSoporte     : Boolean;
     zonaHoraria         : String(80);
+    umbralAlertaDiaria  : Decimal(5, 2);
   }
 
   type RegistroTiempo {
@@ -38,6 +39,7 @@ service EmployeeTimeService @(
     cantidadSoportes      : Integer;
     puedeEditar           : Boolean;
     version               : Integer;
+    umbralAlertaDiaria    : Decimal(5, 2);
   }
 
   type ResultadoRegistro {

@@ -7,8 +7,8 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
       this._csrfToken = null;
       this._contractFile = null;
       this.getView().setModel(new JSONModel({
-        busy:false,error:"",canSeeRates:true,clients:[],contracts:[],projects:[],employees:[],assignments:[],rates:[],documents:[],contractsForProject:[],
-        clientForm:this._emptyClient(),contractForm:this._emptyContract(),projectForm:this._emptyProject(),assignmentForm:this._emptyAssignment(),rateForm:this._emptyRate()
+        busy:false,error:"",canSeeRates:true,clients:[],contracts:[],projects:[],employees:[],assignments:[],approvers:[],rates:[],documents:[],contractsForProject:[],
+        clientForm:this._emptyClient(),contractForm:this._emptyContract(),projectForm:this._emptyProject(),assignmentForm:this._emptyAssignment(),approverForm:this._emptyApprover(),rateForm:this._emptyRate()
       }), "view");
       this._loadAll();
     },
@@ -63,6 +63,17 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
     onCancelAssignmentEdit: function () { this._model().setProperty("/assignmentForm",this._emptyAssignment()); },
     onDeleteAssignment: function (event) { this._confirmDelete("Asignaciones",this._row(event),"asignación"); },
 
+    onSaveApprover: async function () {
+      var model=this._model(),form=Object.assign({},model.getProperty("/approverForm"));
+      if(!form.projectID||!form.employeeID||!form.validFrom)return MessageBox.warning("Completa proyecto, responsable y fecha inicial.");
+      var ID=form.ID;delete form.ID;
+      await this._saveEntity("Aprobadores",ID,{project_ID:form.projectID,employee_ID:form.employeeID,approverType:form.approverType||"LEADER",validFrom:form.validFrom,validTo:form.validTo||null,active:Boolean(form.active)},ID?"Aprobador actualizado.":"Aprobador asignado.");
+      model.setProperty("/approverForm",this._emptyApprover());
+    },
+    onEditApprover: function (event) { var row=this._row(event);this._model().setProperty("/approverForm",Object.assign(this._emptyApprover(),row,{projectID:row.project_ID,employeeID:row.employee_ID})); },
+    onCancelApproverEdit: function () { this._model().setProperty("/approverForm",this._emptyApprover()); },
+    onDeleteApprover: function (event) { this._confirmDelete("Aprobadores",this._row(event),"aprobador"); },
+
     onSaveRate: async function () {
       var model=this._model(),form=Object.assign({},model.getProperty("/rateForm"));
       if(!form.assignmentID||!form.validFrom)return MessageBox.warning("Completa asignación y fecha inicial de la tarifa.");
@@ -83,16 +94,18 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
           this._get("Proyectos?$select=ID,client_ID,contract_ID,code,name,description,modality,validFrom,validTo,currency,timeZone,requiresDescription,requiresEvidence,requiresClientApproval,approvalScheme,dailyWarningHours,status&$expand=client($select=tradeName,legalName),contract($select=reference)&$orderby=name"),
           this._get("Empleados?$select=ID,nombreCompleto,correoCorporativo&$orderby=nombreCompleto"),
           this._get("Asignaciones?$select=ID,project_ID,employee_ID,role,validFrom,validTo,commercialAllocation,isPrimary,isBackup,status&$expand=project($select=name),employee($select=nombreCompleto)&$orderby=validFrom desc"),
+          this._get("Aprobadores?$select=ID,project_ID,employee_ID,approverType,validFrom,validTo,active&$expand=project($select=name),employee($select=nombreCompleto,correoCorporativo)&$orderby=validFrom desc"),
           this._get("Tarifas?$select=ID,assignment_ID,validFrom,validTo,currency,monthlySaleRate,regularSaleHourlyRate,overtimeSaleHourlyRate,internalMonthlyCost,internalHourlyCost&$expand=assignment($expand=project($select=name),employee($select=nombreCompleto))&$orderby=validFrom desc").catch(function(){model.setProperty("/canSeeRates",false);return [];}),
           this._get("obtenerDocumentosContrato()")
         ]);
-        var documents=results[6];model.setProperty("/documents",documents);
+        var documents=results[7];model.setProperty("/documents",documents);
         model.setProperty("/clients",results[0]);
         model.setProperty("/contracts",results[1].map(function(row){var docs=documents.filter(function(doc){return doc.contratoID===row.ID;});return Object.assign(row,{clientName:row.client?.tradeName||row.client?.legalName||"",documentCount:docs.length,firstDocument:docs[0]||null});}));
         model.setProperty("/projects",results[2].map(function(row){return Object.assign(row,{clientName:row.client?.tradeName||row.client?.legalName||"",contractReference:row.contract?.reference||""});}));
         model.setProperty("/employees",results[3]);
         model.setProperty("/assignments",results[4].map(function(row){return Object.assign(row,{projectName:row.project?.name||"",employeeName:row.employee?.nombreCompleto||""});}));
-        model.setProperty("/rates",results[5].map(function(row){return Object.assign(row,{projectName:row.assignment?.project?.name||"",employeeName:row.assignment?.employee?.nombreCompleto||"",assignmentLabel:(row.assignment?.employee?.nombreCompleto||"")+" · "+(row.assignment?.project?.name||"")});}));
+        model.setProperty("/approvers",results[5].map(function(row){return Object.assign(row,{projectName:row.project?.name||"",employeeName:row.employee?.nombreCompleto||"",employeeEmail:row.employee?.correoCorporativo||""});}));
+        model.setProperty("/rates",results[6].map(function(row){return Object.assign(row,{projectName:row.assignment?.project?.name||"",employeeName:row.assignment?.employee?.nombreCompleto||"",assignmentLabel:(row.assignment?.employee?.nombreCompleto||"")+" · "+(row.assignment?.project?.name||"")});}));
         this._filterContracts();if(notify)MessageToast.show("Información actualizada.");
       }catch(error){model.setProperty("/error",error.message||String(error));}finally{model.setProperty("/busy",false);}
     },
@@ -112,6 +125,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
     _emptyContract: function () { return {ID:null,clientID:"",reference:"",description:"",validFrom:"",validTo:"",currency:"COP",totalValue:"",renewalNoticeDays:30,status:"ACTIVE"}; },
     _emptyProject: function () { return {ID:null,clientID:"",contractID:"",code:"",name:"",description:"",validFrom:"",validTo:"",modality:"FULL_TIME",currency:"COP",timeZone:"America/Bogota",requiresDescription:false,requiresEvidence:false,requiresClientApproval:false,approvalScheme:"LEADER_THEN_ADMIN",dailyWarningHours:16,status:"ACTIVE"}; },
     _emptyAssignment: function () { return {ID:null,projectID:"",employeeID:"",validFrom:"",validTo:"",role:"Consultor",commercialAllocation:0,isPrimary:true,isBackup:false,status:"ACTIVE"}; },
+    _emptyApprover: function () { return {ID:null,projectID:"",employeeID:"",approverType:"LEADER",validFrom:new Date().toISOString().slice(0,10),validTo:"",active:true}; },
     _emptyRate: function () { return {ID:null,assignmentID:"",validFrom:"",validTo:"",currency:"COP",monthlySaleRate:"",regularSaleHourlyRate:"",overtimeSaleHourlyRate:"",internalMonthlyCost:"",internalHourlyCost:""}; }
   });
 });
