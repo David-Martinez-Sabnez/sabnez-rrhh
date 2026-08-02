@@ -1,5 +1,5 @@
 <core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
-  <Dialog id="copyDialog" title="Copiar registro a otros días" contentWidth="30rem" stretchOnPhone="true" afterClose=".onCopyDialogAfterClose">
+  <Dialog id="copyDialog" title="Copiar registro a otros días" contentWidth="42rem" stretchOnPhone="false" verticalScrolling="true" horizontalScrolling="false" afterClose=".onCopyDialogAfterClose" class="copyEntryDialog">
     <content>
       <VBox class="sapUiMediumMargin">
         <ObjectIdentifier title="{view>/copySource/proyectoNombre}" text="{= ${view>/copySource/duracionHoras} + ' h · ' + ${view>/copySource/typeLabel} }" class="sapUiSmallMarginBottom"/>
