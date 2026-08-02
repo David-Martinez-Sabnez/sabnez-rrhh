@@ -15,9 +15,18 @@ body,
 .adminAppHeader { min-height: 4.5rem; padding: .55rem 1rem; background: #fff; border: 1px solid #dce3e8; border-radius: .5rem; box-shadow: 0 1px 4px rgba(34,53,72,.08); }
 .adminAppHeader .sapMTitle { font-size: 1.35rem; }
 .adminAppHeader .sapMText { color: #556b7d; }
-.adminSection { padding: 1rem; }
+.adminSection {
+  margin: .8rem;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #e1e7ed;
+  border-radius: .8rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(34,53,72,.05);
+}
+.adminSectionTitle { padding: .8rem 1rem .55rem; border-bottom: 1px solid #e1e7ed; }
 .sapMITBContent { border-radius: 0 0 .75rem .75rem; }
-.sapUiFormResGrid { background: #fff; border-radius: .5rem; }
+.sapUiFormResGrid { background: #fff; }
 .commercialForm {
   width: 100%;
 }
@@ -33,10 +42,16 @@ body,
   max-width: 14rem;
 }
 
+.commercialForm .compactReferenceSelect {
+  max-width: 18rem;
+}
+
 @media (max-width: 600px) {
   .commercialForm .sapMInputBase,
   .commercialForm .sapMSlt,
   .commercialForm .sapUiFup {
     max-width: none;
   }
+  .commercialForm .compactReferenceSelect { max-width: none; }
+  .adminSection { margin: .4rem 0; }
 }
