@@ -171,8 +171,6 @@
           <content>
             <VBox id="worklistContent" width="100%">
               <FlexBox id="filterToolbar" wrap="Wrap" alignItems="Center" class="approvalFilterToolbar approvalFilterBar">
-                <Title id="worklistTitle" text="{view>/worklistTitle}" level="H2" />
-                <ObjectStatus id="resultCount" text="{view>/resultCountLabel}" state="Information" />
                 <SearchField
                   id="taskSearch"
                   width="19rem"
@@ -324,7 +322,7 @@
                       <OverflowToolbar>
                         <Button text="{i18n>forward}" icon="sap-icon://forward" visible="{view>/selectedTask/canForward}" enabled="{= !${view>/actionBusy} }" press=".onForwardSelected" />
                         <ToolbarSpacer />
-                        <Button text="{i18n>reject}" icon="sap-icon://decline" type="Reject" visible="{view>/selectedTask/canReject}" enabled="{= !${view>/actionBusy} }" press=".onRejectSelected" />
+                        <Button text="{view>/selectedTask/secondaryActionText}" icon="{view>/selectedTask/secondaryActionIcon}" type="Reject" visible="{view>/selectedTask/canReject}" enabled="{= !${view>/actionBusy} }" press=".onRejectSelected" />
                         <Button text="{i18n>approve}" icon="sap-icon://accept" type="Emphasized" visible="{view>/selectedTask/canApprove}" enabled="{= !${view>/actionBusy} }" press=".onApproveSelected" />
                       </OverflowToolbar>
                     </footer>

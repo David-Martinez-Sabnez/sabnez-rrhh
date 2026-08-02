@@ -340,6 +340,10 @@ module.exports = cds.service.impl(function () {
 });
 
 async function notifyTimesheetApprovers({ sheets, employee, weekStart, weekEnd, WeeklyTimesheets, ProjectApprovers }) {
+  const requester = await SELECT.one.from("sabnez.rrhh.Empleados").columns(
+    "jefeDirecto.nombreCompleto as managerName",
+    "jefeDirecto.correoCorporativo as managerEmail",
+  ).where({ ID: employee.ID });
   for (const original of sheets) {
     const sheet = await SELECT.one.from(WeeklyTimesheets).columns(
       "ID", "assignment.project_ID as projectID", "assignment.project.name as projectName", "assignment.project.approvalScheme as approvalScheme",
@@ -348,8 +352,10 @@ async function notifyTimesheetApprovers({ sheets, employee, weekStart, weekEnd, 
     const today = new Date().toISOString().slice(0, 10);
     const approvers = await SELECT.from(ProjectApprovers).columns("employee.nombreCompleto as name", "employee.correoCorporativo as email", "validFrom", "validTo").where({ project_ID: sheet.projectID, active: true });
     const projectRecipients = approvers.filter((row) => row.email && row.validFrom <= today && (!row.validTo || row.validTo >= today));
+    const managerRecipients = requester?.managerEmail ? [{ email: requester.managerEmail, name: requester.managerName || "Jefe inmediato" }] : [];
     const adminRecipients = String(process.env.TIME_ADMIN_RECIPIENTS || "").split(",").map((email) => ({ email: email.trim(), name: "Administración" })).filter((row) => row.email);
-    const recipients = sheet.approvalScheme === "ADMIN_ONLY" ? adminRecipients : sheet.approvalScheme === "LEADER_OR_ADMIN" ? [...projectRecipients, ...adminRecipients] : projectRecipients;
+    const operationalRecipients = [...managerRecipients, ...projectRecipients];
+    const recipients = sheet.approvalScheme === "ADMIN_ONLY" ? adminRecipients : sheet.approvalScheme === "LEADER_OR_ADMIN" ? [...operationalRecipients, ...adminRecipients] : operationalRecipients;
     for (const approver of recipients.filter((row, index, all) => all.findIndex((candidate) => candidate.email.toLowerCase() === row.email.toLowerCase()) === index)) {
       try {
         await sendApprovalEmail({

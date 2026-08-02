@@ -120,6 +120,13 @@
   background: var(--sapBackgroundColor);
 }
 
+.approvalInboxSplit .sapMPageScroll,
+.approvalInboxSplit .sapMPageEnableScrolling,
+.approvalInboxSplit .sapMSplitContainerMaster .sapMPage > section {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
 .approvalInlineDetailContent {
   box-sizing: border-box;
   gap: 1rem;

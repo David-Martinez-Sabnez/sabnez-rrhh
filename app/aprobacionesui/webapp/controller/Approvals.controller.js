@@ -143,7 +143,8 @@ sap.ui.define(
       },
 
       onOpenTask: function (oEvent) {
-        var oTask = oEvent.getSource().getBindingContext("view")?.getObject();
+        var oItem = oEvent.getParameter("listItem") || oEvent.getSource();
+        var oTask = oItem.getBindingContext("view")?.getObject();
         if (!oTask?.ID) {
           return;
         }
@@ -182,9 +183,12 @@ sap.ui.define(
       },
 
       onRejectSelected: async function () {
+        var oTask = this.getView()
+          .getModel("view")
+          .getProperty("/selectedTask");
         await this._openReasonDialog(
-          "REJECT",
-          this.getView().getModel("view").getProperty("/selectedTask"),
+          oTask.source === "TIME" ? "RETURN_TIME" : "REJECT",
+          oTask,
         );
       },
 
@@ -217,6 +221,19 @@ sap.ui.define(
             successKey: "taskRejected",
             closeTask: true,
           });
+        } else if (oForm.mode === "RETURN_TIME") {
+          try {
+            var oTimeResult = await this._timePost("devolverHoja", {
+              hojaID: oForm.targetID,
+              comentario: sComment,
+            });
+            MessageToast.show(oTimeResult.mensaje || this._text("timeReturned"));
+            this._reasonDialog?.close();
+            this.onCloseTaskDetail();
+            await this._loadData(true);
+          } catch (oError) {
+            MessageBox.error(this._extractErrorMessage(oError));
+          }
         } else if (oForm.mode === "REVOKE") {
           await this._executeOperation({
             name: ServiceContract.operations.revokeDelegation,
@@ -385,11 +402,18 @@ sap.ui.define(
               this._callOperation(ServiceContract.operations.getTasks),
               this._callOperation(ServiceContract.operations.getDelegations),
               this._loadEligibleEmployees(),
+              this._loadTimeTasks(),
             ]);
 
-            var aTasks = this._unwrapArray(aResults[1], "tareas").map(
+            var aApprovalTasks = this._unwrapArray(aResults[1], "tareas").map(
               this._normalizeTask.bind(this),
             );
+            var aTimeTasks = aResults[4] || [];
+            var aTasks = aApprovalTasks.concat(aTimeTasks).sort(function (a, b) {
+              return String(b.submittedAtRaw || "").localeCompare(
+                String(a.submittedAtRaw || ""),
+              );
+            });
             var aDelegations = this._unwrapArray(
               aResults[2],
               "delegaciones",
@@ -398,6 +422,9 @@ sap.ui.define(
             var oSummary = this._normalizeSummary(
               this._unwrapObject(aResults[0]),
             );
+            oSummary.porDecidir += aTimeTasks.filter(function (oTask) {
+              return oTask.scope === "PENDING";
+            }).length;
 
             oModel.setProperty("/tasks", aTasks);
             oModel.setProperty("/delegations", aDelegations);
@@ -552,6 +579,104 @@ sap.ui.define(
         }
       },
 
+      _loadTimeTasks: async function () {
+        try {
+          var oResponse = await this._timeGet(
+            "obtenerBandeja(estado='PENDING')",
+          );
+          return (oResponse.value || oResponse || []).map(
+            this._normalizeTimeTask.bind(this),
+          );
+        } catch (oError) {
+          return [];
+        }
+      },
+
+      _normalizeTimeTask: function (oRaw) {
+        var sEmployee = oRaw.empleadoNombre || this._text("unknownEmployee");
+        var sSummary = [
+          oRaw.clienteNombre,
+          oRaw.proyectoNombre,
+          [oRaw.semanaInicio, oRaw.semanaFin].filter(Boolean).join(" — "),
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        var sSearch = this._normalizeText(
+          [sEmployee, sSummary, "tiempos", "horas"].join(" "),
+        );
+        return {
+          ID: oRaw.ID,
+          source: "TIME",
+          version: Number(oRaw.version || 0),
+          employeeName: sEmployee,
+          employeeEmail: oRaw.empleadoCorreo || "",
+          employeePosition: "",
+          employeeInitials: this._initials(sEmployee),
+          processFilterCode: "TIME",
+          requestTitle: this._text("timeApprovalTitle"),
+          requestSummary: sSummary,
+          processCode: this._text("timeProcess"),
+          businessObjectText: oRaw.proyectoNombre || "—",
+          state: oRaw.estado || "SUBMITTED",
+          statusText: this._text("statusPending"),
+          statusState: "Warning",
+          statusIcon: "sap-icon://pending",
+          role: "PRIMARY",
+          roleText: this._text("directManagerRole"),
+          roleState: "Information",
+          isBackup: false,
+          scope: "PENDING",
+          submittedText: this._formatDateTime(oRaw.enviadoEn),
+          submittedAtRaw: oRaw.enviadoEn,
+          filterDate: String(oRaw.enviadoEn || "").slice(0, 10),
+          priorityText: oRaw.registrosConAlerta > 0 ? this._text("priorityHigh") : this._text("priorityMedium"),
+          priorityState: oRaw.registrosConAlerta > 0 ? "Warning" : "Information",
+          priorityIcon: oRaw.registrosConAlerta > 0 ? "sap-icon://alert" : "sap-icon://flag",
+          canApprove: oRaw.puedeAprobar === true,
+          canReject: oRaw.puedeDevolver === true,
+          canForward: false,
+          secondaryActionText: this._text("returnForCorrection"),
+          secondaryActionIcon: "sap-icon://undo",
+          searchText: sSearch,
+          timeSummary: oRaw,
+        };
+      },
+
+      _loadTimeDetail: async function (oTask) {
+        var oResponse = await this._timeGet(
+          "obtenerDetalle(hojaID=" + oTask.ID + ")",
+        );
+        var oDetail = oResponse.value || oResponse;
+        var oSummary = oDetail.resumen || oTask.timeSummary || {};
+        var aFacts = [];
+        (oDetail.registros || []).forEach(function (oEntry, iIndex) {
+          aFacts.push({
+            ID: oEntry.ID,
+            section: oEntry.fecha || "Registro",
+            label: [oEntry.tipo, Number(oEntry.horas || 0) + " h"].filter(Boolean).join(" · "),
+            value: [oEntry.descripcion, oEntry.soporteNombre ? "Soporte: " + oEntry.soporteNombre : null]
+              .filter(Boolean)
+              .join(" · ") || "Sin descripción",
+            isLink: false,
+            isStatus: false,
+            state: oEntry.alerta ? "Warning" : "None",
+            order: iIndex,
+          });
+        });
+        var oDetailedTask = Object.assign({}, oTask, {
+          requestSummary: [
+            oSummary.clienteNombre,
+            oSummary.proyectoNombre,
+            [oSummary.semanaInicio, oSummary.semanaFin].filter(Boolean).join(" — "),
+          ].filter(Boolean).join(" · "),
+          facts: aFacts,
+          events: [],
+          canApprove: oSummary.puedeAprobar === true,
+          canReject: oSummary.puedeDevolver === true,
+        });
+        this.getView().getModel("view").setProperty("/selectedTask", oDetailedTask);
+      },
+
       _loadEligibleEmployees: async function () {
         try {
           var oListBinding = this.getView()
@@ -593,6 +718,58 @@ sap.ui.define(
         });
         await oBinding.execute("$direct");
         return oBinding.getBoundContext()?.getObject() || {};
+      },
+
+      _timeGet: async function (sPath) {
+        var oResponse = await fetch("/tiempos-aprobacion/" + sPath, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!oResponse.ok) {
+          throw await this._timeError(oResponse);
+        }
+        return oResponse.json();
+      },
+
+      _timePost: async function (sPath, oPayload) {
+        var oResponse = await fetch("/tiempos-aprobacion/" + sPath, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-CSRF-Token": await this._timeCsrfToken(),
+          },
+          body: JSON.stringify(oPayload || {}),
+        });
+        if (!oResponse.ok) {
+          throw await this._timeError(oResponse);
+        }
+        return oResponse.json();
+      },
+
+      _timeCsrfToken: async function () {
+        if (this._timeCsrf) {
+          return this._timeCsrf;
+        }
+        var oResponse = await fetch("/tiempos-aprobacion/", {
+          credentials: "same-origin",
+          headers: { "X-CSRF-Token": "Fetch" },
+        });
+        if (!oResponse.ok) {
+          throw await this._timeError(oResponse);
+        }
+        this._timeCsrf = oResponse.headers.get("X-CSRF-Token");
+        return this._timeCsrf;
+      },
+
+      _timeError: async function (oResponse) {
+        var oData = await oResponse.json().catch(function () {
+          return {};
+        });
+        return new Error(
+          oData.error?.message || this._text("unexpectedError"),
+        );
       },
 
       _executeOperation: async function (mOptions) {
@@ -637,6 +814,21 @@ sap.ui.define(
           return;
         }
 
+        if (oTask.source === "TIME") {
+          try {
+            var oTimeResult = await this._timePost("aprobarHoja", {
+              hojaID: oTask.ID,
+              comentario: null,
+            });
+            MessageToast.show(oTimeResult.mensaje || this._text("taskApproved"));
+            this.onCloseTaskDetail();
+            await this._loadData(true);
+          } catch (oError) {
+            MessageBox.error(this._extractErrorMessage(oError));
+          }
+          return;
+        }
+
         await this._executeOperation({
           name: ServiceContract.operations.approve,
           parameters: {
@@ -658,6 +850,13 @@ sap.ui.define(
         );
         oModel.setProperty("/actionBusy", true);
         try {
+          if (oTask.source === "TIME") {
+            await this._loadTimeDetail(oTask);
+            this.byId("approvalWorkSplit").toDetail(
+              this.byId("inlineTaskDetailPage"),
+            );
+            return;
+          }
           var oRawDetail = this._unwrapObject(
             await this._callOperation(
               ServiceContract.operations.getTaskDetail,
@@ -806,19 +1005,20 @@ sap.ui.define(
           return;
         }
         var bReject = sMode === "REJECT";
+        var bReturnTime = sMode === "RETURN_TIME";
         this.getView()
           .getModel("view")
           .setProperty("/reasonForm", {
             mode: sMode,
             targetID: oTarget.ID,
             expectedVersion: Number(oTarget.version || 0),
-            title: this._text(bReject ? "rejectTask" : "revokeDelegation"),
-            label: this._text(bReject ? "rejectionReason" : "revocationReason"),
+            title: this._text(bReturnTime ? "returnTimeTask" : bReject ? "rejectTask" : "revokeDelegation"),
+            label: this._text(bReturnTime ? "returnReason" : bReject ? "rejectionReason" : "revocationReason"),
             placeholder: this._text(
-              bReject ? "rejectionPlaceholder" : "revocationPlaceholder",
+              bReturnTime ? "returnPlaceholder" : bReject ? "rejectionPlaceholder" : "revocationPlaceholder",
             ),
-            actionText: this._text(bReject ? "reject" : "revoke"),
-            actionType: bReject ? "Reject" : "Emphasized",
+            actionText: this._text(bReturnTime ? "returnForCorrection" : bReject ? "reject" : "revoke"),
+            actionType: bReject || bReturnTime ? "Reject" : "Emphasized",
             comment: "",
           });
         if (!this._reasonDialog) {
@@ -963,6 +1163,7 @@ sap.ui.define(
         );
 
         return Object.assign({}, oRaw, {
+          source: "APPROVAL",
           ID: oRaw.ID,
           version: Number(oRaw.version || 0),
           employeeName: sEmployeeName,
@@ -989,6 +1190,7 @@ sap.ui.define(
           isBackup: bBackup,
           scope: bPending ? (bBackup ? "BACKUP" : "PENDING") : "HISTORY",
           submittedText: this._formatDateTime(sSubmittedAt),
+          submittedAtRaw: sSubmittedAt,
           modifiedText: oRaw.modifiedAt
             ? this._formatDateTime(oRaw.modifiedAt)
             : "",
@@ -1003,6 +1205,8 @@ sap.ui.define(
           canApprove: bCanApprove,
           canReject: bCanReject,
           canForward: bCanForward,
+          secondaryActionText: this._text("reject"),
+          secondaryActionIcon: "sap-icon://decline",
           searchText: sSearchText,
         });
       },

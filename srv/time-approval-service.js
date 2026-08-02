@@ -20,7 +20,7 @@ module.exports = cds.service.impl(function () {
       "assignment.project.approvalScheme as approvalScheme", "weekStart", "weekEnd", "status", "submittedAt",
     ).where({ status: { in: statuses } });
     const pendingFilter = !req.data?.estado || req.data.estado === "PENDING";
-    const visible = sheets.filter((sheet) => (context.isAdmin || context.projectIDs.has(sheet.projectID)) && (!pendingFilter || isPendingForContext(sheet, context)));
+    const visible = sheets.filter((sheet) => (context.isAdmin || context.directReportIDs.has(sheet.employee_ID) || context.projectIDs.has(sheet.projectID)) && (!pendingFilter || isPendingForContext(sheet, context)));
     return Promise.all(visible.map((sheet) => summarizeSheet(sheet, { TimeEntries, Evidence, context })));
   });
 
@@ -129,20 +129,28 @@ async function loadSheet(req, ID, { WeeklyTimesheets, ProjectApprovers }) {
   ).where({ ID });
   if (!sheet) reject(req, 404, "HOJA_NO_ENCONTRADA", "La hoja semanal no existe.");
   const context = await reviewerContext(req, ProjectApprovers);
-  if (!context.isAdmin && !context.projectIDs.has(sheet.projectID)) reject(req, 403, "HOJA_NO_AUTORIZADA", "No tienes autorización para revisar esta hoja.");
+  if (!context.isAdmin && !context.directReportIDs.has(sheet.employee_ID) && !context.projectIDs.has(sheet.projectID)) reject(req, 403, "HOJA_NO_AUTORIZADA", "No tienes autorización para revisar esta hoja.");
   return sheet;
 }
 
 async function reviewerContext(req, ProjectApprovers) {
   const isAdmin = req.user?.is?.("TimeAdmin") || req.user?.is?.("Admin");
-  if (isAdmin) return { isAdmin: true, projectIDs: new Set() };
+  if (isAdmin) return { isAdmin: true, employeeID: null, directReportIDs: new Set(), projectIDs: new Set() };
   const email = normalizedEmail(req);
   const employees = await SELECT.from("sabnez.rrhh.Empleados").columns("ID", "correoCorporativo").where({ estado_codigo: "AC" });
   const employee = employees.find((row) => String(row.correoCorporativo || "").trim().toLowerCase() === email);
-  if (!employee) return { isAdmin: false, projectIDs: new Set() };
+  if (!employee) return { isAdmin: false, employeeID: null, directReportIDs: new Set(), projectIDs: new Set() };
   const today = new Date().toISOString().slice(0, 10);
-  const rows = await SELECT.from(ProjectApprovers).columns("project_ID", "validTo").where({ employee_ID: employee.ID, active: true, validFrom: { "<=": today } });
-  return { isAdmin: false, projectIDs: new Set(rows.filter((row) => !row.validTo || row.validTo >= today).map((row) => row.project_ID)) };
+  const [rows, directReports] = await Promise.all([
+    SELECT.from(ProjectApprovers).columns("project_ID", "validTo").where({ employee_ID: employee.ID, active: true, validFrom: { "<=": today } }),
+    SELECT.from("sabnez.rrhh.Empleados").columns("ID").where({ jefeDirecto_ID: employee.ID, estado_codigo: "AC" }),
+  ]);
+  return {
+    isAdmin: false,
+    employeeID: employee.ID,
+    directReportIDs: new Set(directReports.map((row) => row.ID)),
+    projectIDs: new Set(rows.filter((row) => !row.validTo || row.validTo >= today).map((row) => row.project_ID)),
+  };
 }
 
 async function recordDecision(sheetID, type, decision, req, comment, { TimeEntries, TimeEntryDecisions }) {
@@ -196,7 +204,7 @@ function isPendingForContext(sheet, context) {
     if (sheet.status === "LEADER_APPROVED") return sheet.approvalScheme === "LEADER_THEN_ADMIN";
     return new Set(["SUBMITTED", "UNDER_REVIEW"]).has(sheet.status) && new Set(["ADMIN_ONLY", "LEADER_OR_ADMIN"]).has(sheet.approvalScheme);
   }
-  return context.projectIDs.has(sheet.projectID) && new Set(["SUBMITTED", "UNDER_REVIEW"]).has(sheet.status) && sheet.approvalScheme !== "ADMIN_ONLY";
+  return (context.directReportIDs.has(sheet.employee_ID) || context.projectIDs.has(sheet.projectID)) && new Set(["SUBMITTED", "UNDER_REVIEW"]).has(sheet.status) && sheet.approvalScheme !== "ADMIN_ONLY";
 }
 
 function normalizedEmail(req) {

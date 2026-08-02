@@ -3,6 +3,13 @@
   "authenticationMethod": "route",
   "routes": [
     {
+      "source": "^/tiempos-aprobacion/(.*)$",
+      "target": "/tiempos-aprobacion/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
       "source": "^/aprobaciones/(.*)$",
       "target": "/aprobaciones/$1",
       "destination": "srv-api",
