@@ -19,9 +19,9 @@ sap.ui.define([
       }.bind(this);
       var monday = this._startOfWeek(new Date());
       this.getView().setModel(new JSONModel({
-        busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "",
+        busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "", weeklyVisible: true,
         assignments: [], entries: [], weekDays: [], nonWorkingDays: [], totalHours: "0.0", selectedCount: 0,
-        copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [],
+        copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], monthTotalHours: "0.0",
         monthCopy: { targetMonth: this._monthStart(this._iso(new Date())), mode: "BUSINESS", preview: "" },
         monthPlan: { sourceMonth: this._monthStart(this._iso(new Date())), targetMonth: this._monthStart(this._addMonths(this._iso(new Date()), 1)), mode: "BUSINESS", preview: "" },
         form: this._emptyForm(this._iso(new Date()))
@@ -77,9 +77,14 @@ sap.ui.define([
       var model = this.getView().getModel("view");
       model.setProperty("/form", this._emptyForm(day.date));
       model.setProperty("/weekStart", this._iso(this._startOfWeek(new Date(day.date + "T12:00:00"))));
+      model.setProperty("/weeklyVisible", true);
+      this.byId("monthlyPanel").setExpanded(false);
       this._selectedFile = null;
       this.byId("supportUploader").clear();
       this._loadWeek();
+    },
+    onMonthlyToggle: function (event) {
+      if (event.getParameter("expand")) this.getView().getModel("view").setProperty("/weeklyVisible", false);
     },
     onPreviousMonth: function () { this._moveMonth(-1); },
     onNextMonth: function () { this._moveMonth(1); },
@@ -252,7 +257,7 @@ sap.ui.define([
       var projectSummaries = [];
       entries.forEach(function (entry) { if (!projectSummaries.includes(entry.projectGroupLabel)) projectSummaries.push(entry.projectGroupLabel); });
       var details = projectSummaries.join("\n");
-      if (warningDays) details += "\n\n• " + warningDays + " día(s) superan las 12 horas.";
+      if (warningDays) details += "\n\n• " + warningDays + " día(s) superan las 16 horas.";
       if (duplicateGroups) details += "\n• " + duplicateGroups + " posible(s) grupo(s) duplicado(s).";
       MessageBox.confirm("Revisa el resumen antes de enviar:\n\n" + details + "\n\nDespués del envío no podrás editar hasta que la semana sea devuelta. ¿Deseas continuar?", {
         title: warningDays || duplicateGroups ? "Revisar alertas de la semana" : "Confirmar envío semanal",
@@ -274,14 +279,14 @@ sap.ui.define([
       try{
         var data=await Promise.all([this._get("obtenerMisRegistrosMes(mesInicio="+start+")"),this._get("obtenerDiasNoHabiles(desde="+start+",hasta="+end+")")]);
         var entries=(data[0].value||data[0]||[]).map(this._decorateEntry.bind(this));
-        model.setProperty("/monthEntries",entries);model.setProperty("/monthLabel",this._monthName(start));
+        model.setProperty("/monthEntries",entries);model.setProperty("/monthLabel",this._monthName(start));model.setProperty("/monthTotalHours",entries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0).toFixed(1));
         this._buildMonthDays(entries,data[1].value||data[1]||[]);
       }catch(error){model.setProperty("/error",error.message);}
     },
     _buildMonthDays:function(entries,nonWorking){
       var model=this.getView().getModel("view"),start=model.getProperty("/monthStart"),end=this._addDays(this._addMonths(start,1),-1),days=[],firstDay=new Date(start+"T12:00:00").getDay();
       for(var blank=1;blank<(firstDay||7);blank+=1)days.push({date:"",isBlank:true});
-      for(var date=start;date<=end;date=this._addDays(date,1)){var rows=entries.filter(function(e){return e.fecha===date;}),hours=rows.reduce(function(s,e){return s+Number(e.duracionHoras||0);},0),exception=nonWorking.find(function(d){return d.fecha===date;});days.push({date:date,isBlank:false,dayNumber:String(Number(date.slice(8,10))),hours:hours.toFixed(1),entryCount:rows.length,summary:rows.length?rows.length+" registro(s)":"Sin registros",dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||""});}
+      for(var date=start;date<=end;date=this._addDays(date,1)){var rows=entries.filter(function(e){return e.fecha===date;}),hours=rows.reduce(function(s,e){return s+Number(e.duracionHoras||0);},0),exception=nonWorking.find(function(d){return d.fecha===date;}),needsReview=hours>16;days.push({date:date,isBlank:false,dayNumber:String(Number(date.slice(8,10))),hours:hours.toFixed(1),entryCount:rows.length,summary:rows.length?rows.length+" registro(s)":"Sin registros",dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||"",statusIcon:needsReview?"sap-icon://alert":rows.length?"sap-icon://accept":"",statusText:needsReview?"Revisar":rows.length?"Registrado":"",statusState:needsReview?"Warning":"Success"});}
       model.setProperty("/monthDays",days);
     },
     _moveMonth:function(months){var model=this.getView().getModel("view");model.setProperty("/monthStart",this._monthStart(this._addMonths(model.getProperty("/monthStart"),months)));this._loadMonth();},
@@ -389,7 +394,7 @@ sap.ui.define([
       entries.forEach(function (entry) {
         var project = projectTotals[entry.asignacionID || entry.proyectoNombre];
         entry.totalHorasDia = dailyTotals[entry.fecha].toFixed(1);
-        entry.alertaHorasDiarias = dailyTotals[entry.fecha] > 12;
+        entry.alertaHorasDiarias = dailyTotals[entry.fecha] > 16;
         entry.alertaHorasTexto = entry.alertaHorasDiarias ? "El total del día es " + entry.totalHorasDia + " horas." : "";
         entry.posibleDuplicado = duplicateCounts[entry.duplicateKey] > 1;
         entry.projectGroupLabel = project.name + " · " + project.hours.toFixed(1) + " h · " + project.count + " registro(s) · " + project.regular.toFixed(1) + " h regulares" + (project.extra ? " · " + project.extra.toFixed(1) + " h extras" : "");

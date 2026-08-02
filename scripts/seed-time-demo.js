@@ -48,7 +48,7 @@ async function main() {
     requiresEvidence: false,
     requiresClientApproval: false,
     approvalScheme: "ADMIN_ONLY",
-    dailyWarningHours: 12,
+    dailyWarningHours: 16,
     status: "ACTIVE",
   });
   await UPSERT.into("sabnez.times.ReportingCycles").entries({

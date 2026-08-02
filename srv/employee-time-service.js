@@ -192,7 +192,7 @@ module.exports = cds.service.impl(function () {
     const dailyWarning = exceedsDailyWarning(
       existingHours,
       canonical.durationHours,
-      assignment.dailyWarningHours || 12,
+      16,
     );
     if (dailyWarning && !canonical.description) {
       reject(req, 400, "DESCRIPCION_ALERTA_DIARIA", "Al superar el umbral diario debe explicar las actividades realizadas.", "descripcion");

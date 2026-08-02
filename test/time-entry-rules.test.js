@@ -50,7 +50,7 @@ test("acepta tiempo especial autorizado y documentado", () => {
   assert.equal(result.evidenceRequired, true);
 });
 
-test("la alerta diaria se activa por encima de doce horas sin bloquear doce exactas", () => {
-  assert.equal(exceedsDailyWarning(10, 2, 12), false);
-  assert.equal(exceedsDailyWarning(10, 2.5, 12), true);
+test("la alerta diaria se activa por encima de dieciseis horas sin bloquear dieciseis exactas", () => {
+  assert.equal(exceedsDailyWarning(8, 8, 16), false);
+  assert.equal(exceedsDailyWarning(8, 8.5, 16), true);
 });

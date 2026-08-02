@@ -39,7 +39,7 @@ function validateTimeEntry(entry, project = {}) {
   return { errors, evidenceRequired, descriptionRequired, isSpecial };
 }
 
-function exceedsDailyWarning(existingHours, newHours, threshold = 12) {
+function exceedsDailyWarning(existingHours, newHours, threshold = 16) {
   return Number(existingHours || 0) + Number(newHours || 0) > Number(threshold);
 }
 

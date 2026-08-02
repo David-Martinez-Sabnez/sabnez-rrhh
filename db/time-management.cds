@@ -132,7 +132,7 @@ entity Projects : cuid, managed {
   requiresEvidence       : Boolean default false;
   requiresClientApproval : Boolean default false;
   approvalScheme         : EsquemaAprobacion default 'LEADER_THEN_ADMIN';
-  dailyWarningHours      : Decimal(5, 2) default 12;
+  dailyWarningHours      : Decimal(5, 2) default 16;
   status                 : EstadoMaestro default 'DRAFT';
   reportingCycles        : Composition of many ReportingCycles on reportingCycles.project = $self;
   assignments            : Composition of many ProjectAssignments on assignments.project = $self;
