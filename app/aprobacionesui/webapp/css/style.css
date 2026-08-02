@@ -106,7 +106,7 @@
 }
 
 .approvalInboxSplit {
-  height: 42rem;
+  height: 42rem !important;
   background: var(--sapBackgroundColor);
 }
 
@@ -328,7 +328,7 @@
   }
 
   .approvalInboxSplit {
-    height: 40rem;
+    height: 40rem !important;
   }
 
   .approvalInboxSplit .sapMSplitContainerMaster {

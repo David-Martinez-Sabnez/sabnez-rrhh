@@ -212,6 +212,7 @@
 
               <SplitApp
                 id="approvalWorkSplit"
+                height="42rem"
                 initialMaster="approvalInboxPage"
                 initialDetail="approvalEmptyPage"
                 mode="ShowHideMode"
