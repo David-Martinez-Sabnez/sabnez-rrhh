@@ -128,6 +128,17 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.approvalInboxSplit .sapMSplitContainerMaster .sapMPageScroll {
+  box-sizing: border-box;
+  padding-bottom: 4rem;
+}
+
+.approvalInlineDetailPage .sapMPageScroll {
+  box-sizing: border-box;
+  padding-bottom: 5rem;
+  scroll-padding-bottom: 5rem;
+}
+
 .approvalInlineDetailContent {
   box-sizing: border-box;
   gap: 1rem;
@@ -135,8 +146,9 @@
 }
 
 .approvalDecisionBar {
-  border-bottom: 1px solid var(--sapGroup_ContentBorderColor);
+  border-top: 1px solid var(--sapGroup_ContentBorderColor);
   background: var(--sapGroup_ContentBackground) !important;
+  box-shadow: 0 -0.125rem 0.5rem rgba(34, 53, 72, 0.08);
 }
 
 .approvalInlineHeader,
