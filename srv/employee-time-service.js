@@ -2,6 +2,7 @@
 
 const cds = require("@sap/cds");
 const { Readable } = require("node:stream");
+const { streamToBuffer } = require("./lib/stream-utils");
 const {
   exceedsDailyWarning,
   validateTimeEntry,
@@ -289,7 +290,7 @@ module.exports = cds.service.impl(function () {
     if (!new Set(["DRAFT", "RETURNED"]).has(entry.status)) {
       reject(req, 409, "SOPORTES_BLOQUEADOS", "Solo se pueden cargar soportes en registros editables.");
     }
-    const buffer = Buffer.isBuffer(contenido) ? contenido : Buffer.from(contenido, "base64");
+    const buffer = await streamToBuffer(contenido);
     if (!buffer.length) reject(req, 400, "ARCHIVO_VACIO", "El archivo recibido está vacío.");
     if (buffer.length > 10 * 1024 * 1024) reject(req, 413, "ARCHIVO_DEMASIADO_GRANDE", "El soporte no puede superar 10 MB.");
 

@@ -3,6 +3,7 @@
 const cds = require("@sap/cds");
 const { SELECT, UPDATE, INSERT } = cds.ql;
 const { sendApprovalEmail } = require("./lib/approval-mailer");
+const { streamToBuffer } = require("./lib/stream-utils");
 const LOG = cds.log("time-approval-service");
 
 module.exports = cds.service.impl(function () {
@@ -82,7 +83,8 @@ module.exports = cds.service.impl(function () {
     const file = Evidence && await SELECT.one.from(Evidence).columns("filename", "mimeType", "content", "status").where({ ID: req.data?.soporteID, up__ID: entry.ID });
     if (!file) reject(req, 404, "SOPORTE_NO_ENCONTRADO", "El soporte no existe.");
     if (file.status !== "Clean") reject(req, 409, "SOPORTE_NO_VALIDADO", "El soporte todavía no está habilitado para descarga.");
-    const buffer = Buffer.isBuffer(file.content) ? file.content : Buffer.from(file.content || "");
+    const buffer = await streamToBuffer(file.content);
+    if (!buffer?.length) reject(req, 404, "CONTENIDO_NO_DISPONIBLE", "El soporte no tiene contenido almacenado.");
     return { nombre: file.filename, mimeType: file.mimeType || "application/octet-stream", contenidoBase64: buffer.toString("base64") };
   });
 

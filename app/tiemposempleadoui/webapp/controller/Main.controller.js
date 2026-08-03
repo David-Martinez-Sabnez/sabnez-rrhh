@@ -13,7 +13,6 @@ sap.ui.define([
       this._selectedFile = null;
       this._copyDialog = null;
       this._monthCopyDialog = null;
-      this._monthPlanDialog = null;
       this._interactionHandler = function () {
         this.getView().getModel("view")?.setProperty("/success", null);
       }.bind(this);
@@ -23,7 +22,6 @@ sap.ui.define([
         assignments: [], entries: [], weekDays: [], nonWorkingDays: [], totalHours: "0.0", selectedCount: 0,
         copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], filteredMonthDays: [], monthFilter: "ALL", monthTotalHours: "0.0",
         monthCopy: { targetMonth: this._monthStart(this._iso(new Date())), mode: "BUSINESS", preview: "" },
-        monthPlan: { sourceMonth: this._monthStart(this._iso(new Date())), targetMonth: this._monthStart(this._addMonths(this._iso(new Date()), 1)), mode: "BUSINESS", preview: "" },
         form: this._emptyForm(this._iso(new Date()))
       }), "view");
       this._loadWeek();
@@ -41,7 +39,6 @@ sap.ui.define([
         this._copyDialog = null;
       }
       if (this._monthCopyDialog) this._monthCopyDialog.destroy();
-      if (this._monthPlanDialog) this._monthPlanDialog.destroy();
     },
 
     onAfterRendering: function () {
@@ -181,19 +178,7 @@ sap.ui.define([
       if (!plan.dates.length) return MessageBox.information("No hay días disponibles para copiar después de aplicar las reglas y omitir duplicados.");
       MessageBox.confirm("Se crearán " + plan.dates.length + " borradores en " + this._monthName(config.targetMonth) + ". Se omitirán " + plan.omitted + " días y los soportes no se copiarán. ¿Deseas continuar?", { title:"Confirmar copia mensual", emphasizedAction:MessageBox.Action.OK, onClose:async function(action){if(action!==MessageBox.Action.OK)return;this._monthCopyDialog.close();await this._executeBulkCopies(plan.dates.map(function(date){return {source:source,date:date};}),"Copia mensual completada");}.bind(this) });
     },
-    onOpenMonthPlan: async function () {
-      var model=this.getView().getModel("view"), source=model.getProperty("/monthStart");
-      model.setProperty("/monthPlan",{sourceMonth:source,targetMonth:this._monthStart(this._addMonths(source,1)),mode:"BUSINESS",preview:"Se copiarán únicamente horas regulares conservando su posición semanal."});
-      if(!this._monthPlanDialog){this._monthPlanDialog=await Fragment.load({id:this.getView().getId(),name:"sabnez.com.tiemposempleadoui.fragment.MonthPlan",controller:this});this.getView().addDependent(this._monthPlanDialog);}
-      this._monthPlanDialog.open();
-    },
-    onCancelMonthPlan: function(){this._monthPlanDialog?.close();},
     onUndoBulkCopy: function(){var rows=this.getView().getModel("view").getProperty("/lastBulkCopy")||[];if(!rows.length)return;MessageBox.confirm("Se eliminarán los "+rows.length+" borradores creados en la última copia masiva. ¿Deseas continuar?",{title:"Deshacer copia masiva",emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;try{await this._post("eliminarRegistros",{registros:rows});this.getView().getModel("view").setProperty("/lastBulkCopy",[]);this.getView().getModel("view").setProperty("/success","La última copia masiva se deshizo correctamente.");await Promise.all([this._loadWeek(false),this._loadMonth()]);}catch(error){this.getView().getModel("view").setProperty("/error",error.message);}}.bind(this)});},
-    onConfirmMonthPlan: async function(){
-      var config=this.getView().getModel("view").getProperty("/monthPlan");config.mode=["BUSINESS","WEEKDAYS","ALL"][this.byId("monthPlanMode").getSelectedIndex()];var plan=await this._prepareMonthPlan(config.sourceMonth,config.targetMonth,config.mode);
-      if(!plan.copies.length)return MessageBox.information("No existen registros regulares disponibles para copiar o todos ya existen en el mes de destino.");
-      MessageBox.confirm("Se crearán " + plan.copies.length + " borradores en " + this._monthName(config.targetMonth) + ". Se omitieron " + plan.omitted + " registros por calendario, vigencia o duplicidad. ¿Deseas continuar?",{title:"Repetir planificación mensual",emphasizedAction:MessageBox.Action.OK,onClose:async function(action){if(action!==MessageBox.Action.OK)return;this._monthPlanDialog.close();await this._executeBulkCopies(plan.copies,"Planificación mensual copiada");}.bind(this)});
-    },
 
     onConfirmCopy: async function () {
       var list = this.byId("copyDaysList");
@@ -301,11 +286,9 @@ sap.ui.define([
     _moveMonth:function(months){var model=this.getView().getModel("view");model.setProperty("/monthStart",this._monthStart(this._addMonths(model.getProperty("/monthStart"),months)));this._loadMonth();},
     _updateMonthCopyPreview:async function(){var model=this.getView().getModel("view"),source=model.getProperty("/copySource"),config=model.getProperty("/monthCopy");if(!source)return;var plan=await this._prepareSingleMonthCopy(source,config.targetMonth,config.mode);model.setProperty("/monthCopy/preview",plan.dates.length+" borradores por crear · "+plan.omitted+" días omitidos");},
     _prepareSingleMonthCopy:async function(source,targetMonth,mode){var existing=await this._fetchMonthEntries(targetMonth),dates=await this._eligibleMonthDates(targetMonth,mode),omitted=0;dates=dates.filter(function(date){var duplicate=existing.some(function(e){return this._sameEntry(e,source,date);}.bind(this));if(duplicate)omitted+=1;return !duplicate;}.bind(this));return {dates:dates,omitted:omitted};},
-    _prepareMonthPlan:async function(sourceMonth,targetMonth,mode){var source=(await this._fetchMonthEntries(sourceMonth)).filter(function(e){return e.tipoSolicitado==="REGULAR";}),target=await this._fetchMonthEntries(targetMonth),eligible=new Set(await this._eligibleMonthDates(targetMonth,mode)),copies=[],omitted=0;source.forEach(function(entry){var date=this._mapWeekdayOccurrence(entry.fecha,targetMonth),alreadyPlanned=copies.some(function(copy){return this._sameEntry(copy.source,entry,date);}.bind(this));if(!date||!eligible.has(date)||alreadyPlanned||target.some(function(e){return this._sameEntry(e,entry,date);}.bind(this))){omitted+=1;return;}copies.push({source:entry,date:date});}.bind(this));return {copies:copies,omitted:omitted};},
     _fetchMonthEntries:async function(month){var data=await this._get("obtenerMisRegistrosMes(mesInicio="+this._monthStart(month)+")");return (data.value||data||[]).map(this._decorateEntry.bind(this));},
     _eligibleMonthDates:async function(month,mode){var start=this._monthStart(month),end=this._addDays(this._addMonths(start,1),-1),data=await this._get("obtenerDiasNoHabiles(desde="+start+",hasta="+end+")"),nonWorking=data.value||data||[],dates=[];for(var date=start;date<=end;date=this._addDays(date,1)){var day=new Date(date+"T12:00:00").getDay(),holiday=nonWorking.some(function(d){return d.fecha===date&&d.tipo==="HOLIDAY";});if(mode==="ALL"||(mode==="WEEKDAYS"&&day>=1&&day<=5)||(mode==="BUSINESS"&&day>=1&&day<=5&&!holiday))dates.push(date);}return dates;},
     _sameEntry:function(existing,source,date){return existing.fecha===date&&existing.asignacionID===source.asignacionID&&existing.tipoSolicitado===source.tipoSolicitado&&Number(existing.duracionHoras)===Number(source.duracionHoras)&&String(existing.descripcion||"").trim().toLowerCase()===String(source.descripcion||"").trim().toLowerCase();},
-    _mapWeekdayOccurrence:function(sourceDate,targetMonth){var source=new Date(sourceDate+"T12:00:00"),weekday=source.getDay(),occurrence=Math.floor((source.getDate()-1)/7)+1,target=new Date(targetMonth+"T12:00:00"),delta=(weekday-target.getDay()+7)%7;target.setDate(1+delta+(occurrence-1)*7);return target.getMonth()===Number(targetMonth.slice(5,7))-1?this._iso(target):null;},
     _executeBulkCopies:async function(copies,label){var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);var results=await Promise.allSettled(copies.map(function(copy){return this._copyEntryToDate(copy.source,copy.date);}.bind(this))),successful=results.filter(function(r){return r.status==="fulfilled";}),created=successful.length,failed=results.length-created;model.setProperty("/lastBulkCopy",successful.map(function(r){return {ID:r.value?.registro?.ID};}).filter(function(r){return r.ID;}));model.setProperty("/busy",false);model.setProperty(failed?"/error":"/success",label+": "+created+" creados"+(failed?" y "+failed+" omitidos por validación.":"."));await Promise.all([this._loadWeek(false),this._loadMonth()]);},
 
     _loadWeek: async function (showBusy) {

@@ -538,6 +538,8 @@ sap.ui.define(
           return;
         }
 
+        var sAttachmentId = oAttachment.ID;
+
         try {
           var oResult = await this._callOperation(
             ServiceContract.operations.downloadAbsenceAttachment,

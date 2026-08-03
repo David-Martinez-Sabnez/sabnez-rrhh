@@ -2,6 +2,7 @@
 
 const cds = require("@sap/cds");
 const { Readable } = require("node:stream");
+const { streamToBuffer } = require("./lib/stream-utils");
 const { SELECT, INSERT, UPDATE, DELETE } = cds.ql;
 
 module.exports = cds.service.impl(function () {
@@ -108,7 +109,7 @@ module.exports = cds.service.impl(function () {
     const { contratoID, nombreArchivo, mimeType, contenido } = req.data || {};
     if (!contratoID || !nombreArchivo || !contenido) reject(req, 400, "DOCUMENTO_INCOMPLETO", "Faltan los datos del documento.");
     if (!(await SELECT.one.from(Contratos).columns("ID").where({ ID: contratoID }))) reject(req, 404, "CONTRATO_NO_EXISTE", "El contrato no existe.");
-    const buffer = Buffer.isBuffer(contenido) ? contenido : Buffer.from(contenido, "base64");
+    const buffer = await streamToBuffer(contenido);
     if (!buffer.length) reject(req, 400, "ARCHIVO_VACIO", "El documento está vacío.");
     if (buffer.length > 10 * 1024 * 1024) reject(req, 413, "ARCHIVO_DEMASIADO_GRANDE", "El documento no puede superar 10 MB.");
     const ID = cds.utils.uuid();
@@ -134,7 +135,8 @@ module.exports = cds.service.impl(function () {
     const row = await SELECT.one.from(ContractDocuments).columns("filename", "mimeType", "content", "status").where({ ID: documentoID, up__ID: contratoID });
     if (!row) reject(req, 404, "DOCUMENTO_NO_ENCONTRADO", "El documento no existe.");
     if (row.status !== "Clean") reject(req, 409, "DOCUMENTO_NO_VALIDADO", "El documento aún no está validado para descarga.");
-    const buffer = Buffer.isBuffer(row.content) ? row.content : Buffer.from(row.content || "");
+    const buffer = await streamToBuffer(row.content);
+    if (!buffer?.length) reject(req, 404, "CONTENIDO_NO_DISPONIBLE", "El documento no tiene contenido almacenado.");
     return { filename: row.filename, mimeType: row.mimeType || "application/octet-stream", contenidoBase64: buffer.toString("base64") };
   });
 });
