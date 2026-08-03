@@ -1142,6 +1142,11 @@ sap.ui.define(
         var sEmployeeName =
           oRaw.solicitanteNombre || this._text("unknownEmployee");
         var sTitle = oRaw.titulo || oRaw.processCode || this._text("request");
+        var sRawProcessCode = String(oRaw.processCode || "");
+        var bAbsenceProcess = sRawProcessCode.toUpperCase() === "ABSENCE";
+        var sProcessFilterCode = bAbsenceProcess
+          ? [sRawProcessCode, sTitle].join("::")
+          : sRawProcessCode;
         var sSummary = oRaw.resumen || oRaw.businessObjectID || "—";
         var sSubmittedAt = oRaw.fechaSolicitud;
         var oDue = this._duePresentation(oRaw.fechaVencimiento, bPending);
@@ -1176,10 +1181,12 @@ sap.ui.define(
             ? this._text("actingForShort", [oRaw.actuandoPorNombre])
             : "",
           employeeInitials: this._initials(sEmployeeName),
-          processFilterCode: oRaw.processCode || "",
+          processFilterCode: sProcessFilterCode,
           requestTitle: sTitle,
           requestSummary: sSummary,
-          processCode: oRaw.processCode || this._text("unspecifiedProcess"),
+          processCode: bAbsenceProcess
+            ? this._text("absenceProcess")
+            : sRawProcessCode || this._text("unspecifiedProcess"),
           businessObjectText:
             [oRaw.businessObjectType, oRaw.businessObjectID]
               .filter(Boolean)
