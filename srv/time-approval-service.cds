@@ -29,6 +29,8 @@ service TimeApprovalService @(
     horas               : Decimal(7,2);
     tipo                : String(25);
     descripcion         : String(2000);
+    proyectoNombre      : String(180);
+    clienteNombre       : String(180);
     requiereSoporte     : Boolean;
     cantidadSoportes    : Integer;
     alerta              : Boolean;

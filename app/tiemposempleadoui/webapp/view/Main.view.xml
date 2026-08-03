@@ -20,12 +20,12 @@
               <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin"/>
               <ToolbarSpacer/>
               <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal desktopWeekAction"/>
-              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }" class="desktopWeekAction"/>
+              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 &amp;&amp; ${view>/canSubmitWeek} }" tooltip="{view>/submitBlockedMessage}" class="desktopWeekAction"/>
             </Toolbar>
             <Toolbar design="Transparent" class="mobileWeekActions">
               <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal"/>
               <ToolbarSpacer/>
-              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }"/>
+              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 &amp;&amp; ${view>/canSubmitWeek} }" tooltip="{view>/submitBlockedMessage}"/>
             </Toolbar>
             <ScrollContainer horizontal="true" vertical="false" width="100%" class="weekDaysScroll">
               <HBox items="{view>/weekDays}" class="weekDayStrip" renderType="Bare">
@@ -50,6 +50,7 @@
       <VBox class="sapUiResponsiveContentPadding employeeTimesContent">
       <MessageStrip text="{view>/error}" type="Error" showIcon="true" visible="{= !!${view>/error} }" class="sapUiSmallMarginBottom"/>
       <MessageStrip text="{view>/success}" type="Success" showIcon="true" visible="{= !!${view>/success} }" class="sapUiSmallMarginBottom"/>
+      <MessageStrip text="{view>/submitBlockedMessage}" type="Warning" showIcon="true" visible="{= !!${view>/submitBlockedMessage} }" class="sapUiSmallMarginBottom"/>
 
       <Panel id="monthlyPanel" expandable="true" expanded="false" expand=".onMonthlyToggle" class="entryForm timeSectionGap">
         <headerToolbar><Toolbar><Title text="Vista mensual" level="H3" class="desktopMonthHeader"/><Text text="{view>/monthLabel}" class="mobileMonthHeader monthHeaderLabel"/><ToolbarSpacer/><ObjectNumber number="{view>/monthTotalHours}" unit="horas" class="monthTotal"/><Button text="Deshacer copia" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{= ${view>/lastBulkCopy/length} > 0 }" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth" class="desktopMonthHeader"/><Button text="{view>/monthLabel}" press=".onCurrentMonth" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth" class="desktopMonthHeader"/></Toolbar></headerToolbar>

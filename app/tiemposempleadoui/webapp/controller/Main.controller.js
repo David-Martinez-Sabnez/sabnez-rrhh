@@ -20,6 +20,7 @@ sap.ui.define([
       this.getView().setModel(new JSONModel({
         busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "", weeklyVisible: true,
         assignments: [], entries: [], weekDays: [], nonWorkingDays: [], totalHours: "0.0", selectedCount: 0,
+        canSubmitWeek: false, submitBlockedMessage: "",
         copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], filteredMonthDays: [], monthFilter: "ALL", monthTotalHours: "0.0",
         monthCopy: { targetMonth: this._monthStart(this._iso(new Date())), mode: "BUSINESS", preview: "" },
         form: this._emptyForm(this._iso(new Date()))
@@ -297,13 +298,16 @@ sap.ui.define([
       model.setProperty("/error", null); this._setWeekLabel();
       try {
         var start = model.getProperty("/weekStart");
-        var data = await Promise.all([this._get("obtenerMisAsignaciones(fecha=" + start + ")"), this._get("obtenerMisRegistros(semanaInicio=" + start + ")"), this._get("obtenerDiasNoHabiles(desde=" + start + ",hasta=" + this._addDays(start, 6) + ")")]);
+        var data = await Promise.all([this._get("obtenerMisAsignaciones(fecha=" + start + ")"), this._get("obtenerMisRegistros(semanaInicio=" + start + ")"), this._get("obtenerDiasNoHabiles(desde=" + start + ",hasta=" + this._addDays(start, 6) + ")"), this._get("obtenerEstadoEnvioSemana()")]);
         model.setProperty("/assignments", data[0].value || data[0] || []);
         var entries = (data[1].value || data[1] || []).map(this._decorateEntry.bind(this));
         entries.sort(function (a,b) { return a.fecha.localeCompare(b.fecha) || a.proyectoNombre.localeCompare(b.proyectoNombre); });
         this._analyzeWeekEntries(entries);
         model.setProperty("/entries", entries);
         model.setProperty("/nonWorkingDays", data[2].value || data[2] || []);
+        var submissionState = data[3].value || data[3] || {};
+        model.setProperty("/canSubmitWeek", submissionState.permitido === true);
+        model.setProperty("/submitBlockedMessage", submissionState.mensaje || "");
         model.setProperty("/selectedCount", 0);
         model.setProperty("/totalHours", entries.reduce(function (sum,e) { return sum + Number(e.duracionHoras || 0); }, 0).toFixed(1));
         this._buildWeekDays();

@@ -654,7 +654,9 @@ sap.ui.define(
         (oDetail.registros || []).forEach(function (oEntry, iIndex) {
           aFacts.push({
             ID: oEntry.ID,
-            section: oEntry.fecha || "Registro",
+            section: [oEntry.proyectoNombre, oEntry.fecha || "Registro"]
+              .filter(Boolean)
+              .join(" · "),
             label: [oEntry.tipo, Number(oEntry.horas || 0) + " h"].filter(Boolean).join(" · "),
             value: [oEntry.descripcion, oEntry.soporteNombre ? "Soporte: " + oEntry.soporteNombre : null]
               .filter(Boolean)

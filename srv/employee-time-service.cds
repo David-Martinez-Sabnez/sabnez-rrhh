@@ -71,12 +71,18 @@ service EmployeeTimeService @(
     motivo : String(120);
   }
 
+  type EstadoEnvioSemana {
+    permitido : Boolean;
+    mensaje   : String(500);
+  }
+
   type RegistroID { ID: UUID; }
 
   function obtenerMisAsignaciones(fecha: Date) returns many AsignacionDisponible;
   function obtenerMisRegistros(semanaInicio: Date) returns many RegistroTiempo;
   function obtenerMisRegistrosMes(mesInicio: Date) returns many RegistroTiempo;
   function obtenerDiasNoHabiles(desde: Date, hasta: Date) returns many DiaNoHabil;
+  function obtenerEstadoEnvioSemana() returns EstadoEnvioSemana;
 
   action guardarBorrador(
     ID: UUID,

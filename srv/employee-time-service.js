@@ -23,9 +23,19 @@ module.exports = cds.service.impl(function () {
     ProjectAssignments,
     WeeklyTimesheets,
     TimeEntries,
-    ProjectApprovers,
   } = times;
   const Evidence = times["TimeEntries.evidence"];
+
+  this.on("obtenerEstadoEnvioSemana", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const permitted = Boolean(employee.jefeDirecto_ID && employee.managerEmail);
+    return {
+      permitido: permitted,
+      mensaje: permitted
+        ? ""
+        : "No tienes un jefe inmediato activo con correo corporativo registrado. Contacta a RR. HH. antes de enviar tus tiempos.",
+    };
+  });
 
   this.on("obtenerMisAsignaciones", async (req) => {
     const employee = await getAuthenticatedEmployee(req, Empleados);
@@ -232,6 +242,14 @@ module.exports = cds.service.impl(function () {
 
   this.on("enviarSemana", async (req) => {
     const employee = await getAuthenticatedEmployee(req, Empleados);
+    if (!employee.jefeDirecto_ID || !employee.managerEmail) {
+      reject(
+        req,
+        409,
+        "JEFE_INMEDIATO_NO_CONFIGURADO",
+        "No tienes un jefe inmediato activo con correo corporativo registrado. Contacta a RR. HH. antes de enviar tus tiempos.",
+      );
+    }
     const weekStart = requireMonday(req, req.data?.semanaInicio);
     const weekEnd = addDays(weekStart, 6);
     const sheets = await SELECT.from(WeeklyTimesheets)
@@ -266,7 +284,7 @@ module.exports = cds.service.impl(function () {
       workDate: { between: weekStart, and: weekEnd },
       status: { in: ["DRAFT", "RETURNED"] },
     });
-    await notifyTimesheetApprovers({ sheets, employee, weekStart, weekEnd, WeeklyTimesheets, ProjectApprovers });
+    await notifyTimesheetManager({ sheets, employee, weekStart, weekEnd, TimeEntries });
     return {
       exito: true,
       mensaje: "La semana se envió correctamente para revisión.",
@@ -340,35 +358,37 @@ module.exports = cds.service.impl(function () {
   });
 });
 
-async function notifyTimesheetApprovers({ sheets, employee, weekStart, weekEnd, WeeklyTimesheets, ProjectApprovers }) {
-  const requester = await SELECT.one.from("sabnez.rrhh.Empleados").columns(
-    "jefeDirecto.nombreCompleto as managerName",
-    "jefeDirecto.correoCorporativo as managerEmail",
-  ).where({ ID: employee.ID });
-  for (const original of sheets) {
-    const sheet = await SELECT.one.from(WeeklyTimesheets).columns(
-      "ID", "assignment.project_ID as projectID", "assignment.project.name as projectName", "assignment.project.approvalScheme as approvalScheme",
-      "assignment.project.client.tradeName as clientTradeName", "assignment.project.client.legalName as clientLegalName",
-    ).where({ ID: original.ID });
-    const today = new Date().toISOString().slice(0, 10);
-    const approvers = await SELECT.from(ProjectApprovers).columns("employee.nombreCompleto as name", "employee.correoCorporativo as email", "validFrom", "validTo").where({ project_ID: sheet.projectID, active: true });
-    const projectRecipients = approvers.filter((row) => row.email && row.validFrom <= today && (!row.validTo || row.validTo >= today));
-    const managerRecipients = requester?.managerEmail ? [{ email: requester.managerEmail, name: requester.managerName || "Jefe inmediato" }] : [];
-    const adminRecipients = String(process.env.TIME_ADMIN_RECIPIENTS || "").split(",").map((email) => ({ email: email.trim(), name: "Administración" })).filter((row) => row.email);
-    const operationalRecipients = [...managerRecipients, ...projectRecipients];
-    const recipients = sheet.approvalScheme === "ADMIN_ONLY" ? adminRecipients : sheet.approvalScheme === "LEADER_OR_ADMIN" ? [...operationalRecipients, ...adminRecipients] : operationalRecipients;
-    for (const approver of recipients.filter((row, index, all) => all.findIndex((candidate) => candidate.email.toLowerCase() === row.email.toLowerCase()) === index)) {
-      try {
-        await sendApprovalEmail({
-          tipo: "TIME_SUBMITTED", destinatarioID: approver.email, recipientName: approver.name,
-          solicitanteNombre: employee.nombreCompleto, hojaID: sheet.ID, titulo: `${weekStart} a ${weekEnd}`,
-          resumen: `${sheet.clientTradeName || sheet.clientLegalName} · ${sheet.projectName}`,
-          facts: [{ etiqueta: "Empleado", valor: employee.nombreCompleto, orden: 1 }, { etiqueta: "Proyecto", valor: sheet.projectName, orden: 2 }, { etiqueta: "Semana", valor: `${weekStart} a ${weekEnd}`, orden: 3 }],
-        });
-      } catch (error) {
-        LOG.warn("No fue posible notificar por correo la hoja de tiempos", { sheetID: sheet.ID, recipient: approver.email, error: error.message });
-      }
-    }
+async function notifyTimesheetManager({ sheets, employee, weekStart, weekEnd, TimeEntries }) {
+  const sheetIDs = sheets.map((sheet) => sheet.ID);
+  const entries = await SELECT.from(TimeEntries).columns(
+    "durationHours",
+    "assignment.project.name as projectName",
+  ).where({ timesheet_ID: { in: sheetIDs } });
+  const projectNames = [...new Set(entries.map((entry) => entry.projectName).filter(Boolean))];
+  const totalHours = entries.reduce((sum, entry) => sum + Number(entry.durationHours || 0), 0);
+  const representativeID = sheets[0].ID;
+  try {
+    await sendApprovalEmail({
+      tipo: "TIME_SUBMITTED",
+      destinatarioID: employee.managerEmail,
+      recipientName: employee.managerName || "Jefe inmediato",
+      solicitanteNombre: employee.nombreCompleto,
+      hojaID: representativeID,
+      titulo: `${weekStart} a ${weekEnd}`,
+      resumen: `${totalHours.toFixed(1)} horas · ${projectNames.join(", ")}`,
+      facts: [
+        { etiqueta: "Empleado", valor: employee.nombreCompleto, orden: 1 },
+        { etiqueta: "Proyectos", valor: projectNames.join(", "), orden: 2 },
+        { etiqueta: "Total", valor: `${totalHours.toFixed(1)} horas`, orden: 3 },
+        { etiqueta: "Semana", valor: `${weekStart} a ${weekEnd}`, orden: 4 },
+      ],
+    });
+  } catch (error) {
+    LOG.warn("No fue posible notificar por correo la semana de tiempos", {
+      sheetID: representativeID,
+      recipient: employee.managerEmail,
+      error: error.message,
+    });
   }
 }
 
@@ -416,12 +436,22 @@ async function enrichEntry(entry, Evidence) {
 
 async function getAuthenticatedEmployee(req, Empleados) {
   const email = getAuthenticatedEmail(req);
-  let employee = await SELECT.one.from(Empleados).columns("ID", "correoCorporativo", "nombreCompleto").where({ correoCorporativo: email });
+  const columns = [
+    "ID",
+    "correoCorporativo",
+    "nombreCompleto",
+    "jefeDirecto_ID",
+    "jefeDirecto.nombreCompleto as managerName",
+    "jefeDirecto.correoCorporativo as managerEmail",
+    "jefeDirecto.estado_codigo as managerStatus",
+  ];
+  let employee = await SELECT.one.from(Empleados).columns(...columns).where({ correoCorporativo: email });
   if (!employee) {
-    const employees = await SELECT.from(Empleados).columns("ID", "correoCorporativo", "nombreCompleto");
+    const employees = await SELECT.from(Empleados).columns(...columns);
     employee = employees.find((row) => normalizeEmail(row.correoCorporativo) === email);
   }
   if (!employee) reject(req, 403, "EMPLEADO_NO_ASOCIADO", `No existe un empleado asociado al correo corporativo ${email}.`);
+  if (employee.managerStatus !== "AC") employee.managerEmail = null;
   return employee;
 }
 
