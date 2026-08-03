@@ -12,6 +12,25 @@ body,
 }
 
 .sapMPageBgStandard { background: #f5f7fa; }
+.commercialAdminDynamicPage .sapFDynamicPageContent { height: auto !important; }
+.commercialAdminContent { box-sizing: border-box; width: 100%; }
+.commercialSummaryStrip { gap: .75rem; width: 100%; }
+.commercialSummaryCard {
+  box-sizing: border-box;
+  flex: 1 1 13rem;
+  min-width: 12rem;
+  min-height: 6.5rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--sapGroup_ContentBorderColor);
+  border-left: .25rem solid var(--sapInformativeColor);
+  border-radius: .75rem;
+  background: var(--sapGroup_ContentBackground);
+  box-shadow: var(--sapContent_Shadow0);
+}
+.commercialSummaryCard .sapMLabel { color: var(--sapContent_LabelColor); }
+.commercialSummaryCard .sapMText { color: var(--sapContent_LabelColor); font-size: .78rem; }
+.commercialSummaryPrimary { border-left-color: var(--sapSelectedColor); }
+.commercialSummarySuccess { border-left-color: var(--sapPositiveColor); }
 .adminAppHeader { min-height: 4.5rem; padding: .55rem 1rem; background: #fff; border: 1px solid #dce3e8; border-radius: .5rem; box-shadow: 0 1px 4px rgba(34,53,72,.08); }
 .adminAppHeader .sapMTitle { font-size: 1.35rem; }
 .adminAppHeader .sapMText { color: #556b7d; }
@@ -52,6 +71,8 @@ body,
 }
 
 @media (max-width: 600px) {
+  .commercialSummaryStrip { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: .35rem; }
+  .commercialSummaryCard { flex: 0 0 13rem; min-width: 13rem; }
   .commercialForm .sapMInputBase,
   .commercialForm .sapMSlt,
   .commercialForm .sapUiFup {

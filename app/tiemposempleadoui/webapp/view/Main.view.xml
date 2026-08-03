@@ -1,41 +1,55 @@
 <mvc:View controllerName="sabnez.com.tiemposempleadoui.controller.Main"
-  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:u="sap.ui.unified">
-  <Page title="Mis tiempos" busy="{view>/busy}" class="sapUiContentPadding">
-    <headerContent><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></headerContent>
-    <content>
+  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:fdp="sap.f" xmlns:u="sap.ui.unified">
+  <fdp:DynamicPage id="employeeTimesPage" class="employeeTimesDynamicPage" busy="{view>/busy}" busyIndicatorDelay="0" fitContent="true" preserveHeaderStateOnScroll="true" toggleHeaderOnTitleClick="true">
+    <fdp:title>
+      <fdp:DynamicPageTitle>
+        <fdp:heading><Title text="Mis tiempos" level="H1"/></fdp:heading>
+        <fdp:expandedContent><Text text="Registra, revisa y envía tus horas de trabajo"/></fdp:expandedContent>
+        <fdp:snappedContent><Text text="{view>/weekLabel}"/><ObjectNumber number="{view>/totalHours}" unit="horas" class="sapUiSmallMarginBegin"/></fdp:snappedContent>
+        <fdp:actions><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></fdp:actions>
+      </fdp:DynamicPageTitle>
+    </fdp:title>
+    <fdp:header>
+      <fdp:DynamicPageHeader pinnable="true">
+        <fdp:content>
+          <VBox width="100%" class="weekHero" visible="{view>/weeklyVisible}">
+            <Toolbar design="Transparent">
+              <Button icon="sap-icon://navigation-left-arrow" tooltip="Semana anterior" press=".onPreviousWeek"/>
+              <Button text="Esta semana" press=".onCurrentWeek"/>
+              <Button icon="sap-icon://navigation-right-arrow" tooltip="Semana siguiente" press=".onNextWeek"/>
+              <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin"/>
+              <ToolbarSpacer/>
+              <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal desktopWeekAction"/>
+              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }" class="desktopWeekAction"/>
+            </Toolbar>
+            <Toolbar design="Transparent" class="mobileWeekActions">
+              <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal"/>
+              <ToolbarSpacer/>
+              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }"/>
+            </Toolbar>
+            <ScrollContainer horizontal="true" vertical="false" width="100%" class="weekDaysScroll">
+              <HBox items="{view>/weekDays}" class="weekDayStrip" renderType="Bare">
+                <CustomTile press=".onDaySelect" class="weekDayTile">
+                  <customData><core:CustomData key="day-state" value="{view>state}" writeToDom="true"/><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/></customData>
+                  <VBox alignItems="Center" justifyContent="Center" class="weekDayContent">
+                    <Text text="{view>weekdayLabel}" class="weekDayName"/>
+                    <Title text="{view>dayNumber}" level="H3" class="weekDayNumber"/>
+                    <Text text="{view>monthLabel}" class="weekDayMonth"/>
+                    <ObjectNumber number="{view>hours}" unit="h" class="weekDayHours"/>
+                    <Text text="{view>entryLabel}" class="weekDayEntries"/>
+                    <ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }" class="weekDayNonWorking"/>
+                  </VBox>
+                </CustomTile>
+              </HBox>
+            </ScrollContainer>
+          </VBox>
+        </fdp:content>
+      </fdp:DynamicPageHeader>
+    </fdp:header>
+    <fdp:content>
+      <VBox class="sapUiResponsiveContentPadding employeeTimesContent">
       <MessageStrip text="{view>/error}" type="Error" showIcon="true" visible="{= !!${view>/error} }" class="sapUiSmallMarginBottom"/>
       <MessageStrip text="{view>/success}" type="Success" showIcon="true" visible="{= !!${view>/success} }" class="sapUiSmallMarginBottom"/>
-      <VBox class="weekHero timeSectionGap" visible="{view>/weeklyVisible}">
-        <Toolbar design="Transparent">
-          <Button icon="sap-icon://navigation-left-arrow" tooltip="Semana anterior" press=".onPreviousWeek"/>
-          <Button text="Esta semana" press=".onCurrentWeek"/>
-          <Button icon="sap-icon://navigation-right-arrow" tooltip="Semana siguiente" press=".onNextWeek"/>
-          <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin"/>
-          <ToolbarSpacer/>
-          <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal desktopWeekAction"/>
-          <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }" class="desktopWeekAction"/>
-        </Toolbar>
-        <Toolbar design="Transparent" class="mobileWeekActions">
-          <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal"/>
-          <ToolbarSpacer/>
-          <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 }"/>
-        </Toolbar>
-        <ScrollContainer horizontal="true" vertical="false" width="100%" class="weekDaysScroll">
-          <HBox items="{view>/weekDays}" class="weekDayStrip" renderType="Bare">
-            <CustomTile press=".onDaySelect" class="weekDayTile">
-              <customData><core:CustomData key="day-state" value="{view>state}" writeToDom="true"/><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/></customData>
-              <VBox alignItems="Center" justifyContent="Center" class="weekDayContent">
-                <Text text="{view>weekdayLabel}" class="weekDayName"/>
-                <Title text="{view>dayNumber}" level="H3" class="weekDayNumber"/>
-                <Text text="{view>monthLabel}" class="weekDayMonth"/>
-                <ObjectNumber number="{view>hours}" unit="h" class="weekDayHours"/>
-                <Text text="{view>entryLabel}" class="weekDayEntries"/>
-                <ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }" class="weekDayNonWorking"/>
-              </VBox>
-            </CustomTile>
-          </HBox>
-        </ScrollContainer>
-      </VBox>
 
       <Panel id="monthlyPanel" expandable="true" expanded="false" expand=".onMonthlyToggle" class="entryForm timeSectionGap">
         <headerToolbar><Toolbar><Title text="Vista mensual" level="H3" class="desktopMonthHeader"/><Text text="{view>/monthLabel}" class="mobileMonthHeader monthHeaderLabel"/><ToolbarSpacer/><ObjectNumber number="{view>/monthTotalHours}" unit="horas" class="monthTotal"/><Button text="Deshacer copia" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{= ${view>/lastBulkCopy/length} > 0 }" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth" class="desktopMonthHeader"/><Button text="{view>/monthLabel}" press=".onCurrentMonth" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth" class="desktopMonthHeader"/><Button text="Repetir mes" icon="sap-icon://duplicate" press=".onOpenMonthPlan" class="desktopMonthHeader"/></Toolbar></headerToolbar>
@@ -92,6 +106,7 @@
           </Table>
         </content>
       </Panel>
-    </content>
-  </Page>
+      </VBox>
+    </fdp:content>
+  </fdp:DynamicPage>
 </mvc:View>

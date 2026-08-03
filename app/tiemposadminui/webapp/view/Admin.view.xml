@@ -1,13 +1,30 @@
-<mvc:View controllerName="sabnez.com.tiemposadminui.controller.Admin" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:u="sap.ui.unified">
-  <Page title="Gestión de tiempos" busy="{view>/busy}" class="sapUiContentPadding">
-    <headerContent><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></headerContent>
-    <content>
+<mvc:View controllerName="sabnez.com.tiemposadminui.controller.Admin" xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:fdp="sap.f" xmlns:u="sap.ui.unified">
+  <fdp:DynamicPage id="commercialAdminPage" class="commercialAdminDynamicPage" busy="{view>/busy}" busyIndicatorDelay="0" fitContent="true" preserveHeaderStateOnScroll="true" toggleHeaderOnTitleClick="true">
+    <fdp:title>
+      <fdp:DynamicPageTitle>
+        <fdp:heading><Title text="Configuración comercial" level="H1"/></fdp:heading>
+        <fdp:expandedContent><Text text="Clientes, contratos, proyectos, asignaciones y tarifas"/></fdp:expandedContent>
+        <fdp:snappedContent><Text text="Administración comercial"/></fdp:snappedContent>
+        <fdp:actions><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></fdp:actions>
+      </fdp:DynamicPageTitle>
+    </fdp:title>
+    <fdp:header>
+      <fdp:DynamicPageHeader pinnable="true">
+        <fdp:content>
+          <FlexBox wrap="Wrap" alignItems="Stretch" class="commercialSummaryStrip">
+            <VBox class="commercialSummaryCard commercialSummaryPrimary"><Label text="Clientes"/><ObjectNumber number="{view>/clients/length}" unit="registros"/><Text text="Relaciones comerciales"/></VBox>
+            <VBox class="commercialSummaryCard commercialSummaryInfo"><Label text="Contratos"/><ObjectNumber number="{view>/contracts/length}" unit="registros"/><Text text="Acuerdos y documentos"/></VBox>
+            <VBox class="commercialSummaryCard commercialSummaryInfo"><Label text="Proyectos"/><ObjectNumber number="{view>/projects/length}" unit="registros"/><Text text="Servicios configurados"/></VBox>
+            <VBox class="commercialSummaryCard commercialSummaryInfo"><Label text="Asignaciones"/><ObjectNumber number="{view>/assignments/length}" unit="registros"/><Text text="Empleados en proyectos"/></VBox>
+            <VBox class="commercialSummaryCard commercialSummaryInfo"><Label text="Aprobadores"/><ObjectNumber number="{view>/approvers/length}" unit="registros"/><Text text="Responsables de revisión"/></VBox>
+            <VBox class="commercialSummaryCard commercialSummarySuccess" visible="{view>/canSeeRates}"><Label text="Tarifas"/><ObjectNumber number="{view>/rates/length}" unit="registros"/><Text text="Condiciones económicas"/></VBox>
+          </FlexBox>
+        </fdp:content>
+      </fdp:DynamicPageHeader>
+    </fdp:header>
+    <fdp:content>
+      <VBox class="sapUiResponsiveContentPadding commercialAdminContent">
       <MessageStrip text="{view>/error}" type="Error" showIcon="true" showCloseButton="true" visible="{= !!${view>/error} }" close=".onDismissError" class="sapUiSmallMarginBottom"/>
-      <OverflowToolbar class="adminAppHeader sapUiSmallMarginBottom">
-        <Avatar src="sap-icon://business-objects-experience" displayShape="Square" displaySize="S" backgroundColor="Accent6"/>
-        <VBox><Title text="Configuración comercial" level="H1"/><Text text="Clientes, contratos, proyectos, asignaciones y tarifas"/></VBox>
-        <ToolbarSpacer/><ObjectStatus text="Administración" state="Information" icon="sap-icon://locked"/>
-      </OverflowToolbar>
       <IconTabBar id="tabs" expandable="false" applyContentPadding="false" class="commercialTabs">
         <items>
           <IconTabFilter key="clients" text="Clientes" icon="sap-icon://customer" count="{view>/clients/length}">
@@ -53,6 +70,7 @@
           </IconTabFilter>
         </items>
       </IconTabBar>
-    </content>
-  </Page>
+      </VBox>
+    </fdp:content>
+  </fdp:DynamicPage>
 </mvc:View>

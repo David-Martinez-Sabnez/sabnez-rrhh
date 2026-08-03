@@ -3,6 +3,14 @@
   margin: 0 auto;
 }
 
+.homeOfficeHeaderContent {
+  gap: 1rem;
+}
+
+.homeOfficeDynamicPage .sapFDynamicPageContent {
+  height: auto !important;
+}
+
 .homeOfficeHeader {
   padding: 1.25rem 1.5rem;
   border-radius: 0.75rem;
