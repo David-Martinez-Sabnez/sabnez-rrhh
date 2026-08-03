@@ -52,7 +52,7 @@ sap.ui.define([
       root.addEventListener("keydown", this._interactionHandler, true);
     },
 
-    onRefresh: function () { this._loadWeek(); },
+    onRefresh: function () { this._refreshTimeViews(); },
     onPreviousWeek: function () { this._moveWeek(-7); },
     onNextWeek: function () { this._moveWeek(7); },
     onCurrentWeek: function () {
@@ -216,7 +216,7 @@ sap.ui.define([
         }.bind(this)));
         var copied = results.filter(function (result) { return result.status === "fulfilled"; }).length;
         var failed = results.length - copied;
-        await this._loadWeek(false);
+        await this._refreshTimeViews(false);
         if (failed) {
           model.setProperty("/error", "Se copiaron " + copied + " registro(s), pero " + failed + " no pudieron crearse. Revisa los días y vuelve a intentarlo.");
         } else {
@@ -244,7 +244,7 @@ sap.ui.define([
         if (this._selectedFile) await this._uploadSupport(result.registro.ID, this._selectedFile);
         model.setProperty("/success", this._selectedFile ? "Borrador y soporte guardados correctamente." : result.mensaje);
         this.onClearForm();
-        await this._loadWeek(false);
+        await this._refreshTimeViews(false);
       } catch (error) { model.setProperty("/error", error.message); }
       finally { model.setProperty("/busy", false); }
     },
@@ -271,7 +271,7 @@ sap.ui.define([
           var model = this.getView().getModel("view"); model.setProperty("/busy", true);
           try {
             var result = await this._post("enviarSemana", { semanaInicio: model.getProperty("/weekStart") });
-            model.setProperty("/success", result.mensaje); await this._loadWeek(false);
+            model.setProperty("/success", result.mensaje); await this._refreshTimeViews(false);
           } catch (error) { model.setProperty("/error", error.message); }
           finally { model.setProperty("/busy", false); }
         }.bind(this)
@@ -286,6 +286,9 @@ sap.ui.define([
         model.setProperty("/monthEntries",entries);model.setProperty("/monthLabel",this._monthName(start));model.setProperty("/monthTotalHours",entries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0).toFixed(1));
         this._buildMonthDays(entries,data[1].value||data[1]||[]);
       }catch(error){model.setProperty("/error",error.message);}
+    },
+    _refreshTimeViews: function (showBusy) {
+      return Promise.all([this._loadWeek(showBusy), this._loadMonth()]);
     },
     _buildMonthDays:function(entries,nonWorking){
       var model=this.getView().getModel("view"),start=model.getProperty("/monthStart"),end=this._addDays(this._addMonths(start,1),-1),days=[],firstDay=new Date(start+"T12:00:00").getDay();
@@ -375,7 +378,7 @@ sap.ui.define([
     _token: async function () { if (this._csrfToken) return this._csrfToken; var response=await fetch(this._root(),{headers:{"X-CSRF-Token":"Fetch"},credentials:"same-origin"}); this._csrfToken=response.headers.get("X-CSRF-Token"); return this._csrfToken; },
     _json: async function (response) { var payload={}; try { payload=await response.json(); } catch (_) {} if (!response.ok) throw new Error(payload?.error?.message || "No fue posible completar la operación."); return payload.value !== undefined && Object.keys(payload).length===1 ? payload.value : payload; },
     _root: function () { return "/tiempos-empleado/"; },
-    _confirmDeleteEntries: function (IDs, message) { if(!IDs.length)return; MessageBox.confirm(message,{emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);try{await this._post("eliminarRegistros",{registros:IDs.map(function(ID){return {ID:ID};})});model.setProperty("/success",IDs.length===1?"Registro eliminado correctamente.":IDs.length+" registros eliminados correctamente.");await this._loadWeek(false);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}}.bind(this)}); },
+    _confirmDeleteEntries: function (IDs, message) { if(!IDs.length)return; MessageBox.confirm(message,{emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);try{await this._post("eliminarRegistros",{registros:IDs.map(function(ID){return {ID:ID};})});model.setProperty("/success",IDs.length===1?"Registro eliminado correctamente.":IDs.length+" registros eliminados correctamente.");await this._refreshTimeViews(false);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}}.bind(this)}); },
     _setCopyDaySelection: function (predicate) { this.byId("copyDaysList").getItems().forEach(function(item){var day=item.getBindingContext("view").getObject();item.setSelected(Boolean(day.enabled&&predicate(day)));}); },
     _copyEntryToDate: function (source, date) { return this._post("guardarBorrador", { ID:null, asignacionID:source.asignacionID, fecha:date, duracionHoras:Number(source.duracionHoras), tipoSolicitado:source.tipoSolicitado, descripcion:source.descripcion||null, horaInicioAproximada:source.horaInicioAproximada||null, horaFinAproximada:source.horaFinAproximada||null, zonaHoraria:source.zonaHoraria||"America/Bogota", autorizacionPrevia:Boolean(source.autorizacionPrevia), motivoExcepcional:source.motivoExcepcional||null }); },
     _buildWeekDays: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),selected=model.getProperty("/form/fecha"),today=this._iso(new Date()),entries=model.getProperty("/entries")||[],nonWorking=model.getProperty("/nonWorkingDays")||[],days=[]; for(var i=0;i<7;i+=1){var date=this._addDays(start,i),dayEntries=entries.filter(function(entry){return entry.fecha===date;}),hours=dayEntries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0),exception=nonWorking.find(function(item){return item.fecha===date;}),state=date===selected?"selected":date===today?"today":dayEntries.length?"filled":"empty"; days.push({date:date,weekdayLabel:new Intl.DateTimeFormat("es-CO",{weekday:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),dayNumber:String(Number(date.slice(8,10))),monthLabel:new Intl.DateTimeFormat("es-CO",{month:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),fullLabel:this._fullDate(date),hours:hours.toFixed(1),entryCount:dayEntries.length,entryLabel:dayEntries.length?dayEntries.length+" registro(s)":"Sin registros",state:state,dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||""});} model.setProperty("/weekDays",days); model.setProperty("/form/dayFullLabel",this._fullDate(selected)); },
