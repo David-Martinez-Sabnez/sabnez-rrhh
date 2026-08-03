@@ -76,13 +76,40 @@ service EmployeeTimeService @(
     mensaje   : String(500);
   }
 
+  type ContextoEmpleado {
+    empleadoID : UUID;
+  }
+
   type RegistroID { ID: UUID; }
+
+  type FechaCopia { fecha: Date; }
+
+  type OperacionCopia {
+    ID             : UUID;
+    alcance        : String(15);
+    estado         : String(15);
+    fechaOrigen    : Date;
+    solicitados    : Integer;
+    creados        : Integer;
+    omitidos       : Integer;
+    resumen        : String(500);
+    creadoEn       : Timestamp;
+    deshechoEn     : Timestamp;
+    puedeDeshacer  : Boolean;
+  }
+
+  type ResultadoCopia {
+    exito          : Boolean;
+    mensaje        : String(500);
+    operacion      : OperacionCopia;
+  }
 
   function obtenerMisAsignaciones(fecha: Date) returns many AsignacionDisponible;
   function obtenerMisRegistros(semanaInicio: Date) returns many RegistroTiempo;
   function obtenerMisRegistrosMes(mesInicio: Date) returns many RegistroTiempo;
   function obtenerDiasNoHabiles(desde: Date, hasta: Date) returns many DiaNoHabil;
   function obtenerEstadoEnvioSemana() returns EstadoEnvioSemana;
+  function obtenerMiContexto() returns ContextoEmpleado;
 
   action guardarBorrador(
     ID: UUID,
@@ -106,6 +133,14 @@ service EmployeeTimeService @(
   ) returns ResultadoSoporte;
 
   action eliminarRegistros(registros: many RegistroID) returns Integer;
+
+  function obtenerMisCopias() returns many OperacionCopia;
+  action ejecutarCopiaMasiva(
+    registroOrigenID: UUID,
+    fechas: many FechaCopia,
+    alcance: String(15)
+  ) returns ResultadoCopia;
+  action deshacerCopiaMasiva(operacionID: UUID) returns ResultadoCopia;
 
   action enviarSemana(semanaInicio: Date) returns ResultadoEnvioSemanal;
 }

@@ -22,9 +22,16 @@ module.exports = cds.service.impl(function () {
     ProjectAssignments,
     WeeklyTimesheets,
     WeeklyTimeApprovalEvents,
+    TimeBulkCopyOperations,
+    TimeBulkCopyItems,
     TimeEntries,
   } = times;
   const Evidence = times["TimeEntries.evidence"];
+
+  this.on("obtenerMiContexto", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    return { empleadoID: employee.ID };
+  });
 
   this.on("obtenerEstadoEnvioSemana", async (req) => {
     const employee = await getAuthenticatedEmployee(req, Empleados);
@@ -131,6 +138,156 @@ module.exports = cds.service.impl(function () {
       else if (day === 0 || day === 6) days.push({ fecha: value, tipo: "WEEKEND", motivo: day === 6 ? "Sábado" : "Domingo" });
     }
     return days;
+  });
+
+  this.on("obtenerMisCopias", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const rows = await SELECT.from(TimeBulkCopyOperations)
+      .where({ employee_ID: employee.ID })
+      .orderBy("createdAt desc")
+      .limit(20);
+    return rows.map(mapCopyOperation);
+  });
+
+  this.on("ejecutarCopiaMasiva", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const sourceID = requireUUID(req, req.data?.registroOrigenID, "registroOrigenID");
+    const scope = String(req.data?.alcance || "WEEK").trim().toUpperCase();
+    if (!new Set(["WEEK", "MONTH"]).has(scope)) {
+      reject(req, 400, "ALCANCE_COPIA_INVALIDO", "El alcance de la copia no es válido.");
+    }
+    const dates = [...new Set((req.data?.fechas || []).map((row) => normalizeDate(row?.fecha)).filter(Boolean))];
+    if (!dates.length || dates.length > 62) {
+      reject(req, 400, "FECHAS_COPIA_INVALIDAS", "Selecciona entre 1 y 62 fechas válidas para copiar.");
+    }
+    const source = await SELECT.one.from(TimeEntries).where({ ID: sourceID, employee_ID: employee.ID });
+    if (!source) reject(req, 404, "REGISTRO_ORIGEN_NO_ENCONTRADO", "El registro de origen no existe.");
+    if (!new Set(["DRAFT", "RETURNED"]).has(source.status)) {
+      reject(req, 409, "REGISTRO_ORIGEN_BLOQUEADO", "Solo se pueden copiar registros editables.");
+    }
+    const assignment = await SELECT.one.from(ProjectAssignments)
+      .columns(
+        "ID", "employee_ID", "validFrom", "validTo", "status", "project_ID",
+        "project.status as projectStatus", "project.dailyWarningHours as dailyWarningHours",
+      )
+      .where({ ID: source.assignment_ID, employee_ID: employee.ID });
+    if (!assignment || assignment.status !== "ACTIVE" || assignment.projectStatus !== "ACTIVE") {
+      reject(req, 409, "ASIGNACION_COPIA_NO_DISPONIBLE", "La asignación del registro ya no está disponible.");
+    }
+
+    const operationID = cds.utils.uuid();
+    const createdItems = [];
+    let omitted = 0;
+    for (const destinationDate of dates) {
+      if (destinationDate === source.workDate || !isDateWithin(destinationDate, assignment.validFrom, assignment.validTo)) {
+        omitted += 1;
+        continue;
+      }
+      const destinationSheet = await getOrCreateTimesheet({
+        assignment,
+        employeeID: employee.ID,
+        weekStart: startOfISOWeek(destinationDate),
+        WeeklyTimesheets,
+      });
+      if (!new Set(["OPEN", "RETURNED"]).has(destinationSheet.status)) {
+        omitted += 1;
+        continue;
+      }
+      const sameDay = await SELECT.from(TimeEntries).where({ employee_ID: employee.ID, workDate: destinationDate });
+      const duplicate = sameDay.some((entry) => sameCopiedEntry(entry, source));
+      if (duplicate) {
+        omitted += 1;
+        continue;
+      }
+      const existingHours = sameDay.reduce((sum, entry) => sum + Number(entry.durationHours || 0), 0);
+      const dailyWarning = exceedsDailyWarning(existingHours, source.durationHours, assignment.dailyWarningHours || 16);
+      if (dailyWarning && !source.description) {
+        omitted += 1;
+        continue;
+      }
+      const entryID = cds.utils.uuid();
+      await INSERT.into(TimeEntries).entries({
+        ID: entryID,
+        timesheet_ID: destinationSheet.ID,
+        billingPeriod_ID: null,
+        assignment_ID: assignment.ID,
+        employee_ID: employee.ID,
+        workDate: destinationDate,
+        durationHours: source.durationHours,
+        requestedType: source.requestedType,
+        description: source.description,
+        evidenceRequired: source.evidenceRequired,
+        approximateStartTime: source.approximateStartTime,
+        approximateEndTime: source.approximateEndTime,
+        timeZone: source.timeZone,
+        priorAuthorization: source.priorAuthorization,
+        exceptionalReason: source.exceptionalReason,
+        status: "DRAFT",
+        dailyHoursWarning: dailyWarning,
+        commercialTreatment: "PENDING",
+        billableHours: 0,
+        version: 1,
+      });
+      createdItems.push({
+        ID: cds.utils.uuid(),
+        operation_ID: operationID,
+        entryID,
+        destinationDate,
+        createdVersion: 1,
+        status: "CREATED",
+      });
+    }
+    const summary = `${createdItems.length} registro(s) creados y ${omitted} omitido(s).`;
+    await INSERT.into(TimeBulkCopyOperations).entries({
+      ID: operationID,
+      employee_ID: employee.ID,
+      sourceEntryID: source.ID,
+      sourceDate: source.workDate,
+      scope,
+      status: createdItems.length ? "ACTIVE" : "EMPTY",
+      requestedCount: dates.length,
+      createdCount: createdItems.length,
+      omittedCount: omitted,
+      summary,
+    });
+    if (createdItems.length) await INSERT.into(TimeBulkCopyItems).entries(createdItems);
+    const saved = await SELECT.one.from(TimeBulkCopyOperations).where({ ID: operationID });
+    return {
+      exito: createdItems.length > 0,
+      mensaje: createdItems.length ? `Copia completada: ${summary}` : `No se creó ningún registro. ${summary}`,
+      operacion: mapCopyOperation(saved),
+    };
+  });
+
+  this.on("deshacerCopiaMasiva", async (req) => {
+    const employee = await getAuthenticatedEmployee(req, Empleados);
+    const operationID = requireUUID(req, req.data?.operacionID, "operacionID");
+    const operation = await SELECT.one.from(TimeBulkCopyOperations).where({ ID: operationID, employee_ID: employee.ID });
+    if (!operation) reject(req, 404, "COPIA_NO_ENCONTRADA", "La operación de copia no existe.");
+    if (operation.status !== "ACTIVE") reject(req, 409, "COPIA_NO_REVERSIBLE", "Esta copia ya no se puede deshacer.");
+    const items = await SELECT.from(TimeBulkCopyItems).where({ operation_ID: operationID, status: "CREATED" });
+    const entryIDs = items.map((item) => item.entryID);
+    const entries = entryIDs.length
+      ? await SELECT.from(TimeEntries).columns("ID", "status", "version").where({ ID: { in: entryIDs }, employee_ID: employee.ID })
+      : [];
+    const byID = new Map(entries.map((entry) => [entry.ID, entry]));
+    const changed = items.filter((item) => {
+      const entry = byID.get(item.entryID);
+      return entry && (!new Set(["DRAFT", "RETURNED"]).has(entry.status) || Number(entry.version || 1) !== Number(item.createdVersion || 1));
+    });
+    if (changed.length) {
+      reject(req, 409, "COPIA_MODIFICADA", "No se puede deshacer porque uno o más registros fueron modificados o enviados.");
+    }
+    if (entries.length) await DELETE.from(TimeEntries).where({ ID: { in: entries.map((entry) => entry.ID) }, employee_ID: employee.ID });
+    const now = new Date().toISOString();
+    await UPDATE(TimeBulkCopyItems).set({ status: "REMOVED" }).where({ operation_ID: operationID, status: "CREATED" });
+    await UPDATE(TimeBulkCopyOperations).set({ status: "UNDONE", undoneAt: now }).where({ ID: operationID, employee_ID: employee.ID });
+    const saved = await SELECT.one.from(TimeBulkCopyOperations).where({ ID: operationID });
+    return {
+      exito: true,
+      mensaje: `Se deshicieron ${entries.length} registro(s) de la copia masiva.`,
+      operacion: mapCopyOperation(saved),
+    };
   });
 
   this.on("guardarBorrador", async (req) => {
@@ -459,6 +616,33 @@ async function enrichEntry(entry, Evidence) {
     puedeEditar: new Set(["DRAFT", "RETURNED"]).has(entry.status),
     version: entry.version,
     umbralAlertaDiaria: entry.dailyWarningHours || 16,
+  };
+}
+
+function sameCopiedEntry(entry, source) {
+  return entry.assignment_ID === source.assignment_ID
+    && entry.requestedType === source.requestedType
+    && Number(entry.durationHours || 0) === Number(source.durationHours || 0)
+    && normalizeComparableText(entry.description) === normalizeComparableText(source.description);
+}
+
+function normalizeComparableText(value) {
+  return String(value || "").trim().toLocaleLowerCase("es-CO").replace(/\s+/g, " ");
+}
+
+function mapCopyOperation(row) {
+  return {
+    ID: row.ID,
+    alcance: row.scope,
+    estado: row.status,
+    fechaOrigen: row.sourceDate,
+    solicitados: Number(row.requestedCount || 0),
+    creados: Number(row.createdCount || 0),
+    omitidos: Number(row.omittedCount || 0),
+    resumen: row.summary,
+    creadoEn: row.createdAt,
+    deshechoEn: row.undoneAt,
+    puedeDeshacer: row.status === "ACTIVE" && Number(row.createdCount || 0) > 0,
   };
 }
 

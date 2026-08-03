@@ -51,11 +51,12 @@
       <MessageStrip text="{view>/error}" type="Error" showIcon="true" visible="{= !!${view>/error} }" class="sapUiSmallMarginBottom"/>
       <MessageStrip text="{view>/success}" type="Success" showIcon="true" visible="{= !!${view>/success} }" class="sapUiSmallMarginBottom"/>
       <MessageStrip text="{view>/submitBlockedMessage}" type="Warning" showIcon="true" visible="{= !!${view>/submitBlockedMessage} }" class="sapUiSmallMarginBottom"/>
+      <MessageStrip text="{view>/draftRestoredMessage}" type="Information" showIcon="true" showCloseButton="true" close=".onDismissDraftMessage" visible="{= !!${view>/draftRestoredMessage} }" class="sapUiSmallMarginBottom"/>
 
       <Panel id="monthlyPanel" expandable="true" expanded="false" expand=".onMonthlyToggle" class="entryForm timeSectionGap">
-        <headerToolbar><Toolbar><Title text="Vista mensual" level="H3" class="desktopMonthHeader"/><Text text="{view>/monthLabel}" class="mobileMonthHeader monthHeaderLabel"/><ToolbarSpacer/><ObjectNumber number="{view>/monthTotalHours}" unit="horas" class="monthTotal"/><Button text="Deshacer copia" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{= ${view>/lastBulkCopy/length} > 0 }" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth" class="desktopMonthHeader"/><Button text="{view>/monthLabel}" press=".onCurrentMonth" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth" class="desktopMonthHeader"/></Toolbar></headerToolbar>
+        <headerToolbar><Toolbar><Title text="Vista mensual" level="H3" class="desktopMonthHeader"/><Text text="{view>/monthLabel}" class="mobileMonthHeader monthHeaderLabel"/><ToolbarSpacer/><ObjectNumber number="{view>/monthTotalHours}" unit="horas" class="monthTotal"/><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth" class="desktopMonthHeader"/><Button text="{view>/monthLabel}" press=".onCurrentMonth" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth" class="desktopMonthHeader"/></Toolbar></headerToolbar>
         <content>
-          <OverflowToolbar class="mobileMonthActions"><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth"/><Button text="{view>/monthLabel}" press=".onCurrentMonth"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth"/><ToolbarSpacer/><Button text="Deshacer copia" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{= ${view>/lastBulkCopy/length} > 0 }"/></OverflowToolbar>
+          <OverflowToolbar class="mobileMonthActions"><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth"/><Button text="{view>/monthLabel}" press=".onCurrentMonth"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth"/></OverflowToolbar>
           <VBox class="desktopMonthlyCalendar">
             <HBox class="monthWeekHeaders"><Text text="Lun"/><Text text="Mar"/><Text text="Mié"/><Text text="Jue"/><Text text="Vie"/><Text text="Sáb"/><Text text="Dom"/></HBox>
             <VBox items="{view>/monthDays}" class="monthGrid"><CustomTile press=".onMonthDaySelect" class="monthDayTile"><customData><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/><core:CustomData key="blank" value="{view>isBlank}" writeToDom="true"/></customData><VBox class="monthDayContent"><HBox width="100%" justifyContent="SpaceBetween"><Title text="{view>dayNumber}" level="H4"/><ObjectStatus text="{view>statusText}" icon="{view>statusIcon}" state="{view>statusState}" visible="{= !!${view>statusIcon} }"/></HBox><ObjectNumber number="{view>hours}" unit="h" visible="{= !${view>isBlank} }" state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }"/><Text text="{view>summary}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox></CustomTile></VBox>
@@ -64,6 +65,19 @@
             <SegmentedButton selectedKey="{view>/monthFilter}" selectionChange=".onMonthFilterChange" width="100%" class="sapUiSmallMarginBottom"><items><SegmentedButtonItem key="ALL" text="Todos"/><SegmentedButtonItem key="PENDING" text="Sin registro"/><SegmentedButtonItem key="REVIEW" text="Revisar"/></items></SegmentedButton>
             <List items="{view>/filteredMonthDays}" noDataText="No hay días que coincidan con este filtro" showSeparators="Inner"><CustomListItem type="Active" press=".onMonthDaySelect"><HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="monthMobileRow"><VBox><ObjectIdentifier title="{= ${view>weekdayLabel} + ' ' + ${view>dayNumber} }" text="{view>dateLabel}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox><VBox alignItems="End"><ObjectNumber number="{view>hours}" unit="h" state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }"/><ObjectStatus text="{view>statusText}" icon="{view>statusIcon}" state="{view>statusState}"/></VBox></HBox></CustomListItem></List>
           </VBox>
+        </content>
+      </Panel>
+
+      <Panel headerText="Historial de copias" expandable="true" expanded="false" class="entryForm timeSectionGap">
+        <content>
+          <List items="{view>/copyHistory}" noDataText="Todavía no hay copias masivas registradas" showSeparators="Inner">
+            <CustomListItem>
+              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMargin">
+                <VBox><ObjectIdentifier title="{view>scopeLabel}" text="{view>createdLabel}"/><Text text="{view>resumen}"/><ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/></VBox>
+                <Button text="Deshacer" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{view>puedeDeshacer}"/>
+              </HBox>
+            </CustomListItem>
+          </List>
         </content>
       </Panel>
 
@@ -77,8 +91,8 @@
             <Label text="Hora aproximada de inicio" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaInicioAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
             <Label text="Hora aproximada de fin" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaFinAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
             <Label text="Autorización previa" visible="{view>/form/isSpecial}"/><Switch state="{view>/form/autorizacionPrevia}" visible="{view>/form/isSpecial}"/>
-            <Label text="Motivo excepcional" required="{view>/form/isSpecial}" visible="{view>/form/isSpecial}"/><Input value="{view>/form/motivoExcepcional}" visible="{view>/form/isSpecial}"/>
-            <Label text="Descripción" required="{view>/form/descriptionRequired}"/><TextArea value="{view>/form/descripcion}" rows="3" growing="true" placeholder="Describe brevemente la actividad realizada" class="standardEntryField"/>
+            <Label text="Motivo excepcional" required="{view>/form/isSpecial}" visible="{view>/form/isSpecial}"/><Input value="{view>/form/motivoExcepcional}" valueLiveUpdate="true" visible="{view>/form/isSpecial}"/>
+            <Label text="Descripción" required="{view>/form/descriptionRequired}"/><TextArea value="{view>/form/descripcion}" valueLiveUpdate="true" rows="3" growing="true" placeholder="Describe brevemente la actividad realizada" class="standardEntryField"/>
             <Label text="Soporte" required="{view>/form/supportRequired}"/><u:FileUploader id="supportUploader" change=".onFileSelected" sameFilenameAllowed="true" buttonText="Seleccionar archivo" placeholder="PDF, imagen u Office · máximo 10 MB" class="standardEntryField"/>
           </f:SimpleForm>
           <MessageStrip text="{view>/form/rulesText}" type="Information" showIcon="true" visible="{= !!${view>/form/rulesText} }" class="sapUiSmallMargin"/>

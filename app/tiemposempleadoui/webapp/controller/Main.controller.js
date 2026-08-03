@@ -13,23 +13,30 @@ sap.ui.define([
       this._selectedFile = null;
       this._copyDialog = null;
       this._monthCopyDialog = null;
+      this._autosaveTimer = null;
+      this._autosaveSuspended = false;
+      this._draftStorageKey = null;
       this._interactionHandler = function () {
         this.getView().getModel("view")?.setProperty("/success", null);
       }.bind(this);
       var monday = this._startOfWeek(new Date());
-      this.getView().setModel(new JSONModel({
+      var viewModel = new JSONModel({
         busy: false, error: null, success: null, weekStart: this._iso(monday), weekLabel: "", weeklyVisible: true,
         assignments: [], entries: [], weekDays: [], nonWorkingDays: [], totalHours: "0.0", selectedCount: 0,
         canSubmitWeek: false, submitBlockedMessage: "",
-        copySource: null, copyDays: [], lastBulkCopy: [], monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], filteredMonthDays: [], monthFilter: "ALL", monthTotalHours: "0.0",
+        copySource: null, copyDays: [], copyHistory: [], draftRestoredMessage: "", monthStart: this._monthStart(this._iso(new Date())), monthLabel: "", monthEntries: [], monthDays: [], filteredMonthDays: [], monthFilter: "ALL", monthTotalHours: "0.0",
         monthCopy: { targetMonth: this._monthStart(this._iso(new Date())), mode: "BUSINESS", preview: "" },
         form: this._emptyForm(this._iso(new Date()))
-      }), "view");
-      this._loadWeek();
-      this._loadMonth();
+      });
+      viewModel.attachPropertyChange(this._onViewModelPropertyChange, this);
+      this.getView().setModel(viewModel, "view");
+      this._initialize();
     },
 
     onExit: function () {
+      clearTimeout(this._autosaveTimer);
+      this._persistCurrentFormImmediately();
+      this.getView().getModel("view")?.detachPropertyChange(this._onViewModelPropertyChange, this);
       var root = this.getView().getDomRef();
       if (root) {
         root.removeEventListener("pointerdown", this._interactionHandler, true);
@@ -56,14 +63,16 @@ sap.ui.define([
     onCurrentWeek: function () {
       var model = this.getView().getModel("view");
       var today = this._iso(new Date());
+      this._persistCurrentFormImmediately();
       model.setProperty("/weekStart", this._iso(this._startOfWeek(new Date())));
-      model.setProperty("/form", this._emptyForm(today));
+      model.setProperty("/form", this._restoreForm(today, null) || this._emptyForm(today));
       this._loadWeek();
     },
     onDaySelect: function (event) {
       var day = event.getSource().getBindingContext("view").getObject();
       var model = this.getView().getModel("view");
-      model.setProperty("/form", this._emptyForm(day.date));
+      this._persistCurrentFormImmediately();
+      model.setProperty("/form", this._restoreForm(day.date, null) || this._emptyForm(day.date));
       this._selectedFile = null;
       this.byId("supportUploader").clear();
       this._buildWeekDays();
@@ -73,7 +82,8 @@ sap.ui.define([
       var day = event.getSource().getBindingContext("view").getObject();
       if (!day.date) return;
       var model = this.getView().getModel("view");
-      model.setProperty("/form", this._emptyForm(day.date));
+      this._persistCurrentFormImmediately();
+      model.setProperty("/form", this._restoreForm(day.date, null) || this._emptyForm(day.date));
       model.setProperty("/weekStart", this._iso(this._startOfWeek(new Date(day.date + "T12:00:00"))));
       model.setProperty("/weeklyVisible", true);
       this.byId("monthlyPanel").setExpanded(false);
@@ -91,13 +101,15 @@ sap.ui.define([
       this.getView().getModel("view").setProperty("/monthFilter", event.getParameter("item").getKey());
       this._applyMonthFilter();
     },
-    onAssignmentChange: function () { this._applyRules(); },
-    onTypeChange: function () { this._applyRules(); },
-    onFileSelected: function (event) { this._selectedFile = event.getParameter("files")?.[0] || null; },
+    onAssignmentChange: function () { this._applyRules(); this._scheduleAutosave(); },
+    onTypeChange: function () { this._applyRules(); this._scheduleAutosave(); },
+    onFileSelected: function (event) { this._selectedFile = event.getParameter("files")?.[0] || null; this._scheduleAutosave(); },
     onEntrySelectionChange: function (event) { this.getView().getModel("view").setProperty("/selectedCount", event.getSource().getSelectedItems().length); },
+    onDismissDraftMessage: function () { this.getView().getModel("view").setProperty("/draftRestoredMessage", ""); },
 
     onClearForm: function () {
       var model = this.getView().getModel("view");
+      this._removeStoredForm(model.getProperty("/form"));
       model.setProperty("/form", this._emptyForm(model.getProperty("/form/fecha") || model.getProperty("/weekStart")));
       this._selectedFile = null;
       this.byId("supportUploader").clear();
@@ -106,7 +118,14 @@ sap.ui.define([
 
     onEdit: function (event) {
       var row = event.getSource().getBindingContext("view").getObject();
-      this._setFormFromEntry(row, row.fecha);
+      this._persistCurrentFormImmediately();
+      var restored = this._restoreForm(row.fecha, row.ID);
+      if (restored) {
+        this.getView().getModel("view").setProperty("/form", restored);
+        this._applyRules();
+      } else {
+        this._setFormFromEntry(row, row.fecha);
+      }
     },
 
     onDeleteEntry: function (event) {
@@ -177,9 +196,9 @@ sap.ui.define([
       var model=this.getView().getModel("view"), source=model.getProperty("/copySource"), config=model.getProperty("/monthCopy");
       var plan=await this._prepareSingleMonthCopy(source,config.targetMonth,config.mode);
       if (!plan.dates.length) return MessageBox.information("No hay días disponibles para copiar después de aplicar las reglas y omitir duplicados.");
-      MessageBox.confirm("Se crearán " + plan.dates.length + " borradores en " + this._monthName(config.targetMonth) + ". Se omitirán " + plan.omitted + " días y los soportes no se copiarán. ¿Deseas continuar?", { title:"Confirmar copia mensual", emphasizedAction:MessageBox.Action.OK, onClose:async function(action){if(action!==MessageBox.Action.OK)return;this._monthCopyDialog.close();await this._executeBulkCopies(plan.dates.map(function(date){return {source:source,date:date};}),"Copia mensual completada");}.bind(this) });
+      MessageBox.confirm("Se crearán " + plan.dates.length + " borradores en " + this._monthName(config.targetMonth) + ". Se omitirán " + plan.omitted + " días y los soportes no se copiarán. ¿Deseas continuar?", { title:"Confirmar copia mensual", emphasizedAction:MessageBox.Action.OK, onClose:async function(action){if(action!==MessageBox.Action.OK)return;this._monthCopyDialog.close();await this._executePersistentCopy(source,plan.dates,"MONTH");}.bind(this) });
     },
-    onUndoBulkCopy: function(){var rows=this.getView().getModel("view").getProperty("/lastBulkCopy")||[];if(!rows.length)return;MessageBox.confirm("Se eliminarán los "+rows.length+" borradores creados en la última copia masiva. ¿Deseas continuar?",{title:"Deshacer copia masiva",emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;try{await this._post("eliminarRegistros",{registros:rows});this.getView().getModel("view").setProperty("/lastBulkCopy",[]);this.getView().getModel("view").setProperty("/success","La última copia masiva se deshizo correctamente.");await Promise.all([this._loadWeek(false),this._loadMonth()]);}catch(error){this.getView().getModel("view").setProperty("/error",error.message);}}.bind(this)});},
+    onUndoBulkCopy: function(event){var operation=event?.getSource?.().getBindingContext("view")?.getObject()||(this.getView().getModel("view").getProperty("/copyHistory")||[]).find(function(row){return row.puedeDeshacer;});if(!operation?.ID)return;MessageBox.confirm("Se eliminarán los "+operation.creados+" borradores creados por esta copia. Si alguno fue modificado o enviado, la operación se bloqueará completa. ¿Deseas continuar?",{title:"Deshacer copia masiva",emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;var model=this.getView().getModel("view");model.setProperty("/busy",true);try{var result=await this._post("deshacerCopiaMasiva",{operacionID:operation.ID});model.setProperty("/success",result.mensaje);await Promise.all([this._refreshTimeViews(false),this._loadCopyHistory()]);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}}.bind(this)});},
 
     onConfirmCopy: async function () {
       var list = this.byId("copyDaysList");
@@ -193,24 +212,7 @@ sap.ui.define([
       var model = this.getView().getModel("view");
       var source = model.getProperty("/copySource");
       this._copyDialog.close();
-      model.setProperty("/busy", true);
-      model.setProperty("/error", null);
-      model.setProperty("/success", null);
-      try {
-        var results = await Promise.allSettled(dates.map(function (date) {
-          return this._copyEntryToDate(source, date);
-        }.bind(this)));
-        var copied = results.filter(function (result) { return result.status === "fulfilled"; }).length;
-        var failed = results.length - copied;
-        await this._refreshTimeViews(false);
-        if (failed) {
-          model.setProperty("/error", "Se copiaron " + copied + " registro(s), pero " + failed + " no pudieron crearse. Revisa los días y vuelve a intentarlo.");
-        } else {
-          model.setProperty("/success", "Registro copiado correctamente a " + copied + " día(s)." + (source.requiereSoporte ? " Recuerda adjuntar el soporte en cada copia." : ""));
-        }
-      } finally {
-        model.setProperty("/busy", false);
-      }
+      await this._executePersistentCopy(source, dates, "WEEK");
     },
 
     onSave: async function () {
@@ -228,6 +230,7 @@ sap.ui.define([
           autorizacionPrevia: Boolean(form.autorizacionPrevia), motivoExcepcional: form.motivoExcepcional || null
         });
         if (this._selectedFile) await this._uploadSupport(result.registro.ID, this._selectedFile);
+        this._removeStoredForm(form);
         model.setProperty("/success", this._selectedFile ? "Borrador y soporte guardados correctamente." : result.mensaje);
         this.onClearForm();
         await this._refreshTimeViews(false);
@@ -264,6 +267,92 @@ sap.ui.define([
       });
     },
 
+    _initialize: async function () {
+      var model = this.getView().getModel("view");
+      try {
+        var context = await this._get("obtenerMiContexto()");
+        var employeeID = (context.value || context || {}).empleadoID;
+        if (employeeID) {
+          this._draftStorageKey = "sabnez.times.formDrafts.v1." + employeeID;
+          var store = this._readDraftStore();
+          var restored = store.lastKey && store.drafts?.[store.lastKey];
+          if (restored?.form?.fecha) {
+            this._autosaveSuspended = true;
+            model.setProperty("/form", Object.assign(this._emptyForm(restored.form.fecha), restored.form));
+            model.setProperty("/weekStart", this._iso(this._startOfWeek(new Date(restored.form.fecha + "T12:00:00"))));
+            model.setProperty("/monthStart", this._monthStart(restored.form.fecha));
+            model.setProperty("/draftRestoredMessage", "Recuperamos el formulario guardado automáticamente a las " + this._formatDateTime(restored.savedAt) + (restored.attachmentWasSelected ? ". Por seguridad, selecciona nuevamente el archivo adjunto." : "."));
+            this._autosaveSuspended = false;
+          }
+        }
+      } catch (error) {
+        model.setProperty("/error", error.message);
+      }
+      await Promise.all([this._loadWeek(), this._loadMonth(), this._loadCopyHistory()]);
+    },
+
+    _onViewModelPropertyChange: function (event) {
+      var path = event.getParameter("path") || "";
+      if (!this._autosaveSuspended && (path === "/form" || path.indexOf("/form/") === 0)) this._scheduleAutosave();
+    },
+
+    _scheduleAutosave: function () {
+      if (!this._draftStorageKey || this._autosaveSuspended) return;
+      clearTimeout(this._autosaveTimer);
+      this._autosaveTimer = setTimeout(this._persistCurrentFormImmediately.bind(this), 350);
+    },
+
+    _persistCurrentFormImmediately: function () {
+      clearTimeout(this._autosaveTimer);
+      if (!this._draftStorageKey) return;
+      var form = this.getView().getModel("view")?.getProperty("/form");
+      if (!form?.fecha || !this._isMeaningfulDraft(form)) return;
+      var store = this._readDraftStore();
+      var key = this._draftKey(form);
+      store.drafts[key] = {
+        form: this._draftSnapshot(form),
+        savedAt: new Date().toISOString(),
+        attachmentWasSelected: Boolean(this._selectedFile),
+      };
+      store.lastKey = key;
+      this._writeDraftStore(store);
+    },
+
+    _restoreForm: function (date, entryID) {
+      if (!this._draftStorageKey) return null;
+      var store = this._readDraftStore();
+      var saved = store.drafts[(entryID ? "entry:" + entryID : "new:" + date)];
+      if (!saved?.form) return null;
+      this.getView().getModel("view").setProperty("/draftRestoredMessage", "Recuperamos un formulario guardado automáticamente" + (saved.attachmentWasSelected ? ". Por seguridad, selecciona nuevamente el archivo adjunto." : "."));
+      return Object.assign(this._emptyForm(date), saved.form, { fecha: date, ID: entryID || null });
+    },
+
+    _removeStoredForm: function (form) {
+      if (!this._draftStorageKey || !form?.fecha) return;
+      var store = this._readDraftStore();
+      var key = this._draftKey(form);
+      delete store.drafts[key];
+      if (store.lastKey === key) store.lastKey = null;
+      this._writeDraftStore(store);
+    },
+
+    _readDraftStore: function () {
+      try {
+        var parsed = JSON.parse(window.localStorage.getItem(this._draftStorageKey) || "{}");
+        return { version: 1, lastKey: parsed.lastKey || null, drafts: parsed.drafts || {} };
+      } catch (_) {
+        return { version: 1, lastKey: null, drafts: {} };
+      }
+    },
+
+    _writeDraftStore: function (store) {
+      try { window.localStorage.setItem(this._draftStorageKey, JSON.stringify(store)); } catch (_) { /* El formulario sigue funcionando aunque el navegador bloquee almacenamiento local. */ }
+    },
+
+    _draftKey: function (form) { return form.ID ? "entry:" + form.ID : "new:" + form.fecha; },
+    _isMeaningfulDraft: function (form) { return Boolean(form.ID || String(form.descripcion || "").trim() || String(form.motivoExcepcional || "").trim() || form.tipoSolicitado !== "REGULAR" || Number(form.duracionHoras) !== 8 || form.horaInicioAproximada || form.horaFinAproximada || form.autorizacionPrevia || this._selectedFile); },
+    _draftSnapshot: function (form) { return { ID:form.ID||null,fecha:form.fecha,asignacionID:form.asignacionID||"",duracionHoras:Number(form.duracionHoras||8),tipoSolicitado:form.tipoSolicitado||"REGULAR",descripcion:form.descripcion||"",horaInicioAproximada:form.horaInicioAproximada||"",horaFinAproximada:form.horaFinAproximada||"",zonaHoraria:form.zonaHoraria||"America/Bogota",autorizacionPrevia:Boolean(form.autorizacionPrevia),motivoExcepcional:form.motivoExcepcional||""}; },
+
     _loadMonth: async function () {
       var model=this.getView().getModel("view"),start=model.getProperty("/monthStart"),end=this._addDays(this._addMonths(start,1),-1);
       try{
@@ -290,7 +379,9 @@ sap.ui.define([
     _fetchMonthEntries:async function(month){var data=await this._get("obtenerMisRegistrosMes(mesInicio="+this._monthStart(month)+")");return (data.value||data||[]).map(this._decorateEntry.bind(this));},
     _eligibleMonthDates:async function(month,mode){var start=this._monthStart(month),end=this._addDays(this._addMonths(start,1),-1),data=await this._get("obtenerDiasNoHabiles(desde="+start+",hasta="+end+")"),nonWorking=data.value||data||[],dates=[];for(var date=start;date<=end;date=this._addDays(date,1)){var day=new Date(date+"T12:00:00").getDay(),holiday=nonWorking.some(function(d){return d.fecha===date&&d.tipo==="HOLIDAY";});if(mode==="ALL"||(mode==="WEEKDAYS"&&day>=1&&day<=5)||(mode==="BUSINESS"&&day>=1&&day<=5&&!holiday))dates.push(date);}return dates;},
     _sameEntry:function(existing,source,date){return existing.fecha===date&&existing.asignacionID===source.asignacionID&&existing.tipoSolicitado===source.tipoSolicitado&&Number(existing.duracionHoras)===Number(source.duracionHoras)&&String(existing.descripcion||"").trim().toLowerCase()===String(source.descripcion||"").trim().toLowerCase();},
-    _executeBulkCopies:async function(copies,label){var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);var results=await Promise.allSettled(copies.map(function(copy){return this._copyEntryToDate(copy.source,copy.date);}.bind(this))),successful=results.filter(function(r){return r.status==="fulfilled";}),created=successful.length,failed=results.length-created;model.setProperty("/lastBulkCopy",successful.map(function(r){return {ID:r.value?.registro?.ID};}).filter(function(r){return r.ID;}));model.setProperty("/busy",false);model.setProperty(failed?"/error":"/success",label+": "+created+" creados"+(failed?" y "+failed+" omitidos por validación.":"."));await Promise.all([this._loadWeek(false),this._loadMonth()]);},
+    _executePersistentCopy:async function(source,dates,scope){var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);model.setProperty("/success",null);try{var result=await this._post("ejecutarCopiaMasiva",{registroOrigenID:source.ID,fechas:dates.map(function(date){return {fecha:date};}),alcance:scope});model.setProperty(result.exito?"/success":"/error",result.mensaje+(source.requiereSoporte?" Recuerda adjuntar el soporte en cada copia.":""));await Promise.all([this._refreshTimeViews(false),this._loadCopyHistory()]);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}},
+
+    _loadCopyHistory:async function(){var model=this.getView().getModel("view");try{var data=await this._get("obtenerMisCopias()");var rows=(data.value||data||[]).map(function(row){var statuses={ACTIVE:["Disponible para deshacer","Information"],UNDONE:["Deshecha","Success"],EMPTY:["Sin registros creados","Warning"]},status=statuses[row.estado]||[row.estado,"None"];return Object.assign({},row,{scopeLabel:row.alcance==="MONTH"?"Copia a días del mes":"Copia semanal",statusLabel:status[0],statusState:status[1],createdLabel:this._formatDateTime(row.creadoEn)});}.bind(this));model.setProperty("/copyHistory",rows);}catch(error){model.setProperty("/error",error.message);}},
 
     _loadWeek: async function (showBusy) {
       var model = this.getView().getModel("view");
@@ -367,9 +458,8 @@ sap.ui.define([
     _root: function () { return "/tiempos-empleado/"; },
     _confirmDeleteEntries: function (IDs, message) { if(!IDs.length)return; MessageBox.confirm(message,{emphasizedAction:MessageBox.Action.DELETE,actions:[MessageBox.Action.DELETE,MessageBox.Action.CANCEL],onClose:async function(action){if(action!==MessageBox.Action.DELETE)return;var model=this.getView().getModel("view");model.setProperty("/busy",true);model.setProperty("/error",null);try{await this._post("eliminarRegistros",{registros:IDs.map(function(ID){return {ID:ID};})});model.setProperty("/success",IDs.length===1?"Registro eliminado correctamente.":IDs.length+" registros eliminados correctamente.");await this._refreshTimeViews(false);}catch(error){model.setProperty("/error",error.message);}finally{model.setProperty("/busy",false);}}.bind(this)}); },
     _setCopyDaySelection: function (predicate) { this.byId("copyDaysList").getItems().forEach(function(item){var day=item.getBindingContext("view").getObject();item.setSelected(Boolean(day.enabled&&predicate(day)));}); },
-    _copyEntryToDate: function (source, date) { return this._post("guardarBorrador", { ID:null, asignacionID:source.asignacionID, fecha:date, duracionHoras:Number(source.duracionHoras), tipoSolicitado:source.tipoSolicitado, descripcion:source.descripcion||null, horaInicioAproximada:source.horaInicioAproximada||null, horaFinAproximada:source.horaFinAproximada||null, zonaHoraria:source.zonaHoraria||"America/Bogota", autorizacionPrevia:Boolean(source.autorizacionPrevia), motivoExcepcional:source.motivoExcepcional||null }); },
     _buildWeekDays: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),selected=model.getProperty("/form/fecha"),today=this._iso(new Date()),entries=model.getProperty("/entries")||[],nonWorking=model.getProperty("/nonWorkingDays")||[],days=[]; for(var i=0;i<7;i+=1){var date=this._addDays(start,i),dayEntries=entries.filter(function(entry){return entry.fecha===date;}),hours=dayEntries.reduce(function(sum,entry){return sum+Number(entry.duracionHoras||0);},0),exception=nonWorking.find(function(item){return item.fecha===date;}),state=date===selected?"selected":date===today?"today":dayEntries.length?"filled":"empty"; days.push({date:date,weekdayLabel:new Intl.DateTimeFormat("es-CO",{weekday:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),dayNumber:String(Number(date.slice(8,10))),monthLabel:new Intl.DateTimeFormat("es-CO",{month:"short"}).format(new Date(date+"T12:00:00")).replace(".",""),fullLabel:this._fullDate(date),hours:hours.toFixed(1),entryCount:dayEntries.length,entryLabel:dayEntries.length?dayEntries.length+" registro(s)":"Sin registros",state:state,dayKind:exception?.tipo||"WORKDAY",nonWorkingLabel:exception?.motivo||""});} model.setProperty("/weekDays",days); model.setProperty("/form/dayFullLabel",this._fullDate(selected)); },
-    _moveWeek: function (days) { var model=this.getView().getModel("view"),newStart=this._addDays(model.getProperty("/weekStart"),days); model.setProperty("/weekStart",newStart); model.setProperty("/form",this._emptyForm(newStart)); this._selectedFile=null; this.byId("supportUploader").clear(); this._loadWeek(); },
+    _moveWeek: function (days) { var model=this.getView().getModel("view"),newStart=this._addDays(model.getProperty("/weekStart"),days); this._persistCurrentFormImmediately(); model.setProperty("/weekStart",newStart); model.setProperty("/form",this._restoreForm(newStart,null)||this._emptyForm(newStart)); this._selectedFile=null; this.byId("supportUploader").clear(); this._loadWeek(); },
     _setWeekLabel: function () { var model=this.getView().getModel("view"),start=model.getProperty("/weekStart"),end=this._addDays(start,6); model.setProperty("/weekLabel",this._prettyDate(start)+" – "+this._prettyDate(end)); },
     _setFormFromEntry: function (row,date,copy) { var model=this.getView().getModel("view"); model.setProperty("/form",Object.assign(this._emptyForm(date),{ ID:copy?null:row.ID, asignacionID:row.asignacionID, duracionHoras:Number(row.duracionHoras), tipoSolicitado:row.tipoSolicitado, descripcion:row.descripcion||"", horaInicioAproximada:row.horaInicioAproximada||"", horaFinAproximada:row.horaFinAproximada||"", autorizacionPrevia:Boolean(row.autorizacionPrevia), motivoExcepcional:row.motivoExcepcional||"" })); this._selectedFile=null; this.byId("supportUploader").clear(); this._applyRules(); },
     _decorateEntry: function (entry) { var labels={REGULAR:"Regular",OVERTIME:"Extra",NIGHT:"Nocturna",SUNDAY:"Dominical",HOLIDAY:"Festiva",COMPENSATORY:"Compensatoria"}, states={DRAFT:["Borrador","Information"],RETURNED:["Devuelto","Error"],SUBMITTED:["Enviado","Success"],LEADER_APPROVED:["Aprobado por líder","Success"],INTERNALLY_APPROVED:["Aprobado","Success"]},state=states[entry.estado]||[entry.estado,"None"]; return Object.assign({},entry,{dateLabel:this._weekday(entry.fecha),typeLabel:labels[entry.tipoSolicitado]||entry.tipoSolicitado,statusLabel:state[0],statusState:state[1]}); },
@@ -403,6 +493,7 @@ sap.ui.define([
     _addMonths: function (iso,months) { var p=iso.split("-").map(Number),d=new Date(p[0],p[1]-1,1); d.setMonth(d.getMonth()+months); return this._iso(d); },
     _monthStart: function (iso) { return String(iso).slice(0,7)+"-01"; },
     _monthName: function (iso) { var value=new Intl.DateTimeFormat("es-CO",{month:"long",year:"numeric"}).format(new Date(this._monthStart(iso)+"T12:00:00"));return value.charAt(0).toUpperCase()+value.slice(1); },
+    _formatDateTime: function (value) { if(!value)return "";return new Intl.DateTimeFormat("es-CO",{dateStyle:"medium",timeStyle:"short"}).format(new Date(value)); },
     _prettyDate: function (iso) { return new Intl.DateTimeFormat("es-CO",{day:"numeric",month:"short"}).format(new Date(iso+"T12:00:00")); },
     _fullDate: function (iso) { if(!iso)return ""; var value=new Intl.DateTimeFormat("es-CO",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date(iso+"T12:00:00")); return value.charAt(0).toUpperCase()+value.slice(1); },
     _weekday: function (iso) { return new Intl.DateTimeFormat("es-CO",{weekday:"long"}).format(new Date(iso+"T12:00:00")); }

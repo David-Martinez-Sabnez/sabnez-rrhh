@@ -233,6 +233,28 @@ entity WeeklyTimeApprovalEvents : cuid, managed {
   occurredAt             : Timestamp @mandatory;
 }
 
+entity TimeBulkCopyOperations : cuid, managed {
+  employee               : Association to Empleados @mandatory;
+  sourceEntryID          : UUID @mandatory;
+  sourceDate             : Date @mandatory;
+  scope                  : String(15) @mandatory;
+  status                 : String(15) @mandatory default 'ACTIVE';
+  requestedCount         : Integer default 0;
+  createdCount           : Integer default 0;
+  omittedCount           : Integer default 0;
+  summary                : String(500);
+  undoneAt               : Timestamp;
+  items                  : Composition of many TimeBulkCopyItems on items.operation = $self;
+}
+
+entity TimeBulkCopyItems : cuid, managed {
+  operation              : Association to TimeBulkCopyOperations @mandatory;
+  entryID                : UUID @mandatory;
+  destinationDate       : Date @mandatory;
+  createdVersion         : Integer @mandatory default 1;
+  status                 : String(15) @mandatory default 'CREATED';
+}
+
 entity TimeEntries : cuid, managed {
   timesheet              : Association to WeeklyTimesheets @mandatory;
   billingPeriod          : Association to BillingPeriods;
