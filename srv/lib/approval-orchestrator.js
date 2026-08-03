@@ -934,6 +934,7 @@ async function persistNotification(tx, entities, input) {
       estado: "PENDING",
       intentos: 0,
       disponibleDesde: occurredAt,
+      payload: input.payload ? JSON.stringify(input.payload) : null,
       idempotencyKey: input.idempotencyKey,
     }),
   );

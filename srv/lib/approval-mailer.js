@@ -15,7 +15,12 @@ function graphConfig() {
     tenantId: process.env.GRAPH_TENANT_ID,
     clientId: process.env.GRAPH_CLIENT_ID,
     clientSecret: process.env.GRAPH_CLIENT_SECRET,
-    mailbox: process.env.GRAPH_MAILBOX || "no-reply@sabnez.com",
+    // GRAPH_SENDER fue el nombre usado originalmente en Cloud Foundry.
+    // GRAPH_MAILBOX queda como nombre preferido sin romper el despliegue actual.
+    mailbox:
+      process.env.GRAPH_MAILBOX ||
+      process.env.GRAPH_SENDER ||
+      "no-reply@sabnez.com",
     fromName: process.env.MAIL_FROM_NAME || "Notificaciones Sabnez",
     approvalAppUrl:
       process.env.APPROVAL_APP_URL ||

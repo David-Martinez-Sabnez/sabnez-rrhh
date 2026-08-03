@@ -780,20 +780,39 @@ module.exports = cds.service.impl(function () {
         notification.destinatarioID,
       );
 
+      let payload = {};
+      if (notification.payload) {
+        try {
+          payload = JSON.parse(notification.payload);
+        } catch (error) {
+          throw new Error(
+            `La notificación ${eventID} contiene un payload inválido: ${error.message}`,
+          );
+        }
+      }
+
       await sendApprovalEmail({
+        ...payload,
         eventID,
         tipo: notification.tipo,
         destinatarioID: notification.destinatarioID,
-        recipientName: recipient?.nombreCompleto || notification.destinatarioID,
+        recipientName:
+          payload.recipientName ||
+          recipient?.nombreCompleto ||
+          notification.destinatarioID,
         processCode: notification.processCode,
         instanciaID: notification.instancia_ID,
         tareaID: notification.tarea_ID,
-        titulo: instance?.titulo || "Solicitud de aprobación",
-        resumen: instance?.resumen || "",
-        solicitanteNombre: instance?.solicitanteNombre || "Un empleado",
-        estadoInstancia: instance?.estado,
+        titulo:
+          payload.titulo || instance?.titulo || "Solicitud de aprobación",
+        resumen: payload.resumen ?? instance?.resumen ?? "",
+        solicitanteNombre:
+          payload.solicitanteNombre ||
+          instance?.solicitanteNombre ||
+          "Un empleado",
+        estadoInstancia: payload.estadoInstancia || instance?.estado,
         taskStatus: task?.estado,
-        facts,
+        facts: payload.facts || facts,
       });
 
       await tx.run(

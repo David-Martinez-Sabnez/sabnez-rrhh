@@ -2,9 +2,8 @@
 
 const cds = require("@sap/cds");
 const { SELECT, UPDATE, INSERT } = cds.ql;
-const { sendApprovalEmail } = require("./lib/approval-mailer");
+const { queueTimeNotification } = require("./lib/time-notification-outbox");
 const { streamToBuffer } = require("./lib/stream-utils");
-const LOG = cds.log("time-approval-service");
 
 module.exports = cds.service.impl(function () {
   const times = cds.entities("sabnez.times");
@@ -87,8 +86,17 @@ module.exports = cds.service.impl(function () {
     await cds.tx(req).run(operations);
     await recordDecision(group.sheetIDs, "APPROVAL", nextStatus, req, req.data?.comentario, { TimeEntries, TimeEntryDecisions });
     const summary = await summarizeGroup({ ...group, status: nextStatus }, { TimeEntries, Evidence, context });
-    if (administrativeStep) await notifyEmployee(summary, nextStatus, req.data?.comentario);
-    else await notifyAdministrators(summary);
+    if (administrativeStep) {
+      await notifyEmployee(
+        cds.tx(req),
+        summary,
+        nextStatus,
+        req.data?.comentario,
+        now,
+      );
+    } else {
+      await notifyAdministrators(cds.tx(req), summary, now);
+    }
     return {
       exito: true,
       mensaje: administrativeStep ? "La semana quedó aprobada internamente." : "La semana completa quedó aprobada por el jefe inmediato.",
@@ -113,7 +121,7 @@ module.exports = cds.service.impl(function () {
     await cds.tx(req).run(operations);
     await recordDecision(group.sheetIDs, "REVIEW", "RETURNED", req, comment, { TimeEntries, TimeEntryDecisions });
     const summary = await summarizeGroup({ ...group, status: "RETURNED" }, { TimeEntries, Evidence, context });
-    await notifyEmployee(summary, "RETURNED", comment);
+    await notifyEmployee(cds.tx(req), summary, "RETURNED", comment, now);
     return { exito: true, mensaje: "La semana completa fue devuelta al empleado para corrección.", estado: "RETURNED" };
   });
 
@@ -301,12 +309,14 @@ async function recordDecision(sheetIDs, type, decision, req, comment, { TimeEntr
   })));
 }
 
-async function notifyEmployee(summary, status, comment) {
+async function notifyEmployee(tx, summary, status, comment, notificationKey) {
   if (!summary.empleadoCorreo) return;
-  try {
-    await sendApprovalEmail({
-      tipo: "TIME_DECIDED",
-      destinatarioID: summary.empleadoCorreo,
+  await queueTimeNotification(tx, {
+    type: "TIME_DECIDED",
+    recipientID: summary.empleadoCorreo,
+    idempotencyKey:
+      `time-decision:${summary.ID}:${status}:${notificationKey}`,
+    payload: {
       recipientName: summary.empleadoNombre,
       titulo: `${summary.semanaInicio} a ${summary.semanaFin}`,
       estadoInstancia: status === "RETURNED" ? "Devuelta para corrección" : "Aprobada",
@@ -317,23 +327,23 @@ async function notifyEmployee(summary, status, comment) {
         { etiqueta: "Total", valor: `${Number(summary.totalHoras || 0).toFixed(1)} horas`, orden: 2 },
         { etiqueta: "Semana", valor: `${summary.semanaInicio} a ${summary.semanaFin}`, orden: 3 },
       ],
-    });
-  } catch (error) {
-    LOG.warn("No fue posible notificar la decisión de tiempos", { sheetID: summary.ID, recipient: summary.empleadoCorreo, error: error.message });
-  }
+    },
+  });
 }
 
-async function notifyAdministrators(summary) {
+async function notifyAdministrators(tx, summary, notificationKey) {
   const employeeEmail = String(summary.empleadoCorreo || "").trim().toLowerCase();
   const recipients = String(process.env.TIME_ADMIN_RECIPIENTS || "")
     .split(",")
     .map((email) => email.trim())
     .filter((email) => email && email.toLowerCase() !== employeeEmail);
   for (const email of recipients) {
-    try {
-      await sendApprovalEmail({
-        tipo: "TIME_SUBMITTED",
-        destinatarioID: email,
+    await queueTimeNotification(tx, {
+      type: "TIME_SUBMITTED",
+      recipientID: email,
+      idempotencyKey:
+        `time-admin:${summary.ID}:${notificationKey}:${email.toLowerCase()}`,
+      payload: {
         recipientName: "Administración",
         solicitanteNombre: summary.empleadoNombre,
         hojaID: summary.ID,
@@ -344,10 +354,8 @@ async function notifyAdministrators(summary) {
           { etiqueta: "Empleado", valor: summary.empleadoNombre, orden: 2 },
           { etiqueta: "Proyectos", valor: summary.proyectoNombre, orden: 3 },
         ],
-      });
-    } catch (error) {
-      LOG.warn("No fue posible notificar la aprobación administrativa pendiente", { sheetID: summary.ID, recipient: email, error: error.message });
-    }
+      },
+    });
   }
 }
 

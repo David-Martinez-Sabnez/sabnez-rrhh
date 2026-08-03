@@ -8,9 +8,8 @@ const {
   validateTimeEntry,
 } = require("./lib/time-entry-rules");
 const { isColombianHoliday } = require("./lib/absence-rules");
-const { sendApprovalEmail } = require("./lib/approval-mailer");
+const { queueTimeNotification } = require("./lib/time-notification-outbox");
 
-const LOG = cds.log("employee-time-service");
 
 const { SELECT, INSERT, UPDATE, DELETE } = cds.ql;
 
@@ -284,7 +283,15 @@ module.exports = cds.service.impl(function () {
       workDate: { between: weekStart, and: weekEnd },
       status: { in: ["DRAFT", "RETURNED"] },
     });
-    await notifyTimesheetManager({ sheets, employee, weekStart, weekEnd, TimeEntries });
+    await notifyTimesheetManager({
+      tx: cds.tx(req),
+      sheets,
+      employee,
+      weekStart,
+      weekEnd,
+      TimeEntries,
+      notificationKey: now,
+    });
     return {
       exito: true,
       mensaje: "La semana se envió correctamente para revisión.",
@@ -358,7 +365,15 @@ module.exports = cds.service.impl(function () {
   });
 });
 
-async function notifyTimesheetManager({ sheets, employee, weekStart, weekEnd, TimeEntries }) {
+async function notifyTimesheetManager({
+  tx,
+  sheets,
+  employee,
+  weekStart,
+  weekEnd,
+  TimeEntries,
+  notificationKey,
+}) {
   const sheetIDs = sheets.map((sheet) => sheet.ID);
   const entries = await SELECT.from(TimeEntries).columns(
     "durationHours",
@@ -367,10 +382,12 @@ async function notifyTimesheetManager({ sheets, employee, weekStart, weekEnd, Ti
   const projectNames = [...new Set(entries.map((entry) => entry.projectName).filter(Boolean))];
   const totalHours = entries.reduce((sum, entry) => sum + Number(entry.durationHours || 0), 0);
   const representativeID = sheets[0].ID;
-  try {
-    await sendApprovalEmail({
-      tipo: "TIME_SUBMITTED",
-      destinatarioID: employee.managerEmail,
+  await queueTimeNotification(tx, {
+    type: "TIME_SUBMITTED",
+    recipientID: employee.managerEmail,
+    idempotencyKey:
+      `time-submit:${employee.ID}:${weekStart}:${notificationKey}:manager`,
+    payload: {
       recipientName: employee.managerName || "Jefe inmediato",
       solicitanteNombre: employee.nombreCompleto,
       hojaID: representativeID,
@@ -382,14 +399,8 @@ async function notifyTimesheetManager({ sheets, employee, weekStart, weekEnd, Ti
         { etiqueta: "Total", valor: `${totalHours.toFixed(1)} horas`, orden: 3 },
         { etiqueta: "Semana", valor: `${weekStart} a ${weekEnd}`, orden: 4 },
       ],
-    });
-  } catch (error) {
-    LOG.warn("No fue posible notificar por correo la semana de tiempos", {
-      sheetID: representativeID,
-      recipient: employee.managerEmail,
-      error: error.message,
-    });
-  }
+    },
+  });
 }
 
 async function getOrCreateTimesheet({ assignment, employeeID, weekStart, WeeklyTimesheets }) {

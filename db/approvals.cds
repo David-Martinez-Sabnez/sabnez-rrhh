@@ -241,6 +241,9 @@ entity ApprovalNotificationOutbox : cuid, managed {
   intentos        : Integer default 0;
   disponibleDesde : Timestamp;
   ultimoError     : String(1000);
+  // Datos autocontenidos para procesos que comparten el Centro de
+  // Aprobaciones sin crear una ApprovalInstance, por ejemplo Tiempos.
+  payload         : LargeString;
   idempotencyKey  : String(120) @mandatory;
 }
 
