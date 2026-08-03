@@ -125,7 +125,7 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/model/json/JSONModel", "sap
     _emptyContract: function () { return {ID:null,clientID:"",reference:"",description:"",validFrom:"",validTo:"",currency:"COP",totalValue:"",renewalNoticeDays:30,status:"ACTIVE"}; },
     _emptyProject: function () { return {ID:null,clientID:"",contractID:"",code:"",name:"",description:"",validFrom:"",validTo:"",modality:"FULL_TIME",currency:"COP",timeZone:"America/Bogota",requiresDescription:false,requiresEvidence:false,requiresClientApproval:false,approvalScheme:"LEADER_THEN_ADMIN",dailyWarningHours:16,status:"ACTIVE"}; },
     _emptyAssignment: function () { return {ID:null,projectID:"",employeeID:"",validFrom:"",validTo:"",role:"Consultor",commercialAllocation:0,isPrimary:true,isBackup:false,status:"ACTIVE"}; },
-    _emptyApprover: function () { return {ID:null,projectID:"",employeeID:"",approverType:"LEADER",validFrom:new Date().toISOString().slice(0,10),validTo:"",active:true}; },
+    _emptyApprover: function () { return {ID:null,projectID:"",employeeID:"",approverType:"ADMIN",validFrom:new Date().toISOString().slice(0,10),validTo:"",active:true}; },
     _emptyRate: function () { return {ID:null,assignmentID:"",validFrom:"",validTo:"",currency:"COP",monthlySaleRate:"",regularSaleHourlyRate:"",overtimeSaleHourlyRate:"",internalMonthlyCost:"",internalHourlyCost:""}; }
   });
 });

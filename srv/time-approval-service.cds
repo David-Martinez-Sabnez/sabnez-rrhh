@@ -36,11 +36,36 @@ service TimeApprovalService @(
     alerta              : Boolean;
     soporteID           : UUID;
     soporteNombre       : String(255);
+    diaNombre           : String(20);
+    soportes            : many SoporteRevision;
+  }
+
+  type SoporteRevision {
+    ID                  : UUID;
+    nombre              : String(255);
+  }
+
+  type ResumenProyecto {
+    proyectoNombre      : String(180);
+    clienteNombre       : String(180);
+    totalHoras          : Decimal(9,2);
+    totalRegistros      : Integer;
+  }
+
+  type EventoRevision {
+    ID                  : UUID;
+    tipo                : String(40);
+    actorNombre         : String(180);
+    destinatarioNombre  : String(180);
+    detalle             : String(1000);
+    fecha               : Timestamp;
   }
 
   type DetalleHoja {
     resumen   : HojaResumen;
     registros: many RegistroRevision;
+    proyectos: many ResumenProyecto;
+    eventos  : many EventoRevision;
   }
 
   type ResultadoDecision {
@@ -59,6 +84,7 @@ service TimeApprovalService @(
   function obtenerDetalle(hojaID: UUID) returns DetalleHoja;
   action aprobarHoja(hojaID: UUID, comentario: String(1000)) returns ResultadoDecision;
   action devolverHoja(hojaID: UUID, comentario: String(1000)) returns ResultadoDecision;
+  action reenviarHoja(hojaID: UUID, delegadoID: UUID, comentario: String(1000)) returns ResultadoDecision;
   action descargarSoporte(registroID: UUID, soporteID: UUID) returns ArchivoDescarga;
   action generarReporteCSV(hojaID: UUID) returns ArchivoDescarga;
 }

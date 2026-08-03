@@ -217,8 +217,20 @@ entity WeeklyTimesheets : cuid, managed {
   internallyApprovedAt   : Timestamp;
   returnedAt             : Timestamp;
   returnComment          : String(1000);
+  currentApprover        : Association to Empleados;
   version                : Integer default 1 @odata.etag;
   entries                : Composition of many TimeEntries on entries.timesheet = $self;
+}
+
+entity WeeklyTimeApprovalEvents : cuid, managed {
+  employee               : Association to Empleados @mandatory;
+  weekStart              : Date @mandatory;
+  type                   : String(40) @mandatory;
+  actorUserID            : String(255);
+  actorEmployee          : Association to Empleados;
+  targetEmployee         : Association to Empleados;
+  detail                 : String(1000);
+  occurredAt             : Timestamp @mandatory;
 }
 
 entity TimeEntries : cuid, managed {

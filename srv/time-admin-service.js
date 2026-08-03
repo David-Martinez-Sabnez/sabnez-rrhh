@@ -65,9 +65,39 @@ module.exports = cds.service.impl(function () {
     }
   });
 
-  this.before(["CREATE", "UPDATE"], Aprobadores, (req) => {
-    validateDateRange(req, "validFrom", "validTo");
-    if (req.data.approverType) req.data.approverType = String(req.data.approverType).trim().toUpperCase();
+  this.before(["CREATE", "UPDATE"], Aprobadores, async (req) => {
+    const existing = req.event === "UPDATE" && req.data.ID
+      ? await SELECT.one.from(Aprobadores).where({ ID: req.data.ID })
+      : null;
+    const candidate = { ...(existing || {}), ...req.data };
+    if (candidate.approverType) candidate.approverType = String(candidate.approverType).trim().toUpperCase();
+    req.data.approverType = candidate.approverType;
+    if (candidate.validFrom && candidate.validTo && candidate.validFrom > candidate.validTo) {
+      reject(req, 400, "RANGO_FECHAS_INVALIDO", "La fecha final no puede ser anterior a la fecha inicial.", "validTo");
+    }
+    if (!new Set(["LEADER", "BACKUP", "ADMIN"]).has(candidate.approverType)) {
+      reject(req, 400, "TIPO_APROBADOR_INVALIDO", "El tipo de aprobador seleccionado no es válido.", "approverType");
+    }
+    const employee = await SELECT.one.from("sabnez.rrhh.Empleados")
+      .columns("ID", "correoCorporativo", "estado_codigo")
+      .where({ ID: candidate.employee_ID });
+    if (!employee || employee.estado_codigo !== "AC") {
+      reject(req, 400, "APROBADOR_NO_ACTIVO", "El aprobador debe ser un empleado activo.", "employee_ID");
+    }
+    if (!String(employee.correoCorporativo || "").trim()) {
+      reject(req, 400, "APROBADOR_SIN_CORREO", "El aprobador debe tener correo corporativo registrado.", "employee_ID");
+    }
+    const duplicates = await SELECT.from(Aprobadores)
+      .columns("ID", "validFrom", "validTo")
+      .where({
+        project_ID: candidate.project_ID,
+        employee_ID: candidate.employee_ID,
+        approverType: candidate.approverType,
+      });
+    const duplicate = duplicates.find((row) => row.ID !== candidate.ID && rangesOverlap(candidate.validFrom, candidate.validTo, row.validFrom, row.validTo));
+    if (duplicate) {
+      reject(req, 409, "APROBADOR_DUPLICADO", "La persona ya está configurada con el mismo rol para un periodo que se cruza.");
+    }
   });
 
   this.before(["CREATE", "UPDATE"], Tarifas, (req) => {
@@ -174,6 +204,11 @@ function validatePositive(req, field, strictlyPositive) {
 
 function within(value, from, to) {
   return (!from || value >= from) && (!to || value <= to);
+}
+
+function rangesOverlap(fromA, toA, fromB, toB) {
+  const maxDate = "9999-12-31";
+  return (fromA || "0001-01-01") <= (toB || maxDate) && (fromB || "0001-01-01") <= (toA || maxDate);
 }
 
 function reject(req, status, code, message, target) {

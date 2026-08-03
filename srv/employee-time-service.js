@@ -21,6 +21,7 @@ module.exports = cds.service.impl(function () {
     Projects,
     ProjectAssignments,
     WeeklyTimesheets,
+    WeeklyTimeApprovalEvents,
     TimeEntries,
   } = times;
   const Evidence = times["TimeEntries.evidence"];
@@ -276,12 +277,28 @@ module.exports = cds.service.impl(function () {
 
     const now = new Date().toISOString();
     for (const sheet of sheets) {
-      await UPDATE(WeeklyTimesheets).set({ status: "SUBMITTED", submittedAt: now, version: Number(sheet.version || 1) + 1 }).where({ ID: sheet.ID, status: sheet.status });
+      await UPDATE(WeeklyTimesheets).set({
+        status: "SUBMITTED",
+        submittedAt: now,
+        currentApprover_ID: employee.jefeDirecto_ID,
+        version: Number(sheet.version || 1) + 1,
+      }).where({ ID: sheet.ID, status: sheet.status });
     }
     await UPDATE(TimeEntries).set({ status: "SUBMITTED" }).where({
       employee_ID: employee.ID,
       workDate: { between: weekStart, and: weekEnd },
       status: { in: ["DRAFT", "RETURNED"] },
+    });
+    await INSERT.into(WeeklyTimeApprovalEvents).entries({
+      ID: cds.utils.uuid(),
+      employee_ID: employee.ID,
+      weekStart,
+      type: "TIME_SUBMITTED",
+      actorUserID: req.user?.id || employee.correoCorporativo,
+      actorEmployee_ID: employee.ID,
+      targetEmployee_ID: employee.jefeDirecto_ID,
+      detail: `Semana enviada con ${entries.length} registros para aprobación.`,
+      occurredAt: now,
     });
     await notifyTimesheetManager({
       tx: cds.tx(req),

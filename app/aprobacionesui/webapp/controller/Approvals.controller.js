@@ -278,6 +278,25 @@ sap.ui.define(
           MessageBox.warning(this._text("forwardRequired"));
           return;
         }
+        var oSelectedTask = this.getView()
+          .getModel("view")
+          .getProperty("/selectedTask");
+        if (oSelectedTask?.source === "TIME") {
+          try {
+            var oTimeResult = await this._timePost("reenviarHoja", {
+              hojaID: oForm.taskID,
+              delegadoID: oForm.recipientID,
+              comentario: sReason,
+            });
+            MessageToast.show(oTimeResult.mensaje || this._text("taskForwarded"));
+            this._forwardDialog?.close();
+            this.onCloseTaskDetail();
+            await this._loadData(true);
+          } catch (oError) {
+            MessageBox.error(this._extractErrorMessage(oError));
+          }
+          return;
+        }
         await this._executeOperation({
           name: ServiceContract.operations.forward,
           parameters: {
@@ -463,6 +482,23 @@ sap.ui.define(
           return;
         }
 
+        if (oFact.source === "TIME") {
+          try {
+            var oTimeFile = await this._timePost("descargarSoporte", {
+              registroID: oFact.entryID,
+              soporteID: oFact.ID,
+            });
+            this._downloadBase64File(
+              oTimeFile.contenidoBase64,
+              oTimeFile.mimeType,
+              oTimeFile.nombre || oFact.value,
+            );
+          } catch (oError) {
+            MessageBox.error(this._extractErrorMessage(oError));
+          }
+          return;
+        }
+
         var sAttachmentId = oFact.ID || null;
         var sRequestId = this._absenceRequestIdFromLink(oFact.link);
 
@@ -624,7 +660,10 @@ sap.ui.define(
           statusState: "Warning",
           statusIcon: "sap-icon://pending",
           role: "PRIMARY",
-          roleText: this._text("directManagerRole"),
+          roleText:
+            oRaw.siguienteAccion === "Aprobación administrativa"
+              ? "Aprobación administrativa"
+              : this._text("directManagerRole"),
           roleState: "Information",
           isBackup: false,
           scope: "PENDING",
@@ -651,10 +690,28 @@ sap.ui.define(
         var oDetail = oResponse.value || oResponse;
         var oSummary = oDetail.resumen || oTask.timeSummary || {};
         var aFacts = [];
+        (oDetail.proyectos || []).forEach(function (oProject, iIndex) {
+          aFacts.push({
+            ID: "project-" + iIndex,
+            section: "Resumen por proyecto",
+            label: [oProject.clienteNombre, oProject.proyectoNombre]
+              .filter(Boolean)
+              .join(" · "),
+            value:
+              Number(oProject.totalHoras || 0).toFixed(1) +
+              " h · " +
+              Number(oProject.totalRegistros || 0) +
+              " registro(s)",
+            isLink: false,
+            isStatus: false,
+            state: "Information",
+            order: iIndex,
+          });
+        });
         (oDetail.registros || []).forEach(function (oEntry, iIndex) {
           aFacts.push({
             ID: oEntry.ID,
-            section: [oEntry.proyectoNombre, oEntry.fecha || "Registro"]
+            section: [oEntry.diaNombre, oEntry.fecha, oEntry.proyectoNombre]
               .filter(Boolean)
               .join(" · "),
             label: [oEntry.tipo, Number(oEntry.horas || 0) + " h"].filter(Boolean).join(" · "),
@@ -664,19 +721,40 @@ sap.ui.define(
             isLink: false,
             isStatus: false,
             state: oEntry.alerta ? "Warning" : "None",
-            order: iIndex,
+            order: 100 + iIndex,
+          });
+          (oEntry.soportes || []).forEach(function (oSupport, iSupport) {
+            aFacts.push({
+              ID: oSupport.ID,
+              entryID: oEntry.ID,
+              source: "TIME",
+              section: [oEntry.diaNombre, oEntry.fecha, "Soportes"]
+                .filter(Boolean)
+                .join(" · "),
+              label: "Archivo adjunto " + (iSupport + 1),
+              value: oSupport.nombre,
+              link: oSupport.nombre,
+              isLink: true,
+              isStatus: false,
+              state: "None",
+              order: 200 + iIndex * 10 + iSupport,
+            });
           });
         });
         var oDetailedTask = Object.assign({}, oTask, {
-          requestSummary: [
-            oSummary.clienteNombre,
-            oSummary.proyectoNombre,
-            [oSummary.semanaInicio, oSummary.semanaFin].filter(Boolean).join(" — "),
-          ].filter(Boolean).join(" · "),
+          requestSummary:
+            Number(oSummary.totalHoras || 0).toFixed(1) +
+            " horas · " +
+            Number(oSummary.totalRegistros || 0) +
+            " registros · " +
+            [oSummary.semanaInicio, oSummary.semanaFin]
+              .filter(Boolean)
+              .join(" — "),
           facts: aFacts,
-          events: [],
+          events: this._normalizeEvents(oDetail.eventos || []),
           canApprove: oSummary.puedeAprobar === true,
           canReject: oSummary.puedeDevolver === true,
+          canForward: oSummary.puedeDevolver === true,
         });
         this.getView().getModel("view").setProperty("/selectedTask", oDetailedTask);
       },
@@ -958,6 +1036,21 @@ sap.ui.define(
 
       _eventText: function (sType) {
         var sKey = String(sType || "").toUpperCase();
+        if (sKey === "TIME_SUBMITTED") {
+          return "Semana enviada";
+        }
+        if (sKey === "TIME_LEADER_APPROVED") {
+          return "Aprobada por jefe inmediato";
+        }
+        if (sKey === "TIME_ADMIN_APPROVED") {
+          return "Aprobada administrativamente";
+        }
+        if (sKey === "TIME_RETURNED") {
+          return "Devuelta para corrección";
+        }
+        if (sKey === "TIME_FORWARDED") {
+          return "Solicitud reenviada";
+        }
         if (sKey.endsWith("CREATED")) {
           return this._text("eventCreated");
         }
@@ -1697,6 +1790,25 @@ sap.ui.define(
         }
 
         return aBytes;
+      },
+
+      _downloadBase64File: function (sBase64, sMimeType, sFilename) {
+        if (!sBase64) {
+          throw new Error("El servicio no devolvió el contenido del archivo.");
+        }
+        var oBlob = new Blob([this._base64ToBytes(sBase64)], {
+          type: sMimeType || "application/octet-stream",
+        });
+        var sUrl = URL.createObjectURL(oBlob);
+        var oLink = document.createElement("a");
+        oLink.href = sUrl;
+        oLink.download = sFilename || "soporte";
+        document.body.appendChild(oLink);
+        oLink.click();
+        document.body.removeChild(oLink);
+        window.setTimeout(function () {
+          URL.revokeObjectURL(sUrl);
+        }, 1000);
       },
 
       _absenceRequestIdFromLink: function (sLink) {
