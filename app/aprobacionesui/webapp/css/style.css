@@ -69,6 +69,11 @@
   margin: 0 auto;
 }
 
+/* UI5 sets height: 100% inline here, which clips the work area when the header is expanded. */
+.approvalCenterPage .sapFDynamicPageContent {
+  height: auto !important;
+}
+
 .approvalWorkTabs,
 .approvalDelegationPanel {
   overflow: hidden;

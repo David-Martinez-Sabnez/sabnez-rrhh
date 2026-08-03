@@ -9,6 +9,7 @@
 
   <f:DynamicPage
     id="approvalsPage"
+    class="approvalCenterPage"
     busy="{view>/busy}"
     busyIndicatorDelay="0"
     fitContent="true"
