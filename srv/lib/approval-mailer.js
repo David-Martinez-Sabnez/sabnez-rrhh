@@ -23,9 +23,6 @@ function graphConfig() {
     absenceAppUrl:
       process.env.ABSENCE_APP_URL ||
       "http://localhost:4004/ausenciasui/webapp/index.html",
-    timeApprovalAppUrl:
-      process.env.TIME_APPROVAL_APP_URL ||
-      "http://localhost:4004/tiemposaprobacionui/webapp/index.html",
     timeEmployeeAppUrl:
       process.env.TIME_EMPLOYEE_APP_URL ||
       "http://localhost:4004/tiemposempleadoui/webapp/index.html",
@@ -188,13 +185,13 @@ function escapeHtml(value) {
 
 function approvalUrl(taskID) {
   const baseUrl = graphConfig().approvalAppUrl.replace(/\/$/, "");
+  const routeSeparator = baseUrl.includes("?") ? "&" : "#";
 
-  return `${baseUrl}&/task/${encodeURIComponent(taskID)}`;
+  return `${baseUrl}${routeSeparator}/task/${encodeURIComponent(taskID)}`;
 }
 
 function timeApprovalUrl(sheetID) {
-  const baseUrl = graphConfig().timeApprovalAppUrl.replace(/\/$/, "");
-  return `${baseUrl}?sheetId=${encodeURIComponent(sheetID)}`;
+  return approvalUrl(sheetID);
 }
 
 function detailRows(facts = []) {
