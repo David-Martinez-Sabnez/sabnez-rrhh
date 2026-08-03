@@ -84,7 +84,7 @@ sap.ui.define([
       this._loadWeek();
     },
     onMonthlyToggle: function (event) {
-      if (event.getParameter("expand")) this.getView().getModel("view").setProperty("/weeklyVisible", false);
+      this.getView().getModel("view").setProperty("/weeklyVisible", !event.getParameter("expand"));
     },
     onPreviousMonth: function () { this._moveMonth(-1); },
     onNextMonth: function () { this._moveMonth(1); },
