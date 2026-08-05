@@ -226,6 +226,10 @@ class IntentEngine {
   }
 
   _matchTool(message, user) {
+    if (isExplanatoryRequest(message)) {
+      return null;
+    }
+
     const allowedTools = filterAllowedTools(user, this.registry.listTools());
 
     const matches = [];
@@ -271,10 +275,25 @@ class IntentEngine {
   }
 }
 
+function isExplanatoryRequest(message) {
+  return includesAny(message, [
+    "explica",
+    "explicame",
+    "por que es importante",
+    "que significa",
+    "como funciona",
+    "cuales son las mejores practicas",
+    "dame recomendaciones",
+    "recomiendame",
+    "analiza conceptualmente",
+  ]);
+}
+
 module.exports = {
   IntentEngine,
   normalizeText,
   extractInteger,
   extractTimeWindowDays,
   extractToolArgs,
+  isExplanatoryRequest,
 };

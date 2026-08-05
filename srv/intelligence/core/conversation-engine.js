@@ -8,6 +8,7 @@ class ConversationEngine {
     intentEngine,
     toolExecutor,
     skillDiscovery,
+    providerEngine,
   } = {}) {
     if (!intentEngine) {
       throw new TypeError(
@@ -27,22 +28,22 @@ class ConversationEngine {
       );
     }
 
+    if (!providerEngine) {
+      throw new TypeError(
+        "ConversationEngine requiere una instancia de ProviderEngine.",
+      );
+    }
+
     this.intentEngine = intentEngine;
     this.toolExecutor = toolExecutor;
     this.skillDiscovery = skillDiscovery;
+    this.providerEngine = providerEngine;
   }
 
-  async process({
-    message,
-    conversationId,
-    user,
-    context = {},
-    tx,
-  }) {
+  async process({ message, conversationId, user, context = {}, tx }) {
     const startedAt = Date.now();
     const normalizedContext = normalizeContext(context);
-    const resolvedConversationId =
-      conversationId || randomUUID();
+    const resolvedConversationId = conversationId || randomUUID();
 
     const intent = this.intentEngine.classify({
       message,
@@ -100,16 +101,30 @@ class ConversationEngine {
       }
 
       case "FALLBACK":
-      default:
+      default: {
+        const generation = await this.providerEngine.generate({
+          message,
+          conversationId: resolvedConversationId,
+          user,
+          context: normalizedContext,
+        });
+
         return {
           conversationId: resolvedConversationId,
-          responseType: "AI_REQUIRED",
-          message:
-            "Esta solicitud necesita interpretación adicional del proveedor de inteligencia artificial.",
+          responseType: "AI_RESPONSE",
+          message: generation.message,
           intent,
+          provider: {
+            id: generation.providerId,
+            name: generation.providerName,
+            model: generation.model,
+            usage: generation.usage,
+            metadata: generation.metadata,
+          },
           context: normalizedContext,
           durationMs: Date.now() - startedAt,
         };
+      }
     }
   }
 
@@ -121,18 +136,13 @@ class ConversationEngine {
     startedAt,
   }) {
     if (intent.discoveryType === "SKILL_DETAIL") {
-      const skill =
-        this.skillDiscovery.describeSkillById(
-          intent.skillId,
-          user,
-        );
+      const skill = this.skillDiscovery.describeSkillById(intent.skillId, user);
 
       if (!skill) {
         return {
           conversationId,
           responseType: "SKILL_DISCOVERY",
-          message:
-            "No encontré esa Skill entre las capacidades disponibles.",
+          message: "No encontré esa Skill entre las capacidades disponibles.",
           discovery: {
             skill: null,
           },
@@ -159,8 +169,7 @@ class ConversationEngine {
       };
     }
 
-    const summary =
-      this.skillDiscovery.buildGeneralSummary(user);
+    const summary = this.skillDiscovery.buildGeneralSummary(user);
 
     return {
       conversationId,

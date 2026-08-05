@@ -11,7 +11,9 @@
     "@cap-js/attachments": "^3.13.1",
     "@cap-js/postgres": "^2.3.0",
     "@sap/cds": "^9.9.2",
-    "@sap/xssec": "^4"
+    "@sap/xssec": "^4",
+    "dotenv": "^17.4.2",
+    "openai": "^7.4.0"
   },
   "devDependencies": {
     "@cap-js/sqlite": "^2.4.0",

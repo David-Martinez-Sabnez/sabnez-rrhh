@@ -64,10 +64,54 @@ class ToolExecutionError extends IntelligenceError {
   }
 }
 
+class ProviderNotFoundError extends IntelligenceError {
+  constructor(providerId) {
+    super(`El proveedor de inteligencia "${providerId}" no está registrado.`, {
+      code: "INTELLIGENCE_PROVIDER_NOT_FOUND",
+      status: 500,
+      details: { providerId },
+    });
+  }
+}
+
+class ProviderUnavailableError extends IntelligenceError {
+  constructor(providerId, reason = null) {
+    super(`El proveedor de inteligencia "${providerId}" no está disponible.`, {
+      code: "INTELLIGENCE_PROVIDER_UNAVAILABLE",
+      status: 503,
+      details: {
+        providerId,
+        reason,
+      },
+    });
+  }
+}
+
+class ProviderExecutionError extends IntelligenceError {
+  constructor(providerId, cause) {
+    super(
+      `No fue posible procesar la solicitud con el proveedor "${providerId}".`,
+      {
+        code: "INTELLIGENCE_PROVIDER_EXECUTION_FAILED",
+        status: 502,
+        details: {
+          providerId,
+          cause: cause?.message || String(cause),
+        },
+      },
+    );
+
+    this.cause = cause;
+  }
+}
+
 module.exports = {
   IntelligenceError,
   ToolNotFoundError,
   ToolAuthorizationError,
   ToolInputError,
   ToolExecutionError,
+  ProviderNotFoundError,
+  ProviderUnavailableError,
+  ProviderExecutionError,
 };
