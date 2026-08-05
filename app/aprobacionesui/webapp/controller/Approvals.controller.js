@@ -803,7 +803,7 @@ sap.ui.define(
       },
 
       _timeGet: async function (sPath) {
-        var oResponse = await fetch("/tiempos-aprobacion/" + sPath, {
+        var oResponse = await fetch(this._timeServiceRoot() + sPath, {
           credentials: "same-origin",
           headers: { Accept: "application/json" },
         });
@@ -814,7 +814,7 @@ sap.ui.define(
       },
 
       _timePost: async function (sPath, oPayload) {
-        var oResponse = await fetch("/tiempos-aprobacion/" + sPath, {
+        var oResponse = await fetch(this._timeServiceRoot() + sPath, {
           method: "POST",
           credentials: "same-origin",
           headers: {
@@ -834,7 +834,7 @@ sap.ui.define(
         if (this._timeCsrf) {
           return this._timeCsrf;
         }
-        var oResponse = await fetch("/tiempos-aprobacion/", {
+        var oResponse = await fetch(this._timeServiceRoot(), {
           credentials: "same-origin",
           headers: { "X-CSRF-Token": "Fetch" },
         });
@@ -843,6 +843,14 @@ sap.ui.define(
         }
         this._timeCsrf = oResponse.headers.get("X-CSRF-Token");
         return this._timeCsrf;
+      },
+
+      _timeServiceRoot: function () {
+        return /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+          ? "/tiempos-aprobacion/"
+          : this.getOwnerComponent()
+              .getManifestObject()
+              .resolveUri("tiempos-aprobacion/");
       },
 
       _timeError: async function (oResponse) {

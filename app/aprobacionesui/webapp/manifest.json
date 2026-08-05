@@ -11,7 +11,7 @@
     "description": "{{appDescription}}",
     "dataSources": {
       "mainService": {
-        "uri": "/aprobaciones/",
+        "uri": "aprobaciones/",
         "type": "OData",
         "settings": {
           "odataVersion": "4.0"
@@ -67,17 +67,6 @@
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
           "bundleName": "sabnez.com.aprobacionesui.i18n.i18n"
-        }
-      },
-      "": {
-        "dataSource": "mainService",
-        "preload": true,
-        "settings": {
-          "operationMode": "Server",
-          "autoExpandSelect": true,
-          "earlyRequests": true,
-          "groupId": "$direct",
-          "updateGroupId": "$direct"
         }
       }
     },

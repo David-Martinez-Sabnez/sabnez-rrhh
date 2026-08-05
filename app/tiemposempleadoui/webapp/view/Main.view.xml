@@ -1,6 +1,6 @@
 <mvc:View controllerName="sabnez.com.tiemposempleadoui.controller.Main"
-  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:fdp="sap.f" xmlns:u="sap.ui.unified">
-  <fdp:DynamicPage id="employeeTimesPage" class="employeeTimesDynamicPage" busy="{view>/busy}" busyIndicatorDelay="0" fitContent="true" preserveHeaderStateOnScroll="true" toggleHeaderOnTitleClick="true">
+  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:fdp="sap.f" xmlns:u="sap.ui.unified" displayBlock="true">
+  <fdp:DynamicPage id="employeeTimesPage" class="employeeTimesDynamicPage" preserveHeaderStateOnScroll="true" toggleHeaderOnTitleClick="true">
     <fdp:title>
       <fdp:DynamicPageTitle>
         <fdp:heading><Title text="Mis tiempos" level="H1"/></fdp:heading>
@@ -59,7 +59,7 @@
           <OverflowToolbar class="mobileMonthActions"><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth"/><Button text="{view>/monthLabel}" press=".onCurrentMonth"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth"/></OverflowToolbar>
           <VBox class="desktopMonthlyCalendar">
             <HBox class="monthWeekHeaders"><Text text="Lun"/><Text text="Mar"/><Text text="Mié"/><Text text="Jue"/><Text text="Vie"/><Text text="Sáb"/><Text text="Dom"/></HBox>
-            <VBox items="{view>/monthDays}" class="monthGrid"><CustomTile press=".onMonthDaySelect" class="monthDayTile"><customData><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/><core:CustomData key="blank" value="{view>isBlank}" writeToDom="true"/></customData><VBox class="monthDayContent"><HBox width="100%" justifyContent="SpaceBetween"><Title text="{view>dayNumber}" level="H4"/><ObjectStatus text="{view>statusText}" icon="{view>statusIcon}" state="{view>statusState}" visible="{= !!${view>statusIcon} }"/></HBox><ObjectNumber number="{view>hours}" unit="h" visible="{= !${view>isBlank} }" state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }"/><Text text="{view>summary}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox></CustomTile></VBox>
+            <VBox items="{view>/monthDays}" class="monthGrid"><CustomTile press=".onMonthDaySelect" class="monthDayTile"><customData><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/><core:CustomData key="blank" value="{view>blankDom}" writeToDom="true"/></customData><VBox class="monthDayContent"><HBox width="100%" justifyContent="SpaceBetween"><Title text="{view>dayNumber}" level="H4"/><ObjectStatus text="{view>statusText}" icon="{view>statusIcon}" state="{view>statusState}" visible="{= !!${view>statusIcon} }"/></HBox><ObjectNumber number="{view>hours}" unit="h" visible="{= !${view>isBlank} }" state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }"/><Text text="{view>summary}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox></CustomTile></VBox>
           </VBox>
           <VBox class="mobileMonthlyList sapUiSmallMargin">
             <SegmentedButton selectedKey="{view>/monthFilter}" selectionChange=".onMonthFilterChange" width="100%" class="sapUiSmallMarginBottom"><items><SegmentedButtonItem key="ALL" text="Todos"/><SegmentedButtonItem key="PENDING" text="Sin registro"/><SegmentedButtonItem key="REVIEW" text="Revisar"/></items></SegmentedButton>
@@ -72,8 +72,8 @@
         <content>
           <List items="{view>/copyHistory}" noDataText="Todavía no hay copias masivas registradas" showSeparators="Inner">
             <CustomListItem>
-              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMargin">
-                <VBox><ObjectIdentifier title="{view>scopeLabel}" text="{view>createdLabel}"/><Text text="{view>resumen}"/><ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/></VBox>
+              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween">
+                <VBox class="sapUiSmallMargin"><ObjectIdentifier title="{view>scopeLabel}" text="{view>createdLabel}"/><Text text="{view>resumen}"/><ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/></VBox>
                 <Button text="Deshacer" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{view>puedeDeshacer}"/>
               </HBox>
             </CustomListItem>

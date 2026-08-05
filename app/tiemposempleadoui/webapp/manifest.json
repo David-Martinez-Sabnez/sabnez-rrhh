@@ -3,19 +3,50 @@
   "sap.app": {
     "id": "sabnez.com.tiemposempleadoui",
     "type": "application",
-    "i18n": "i18n/i18n.properties",
+    "i18n": {
+      "bundleUrl": "i18n/i18n.properties",
+      "supportedLocales": [""],
+      "fallbackLocale": ""
+    },
     "applicationVersion": { "version": "1.0.0" },
     "title": "{{appTitle}}",
     "description": "{{appDescription}}",
-    "dataSources": { "mainService": { "uri": "/tiempos-empleado/", "type": "OData", "settings": { "odataVersion": "4.0" } } },
+    "dataSources": { "mainService": { "uri": "tiempos-empleado/", "type": "OData", "settings": { "odataVersion": "4.0" } } },
     "crossNavigation": { "inbounds": { "MisTiempos-display": { "semanticObject": "MisTiempos", "action": "display", "title": "{{appTitle}}", "icon": "sap-icon://timesheet", "signature": { "parameters": {}, "additionalParameters": "allowed" } } } }
   },
   "sap.ui": { "technology": "UI5", "deviceTypes": { "desktop": true, "tablet": true, "phone": true } },
   "sap.ui5": {
-    "dependencies": { "minUI5Version": "1.120.0", "libs": { "sap.f": {}, "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {}, "sap.ui.unified": {} } },
-    "models": { "i18n": { "type": "sap.ui.model.resource.ResourceModel", "settings": { "bundleName": "sabnez.com.tiemposempleadoui.i18n.i18n" } } },
+    "dependencies": { "minUI5Version": "1.150.0", "libs": { "sap.f": {}, "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {}, "sap.ui.unified": {} } },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "sabnez.com.tiemposempleadoui.i18n.i18n",
+          "supportedLocales": [""],
+          "fallbackLocale": ""
+        }
+      }
+    },
     "resources": { "css": [{ "uri": "css/style.css" }] },
-    "rootView": { "viewName": "sabnez.com.tiemposempleadoui.view.Main", "type": "XML", "id": "Main", "async": true }
+    "rootView": { "viewName": "sabnez.com.tiemposempleadoui.view.App", "type": "XML", "id": "App", "async": true },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "transition": "slide",
+        "type": "View",
+        "viewType": "XML",
+        "path": "sabnez.com.tiemposempleadoui.view",
+        "async": true
+      },
+      "routes": [
+        { "name": "Main", "pattern": ":?query:", "target": "Main" }
+      ],
+      "targets": {
+        "Main": { "id": "Main", "name": "Main" }
+      }
+    }
   },
   "sap.cloud": { "public": true, "service": "sabnezrrhh.service" }
 }

@@ -3,13 +3,17 @@
   "sap.app": {
     "id": "sabnez.com.tiemposadminui",
     "type": "application",
-    "i18n": "i18n/i18n.properties",
+    "i18n": {
+      "bundleUrl": "i18n/i18n.properties",
+      "supportedLocales": [""],
+      "fallbackLocale": ""
+    },
     "applicationVersion": { "version": "1.0.0" },
     "title": "{{appTitle}}",
     "description": "{{appDescription}}",
     "dataSources": {
       "mainService": {
-        "uri": "/tiempos-admin/",
+        "uri": "tiempos-admin/",
         "type": "OData",
         "settings": { "odataVersion": "4.0" }
       }
@@ -34,21 +38,43 @@
   "sap.ui5": {
     "flexEnabled": true,
     "dependencies": {
-      "minUI5Version": "1.120.0",
+      "minUI5Version": "1.150.0",
       "libs": { "sap.f": {}, "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {} }
     },
     "models": {
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
-        "settings": { "bundleName": "sabnez.com.tiemposadminui.i18n.i18n" }
+        "settings": {
+          "bundleName": "sabnez.com.tiemposadminui.i18n.i18n",
+          "supportedLocales": [""],
+          "fallbackLocale": ""
+        }
       }
     },
     "resources": { "css": [{ "uri": "css/style.css" }] },
     "rootView": {
-      "viewName": "sabnez.com.tiemposadminui.view.Admin",
+      "viewName": "sabnez.com.tiemposadminui.view.App",
       "type": "XML",
-      "id": "Admin",
+      "id": "App",
       "async": true
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "transition": "slide",
+        "type": "View",
+        "viewType": "XML",
+        "path": "sabnez.com.tiemposadminui.view",
+        "async": true
+      },
+      "routes": [
+        { "name": "Admin", "pattern": ":?query:", "target": "Admin" }
+      ],
+      "targets": {
+        "Admin": { "id": "Admin", "name": "Admin" }
+      }
     }
   },
   "sap.cloud": { "public": true, "service": "sabnezrrhh.service" }

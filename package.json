@@ -75,6 +75,9 @@
           "pool": {
             "acquireTimeoutMillis": 15000,
             "createTimeoutMillis": 10000,
+            "idleTimeoutMillis": 30000,
+            "evictionRunIntervalMillis": 10000,
+            "numTestsPerEvictionRun": 5,
             "max": 5,
             "min": 0
           },
