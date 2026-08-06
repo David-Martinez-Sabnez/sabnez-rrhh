@@ -1,0 +1,16 @@
+specVersion: "4.0"
+metadata:
+  name: sabnezintelligenceplugin
+type: application
+framework:
+  name: SAPUI5
+  version: "1.136.0"
+  libraries:
+    - name: sap.ui.core
+    - name: sap.m
+    - name: sap.f
+builder:
+  resources:
+    excludes:
+      - "/test/**"
+      - "/localService/**"

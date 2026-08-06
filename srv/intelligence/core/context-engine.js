@@ -2,6 +2,7 @@
 
 const MAX_LENGTHS = {
   source: 50,
+  userDisplayName: 150,
   appId: 150,
   appName: 150,
   semanticObject: 100,
@@ -27,9 +28,11 @@ function cleanString(value, maxLength) {
 
 function normalizeContext(context = {}) {
   return {
-    source:
-      cleanString(context.source, MAX_LENGTHS.source) ||
-      "unknown",
+    source: cleanString(context.source, MAX_LENGTHS.source) || "unknown",
+    userDisplayName: cleanString(
+      context.userDisplayName,
+      MAX_LENGTHS.userDisplayName,
+    ),
     appId: cleanString(context.appId, MAX_LENGTHS.appId),
     appName: cleanString(context.appName, MAX_LENGTHS.appName),
     semanticObject: cleanString(

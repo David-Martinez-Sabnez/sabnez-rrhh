@@ -24,6 +24,20 @@ sap.ui.define(
             assignments: [],
             approvers: [],
             rates: [],
+            filteredClients: [],
+            filteredContracts: [],
+            filteredProjects: [],
+            filteredAssignments: [],
+            filteredApprovers: [],
+            filteredRates: [],
+            filters: {
+              clients: { search: "", status: "" },
+              contracts: { search: "", clientID: "", status: "" },
+              projects: { search: "", clientID: "", modality: "", status: "" },
+              assignments: { projectID: "", employeeID: "", status: "" },
+              approvers: { projectID: "", employeeID: "", approverType: "", active: "" },
+              rates: { projectID: "", employeeID: "", currency: "" },
+            },
             documents: [],
             contractsForProject: [],
             clientForm: this._emptyClient(),
@@ -48,6 +62,37 @@ sap.ui.define(
       },
       onProjectClientChange: function () {
         this._filterContracts();
+      },
+
+      onFilterClients: function () { this._applyClientFilters(); },
+      onClearClientFilters: function () {
+        this._model().setProperty("/filters/clients", { search: "", status: "" });
+        this._applyClientFilters();
+      },
+      onFilterContracts: function () { this._applyContractFilters(); },
+      onClearContractFilters: function () {
+        this._model().setProperty("/filters/contracts", { search: "", clientID: "", status: "" });
+        this._applyContractFilters();
+      },
+      onFilterProjects: function () { this._applyProjectFilters(); },
+      onClearProjectFilters: function () {
+        this._model().setProperty("/filters/projects", { search: "", clientID: "", modality: "", status: "" });
+        this._applyProjectFilters();
+      },
+      onFilterAssignments: function () { this._applyAssignmentFilters(); },
+      onClearAssignmentFilters: function () {
+        this._model().setProperty("/filters/assignments", { projectID: "", employeeID: "", status: "" });
+        this._applyAssignmentFilters();
+      },
+      onFilterApprovers: function () { this._applyApproverFilters(); },
+      onClearApproverFilters: function () {
+        this._model().setProperty("/filters/approvers", { projectID: "", employeeID: "", approverType: "", active: "" });
+        this._applyApproverFilters();
+      },
+      onFilterRates: function () { this._applyRateFilters(); },
+      onClearRateFilters: function () {
+        this._model().setProperty("/filters/rates", { projectID: "", employeeID: "", currency: "" });
+        this._applyRateFilters();
       },
 
       onSaveClient: async function () {
@@ -472,6 +517,7 @@ sap.ui.define(
               });
             }),
           );
+          this._applyAllFilters();
           this._filterContracts();
           if (notify) MessageToast.show("Información actualizada.");
         } catch (error) {
@@ -584,6 +630,68 @@ sap.ui.define(
           payload.error?.message || "No fue posible completar la operación.",
         );
       },
+      _applyAllFilters: function () {
+        this._applyClientFilters();
+        this._applyContractFilters();
+        this._applyProjectFilters();
+        this._applyAssignmentFilters();
+        this._applyApproverFilters();
+        this._applyRateFilters();
+      },
+      _matchesText: function (value, search) {
+        return String(value || "").toLowerCase().includes(String(search || "").trim().toLowerCase());
+      },
+      _applyClientFilters: function () {
+        var model = this._model(), filters = model.getProperty("/filters/clients") || {};
+        model.setProperty("/filteredClients", (model.getProperty("/clients") || []).filter(function (row) {
+          var matchesSearch = !filters.search || this._matchesText(row.legalName, filters.search) || this._matchesText(row.tradeName, filters.search) || this._matchesText(row.taxIdentification, filters.search);
+          return matchesSearch && (!filters.status || row.status === filters.status);
+        }.bind(this)));
+      },
+      _applyContractFilters: function () {
+        var model = this._model(), filters = model.getProperty("/filters/contracts") || {};
+        model.setProperty("/filteredContracts", (model.getProperty("/contracts") || []).filter(function (row) {
+          var matchesSearch = !filters.search || this._matchesText(row.reference, filters.search) || this._matchesText(row.description, filters.search) || this._matchesText(row.clientName, filters.search);
+          return matchesSearch && (!filters.clientID || row.client_ID === filters.clientID) && (!filters.status || row.status === filters.status);
+        }.bind(this)));
+      },
+      _applyProjectFilters: function () {
+        var model = this._model(), filters = model.getProperty("/filters/projects") || {};
+        model.setProperty("/filteredProjects", (model.getProperty("/projects") || []).filter(function (row) {
+          var matchesSearch = !filters.search || this._matchesText(row.code, filters.search) || this._matchesText(row.name, filters.search) || this._matchesText(row.clientName, filters.search);
+          return matchesSearch && (!filters.clientID || row.client_ID === filters.clientID) && (!filters.modality || row.modality === filters.modality) && (!filters.status || row.status === filters.status);
+        }.bind(this)));
+      },
+      _applyAssignmentFilters: function () {
+        var model = this._model(), filters = model.getProperty("/filters/assignments") || {};
+        model.setProperty("/filteredAssignments", (model.getProperty("/assignments") || []).filter(function (row) {
+          return (!filters.projectID || row.project_ID === filters.projectID) && (!filters.employeeID || row.employee_ID === filters.employeeID) && (!filters.status || row.status === filters.status);
+        }));
+      },
+      _applyApproverFilters: function () {
+        var model = this._model(), filters = model.getProperty("/filters/approvers") || {};
+        model.setProperty("/filteredApprovers", (model.getProperty("/approvers") || []).filter(function (row) {
+          var activeMatches = filters.active === "" || String(Boolean(row.active)) === filters.active;
+          return (!filters.projectID || row.project_ID === filters.projectID) && (!filters.employeeID || row.employee_ID === filters.employeeID) && (!filters.approverType || row.approverType === filters.approverType) && activeMatches;
+        }));
+      },
+      _applyRateFilters: function () {
+        var model = this._model(), filters = model.getProperty("/filters/rates") || {},
+          projectName = filters.projectID ? this._projectName(filters.projectID) : "",
+          employeeName = filters.employeeID ? this._employeeName(filters.employeeID) : "";
+        model.setProperty("/filteredRates", (model.getProperty("/rates") || []).filter(function (row) {
+          return (!projectName || row.projectName === projectName) && (!employeeName || row.employeeName === employeeName) && (!filters.currency || row.currency === filters.currency);
+        }));
+      },
+      _projectName: function (ID) {
+        var row = (this._model().getProperty("/projects") || []).find(function (item) { return item.ID === ID; });
+        return row?.name || "";
+      },
+      _employeeName: function (ID) {
+        var row = (this._model().getProperty("/employees") || []).find(function (item) { return item.ID === ID; });
+        return row?.nombreCompleto || "";
+      },
+
       _filterContracts: function () {
         var model = this._model(),
           clientID = model.getProperty("/projectForm/clientID"),

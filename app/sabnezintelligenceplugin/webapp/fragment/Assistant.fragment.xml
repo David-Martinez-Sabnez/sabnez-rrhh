@@ -1,0 +1,229 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:data="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1"
+>
+  <VBox
+    id="assistantPanel"
+    class="sabnezAssistantPanel"
+    visible="{assistant>/panelOpen}"
+  >
+    <!-- Cabecera Sabnez -->
+    <VBox class="sabnezAssistantHero">
+      <HBox
+        width="100%"
+        alignItems="Center"
+        justifyContent="SpaceBetween"
+        class="sabnezAssistantTopBar"
+      >
+        <HBox alignItems="Center">
+          <Image
+            src="{assistant>/logoUrl}"
+            decorative="false"
+            alt="Sabnez"
+            class="sabnezAssistantTopLogo"
+          />
+
+          <VBox class="sabnezAssistantBrandBlock">
+            <Title
+              text="Sabnez Intelligence"
+              level="H3"
+              class="sabnezAssistantBrand"
+            />
+
+            <Text
+              text="Powered by Sabnez Cloud ERP"
+              class="sabnezAssistantBrandSubtitle"
+            />
+          </VBox>
+        </HBox>
+
+        <HBox alignItems="Center">
+          <Button
+            icon="sap-icon://full-screen"
+            type="Transparent"
+            tooltip="Ampliar"
+            press=".onToggleFullScreen"
+            class="sabnezAssistantHeaderButton"
+          />
+
+          <Button
+            icon="sap-icon://decline"
+            type="Transparent"
+            tooltip="{i18n>close}"
+            press=".onCloseAssistant"
+            class="sabnezAssistantHeaderButton"
+          />
+        </HBox>
+      </HBox>
+
+      <VBox
+        alignItems="Center"
+        class="sabnezAssistantWelcome"
+      >
+        <VBox class="sabnezAssistantMainLogoWrapper">
+          <Image
+            src="{assistant>/logoUrl}"
+            decorative="false"
+            alt="Sabnez Intelligence"
+            class="sabnezAssistantMainLogo"
+          />
+
+          <core:HTML
+            content="&lt;span class='sabnezAssistantStatusGlow'&gt;&lt;/span&gt;"
+          />
+        </VBox>
+
+        <Text
+          text="{= ${assistant>/user/firstName} ? 'Hola, ' + ${assistant>/user/firstName} : 'Hola' }"
+          class="sabnezAssistantGreeting"
+        />
+
+        <Title
+          text="¿Cómo puedo ayudarte?"
+          level="H2"
+          class="sabnezAssistantQuestion"
+        />
+
+        <Text
+          text="Consulta información, genera reportes o ejecuta acciones en Sabnez Cloud ERP."
+          wrapping="true"
+          textAlign="Center"
+          class="sabnezAssistantHeroDescription"
+        />
+      </VBox>
+    </VBox>
+
+    <!-- Acciones rápidas -->
+    <VBox
+      class="sabnezAssistantQuickArea"
+      visible="{= ${assistant>/messages}.length === 0 }"
+    >
+      <Text
+        text="Puedes comenzar con"
+        class="sabnezAssistantQuickTitle"
+      />
+
+      <FlexBox
+        wrap="Wrap"
+        class="sabnezAssistantQuickActions"
+      >
+        <Button
+          text="Buscar empleados"
+          icon="sap-icon://employee"
+          type="Transparent"
+          press=".onQuickAction"
+          data:prompt="Muéstrame todos los empleados activos"
+          class="sabnezAssistantQuickAction"
+        />
+
+        <Button
+          text="Contratos por vencer"
+          icon="sap-icon://document-text"
+          type="Transparent"
+          press=".onQuickAction"
+          data:prompt="Muéstrame los contratos próximos a vencer"
+          class="sabnezAssistantQuickAction"
+        />
+
+        <Button
+          text="Reportes de tiempos"
+          icon="sap-icon://business-objects-experience"
+          type="Transparent"
+          press=".onQuickAction"
+          data:prompt="Quiero consultar los reportes de tiempos"
+          class="sabnezAssistantQuickAction"
+        />
+
+        <Button
+          text="¿Qué puedes hacer?"
+          icon="sap-icon://lightbulb"
+          type="Transparent"
+          press=".onQuickAction"
+          data:prompt="¿Qué puedes hacer?"
+          class="sabnezAssistantQuickAction"
+        />
+      </FlexBox>
+    </VBox>
+
+    <!-- Conversación -->
+    <ScrollContainer
+      id="messagesScroll"
+      vertical="true"
+      horizontal="false"
+      class="sabnezAssistantMessages"
+    >
+      <VBox
+        id="messagesContainer"
+        width="100%"
+        class="sabnezAssistantMessagesContainer"
+        items="{assistant>/messages}"
+      >
+        <CustomListItem class="sabnezAssistantMessageItem">
+          <HBox
+            width="100%"
+            alignItems="Start"
+            class="sabnezAssistantMessageRow"
+            data:role="{assistant>role}"
+          >
+            <Image
+              src="{assistant>/logoUrl}"
+              decorative="false"
+              alt="Sabnez"
+              class="sabnezAssistantMessageAvatar"
+              visible="{= ${assistant>role} === 'assistant' }"
+            />
+
+            <VBox
+              class="sabnezAssistantMessage"
+              data:role="{assistant>role}"
+            >
+              <FormattedText htmlText="{assistant>html}" />
+            </VBox>
+          </HBox>
+        </CustomListItem>
+      </VBox>
+    </ScrollContainer>
+
+    <!-- Compositor -->
+    <VBox class="sabnezAssistantFooter">
+      <HBox
+        class="sabnezAssistantComposer"
+        width="100%"
+        alignItems="Center"
+      >
+        <TextArea
+          id="messageInput"
+          value="{assistant>/draft}"
+          placeholder="Pregúntale a Sabnez Intelligence..."
+          rows="1"
+          growing="false"
+          width="100%"
+          enabled="{= !${assistant>/busy} }"
+        />
+
+        <BusyIndicator
+          visible="{assistant>/busy}"
+          size="1rem"
+          class="sapUiTinyMarginBegin"
+        />
+
+        <Button
+          icon="sap-icon://paper-plane"
+          type="Emphasized"
+          tooltip="{i18n>send}"
+          enabled="{= !!${assistant>/draft} &amp;&amp; !${assistant>/busy} }"
+          press=".onSendMessage"
+          class="sabnezAssistantSendButton"
+        />
+      </HBox>
+
+      <Text
+        text="Sabnez Intelligence puede cometer errores. Verifica la información crítica antes de ejecutar decisiones."
+        wrapping="true"
+        textAlign="Center"
+        class="sabnezAssistantDisclaimer"
+      />
+    </VBox>
+  </VBox>
+</core:FragmentDefinition>

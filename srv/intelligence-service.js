@@ -23,6 +23,8 @@ const { ToolExecutor } = require("./intelligence/tools/tool-executor");
 
 const { SkillDiscovery } = require("./intelligence/skills/skill-discovery");
 
+const { ConversationStore } = require("./intelligence/core/conversation-store");
+
 const { IntelligenceError } = require("./intelligence/core/errors");
 
 const providerRegistry = require("./intelligence/providers/provider-registry");
@@ -48,6 +50,10 @@ module.exports = cds.service.impl(function () {
   const skillDiscovery = new SkillDiscovery({
     skills,
     registry,
+  });
+
+  const conversationStore = new ConversationStore({
+    historyLimit: Number(process.env.INTELLIGENCE_HISTORY_LIMIT || 20),
   });
 
   const mockAlreadyRegistered = providerRegistry
@@ -104,9 +110,19 @@ module.exports = cds.service.impl(function () {
     toolExecutor,
     skillDiscovery,
     providerEngine,
+    conversationStore,
   });
 
   this.on("sendMessage", async (req) => {
+    console.log("[Sabnez Intelligence] Usuario:", {
+      id: req.user?.id,
+      roles: req.user?.roles,
+      attr: req.user?.attr,
+      authenticated: req.user?.is?.("authenticated-user"),
+      editor: req.user?.is?.("Editor"),
+      admin: req.user?.is?.("Admin"),
+    });
+
     const message =
       typeof req.data?.message === "string" ? req.data.message.trim() : "";
 

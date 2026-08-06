@@ -1,0 +1,12 @@
+{
+  "name": "sabnezintelligenceplugin",
+  "version": "1.0.0",
+  "description": "Shell Plugin flotante de Sabnez Intelligence para SAP Build Work Zone",
+  "private": true,
+  "scripts": {
+    "build": "ui5 build --config ui5.yaml --clean-dest --dest dist"
+  },
+  "devDependencies": {
+    "@ui5/cli": "^4.0.0"
+  }
+}

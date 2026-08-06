@@ -1,6 +1,5 @@
 "use strict";
 
-const { randomUUID } = require("node:crypto");
 const { normalizeContext } = require("./context-engine");
 
 class ConversationEngine {
@@ -9,28 +8,35 @@ class ConversationEngine {
     toolExecutor,
     skillDiscovery,
     providerEngine,
+    conversationStore,
   } = {}) {
     if (!intentEngine) {
       throw new TypeError(
-        "ConversationEngine requiere una instancia de IntentEngine.",
+        "ConversationEngine requiere IntentEngine.",
       );
     }
 
     if (!toolExecutor) {
       throw new TypeError(
-        "ConversationEngine requiere una instancia de ToolExecutor.",
+        "ConversationEngine requiere ToolExecutor.",
       );
     }
 
     if (!skillDiscovery) {
       throw new TypeError(
-        "ConversationEngine requiere una instancia de SkillDiscovery.",
+        "ConversationEngine requiere SkillDiscovery.",
       );
     }
 
     if (!providerEngine) {
       throw new TypeError(
-        "ConversationEngine requiere una instancia de ProviderEngine.",
+        "ConversationEngine requiere ProviderEngine.",
+      );
+    }
+
+    if (!conversationStore) {
+      throw new TypeError(
+        "ConversationEngine requiere ConversationStore.",
       );
     }
 
@@ -38,80 +44,132 @@ class ConversationEngine {
     this.toolExecutor = toolExecutor;
     this.skillDiscovery = skillDiscovery;
     this.providerEngine = providerEngine;
+    this.conversationStore = conversationStore;
   }
 
-  async process({ message, conversationId, user, context = {}, tx }) {
+  async process({
+    message,
+    conversationId,
+    user,
+    context = {},
+    tx,
+  }) {
     const startedAt = Date.now();
     const normalizedContext = normalizeContext(context);
-    const resolvedConversationId = conversationId || randomUUID();
+
+    const conversation =
+      await this.conversationStore.resolveConversation({
+        tx,
+        conversationId,
+        user,
+        context: normalizedContext,
+      });
+
+    const resolvedConversationId = conversation.ID;
+
+    await this.conversationStore.appendMessage({
+      tx,
+      conversationId: resolvedConversationId,
+      user,
+      role: "user",
+      content: message,
+      context: normalizedContext,
+    });
+
+    const history =
+      await this.conversationStore.getHistory({
+        tx,
+        conversationId: resolvedConversationId,
+        user,
+      });
+
+    const state =
+      await this.conversationStore.getState({
+        tx,
+        conversationId: resolvedConversationId,
+        user,
+      });
 
     const intent = this.intentEngine.classify({
       message,
       user,
+      history,
+      state,
     });
+
+    let response;
 
     switch (intent.type) {
       case "INVALID":
-        return {
+        response = {
           conversationId: resolvedConversationId,
           responseType: "ERROR",
-          message: "Escribe una solicitud para poder ayudarte.",
+          message:
+            "Escribe una solicitud para poder ayudarte.",
           intent,
-          durationMs: Date.now() - startedAt,
+          context: normalizedContext,
         };
+        break;
 
       case "DISCOVERY":
-        return this._buildDiscoveryResponse({
+        response = this._buildDiscoveryResponse({
           conversationId: resolvedConversationId,
           intent,
           user,
           context: normalizedContext,
           startedAt,
         });
+        break;
 
       case "NAVIGATION":
-        return {
+        response = {
           conversationId: resolvedConversationId,
           responseType: "NAVIGATION",
           message: `Abriendo ${intent.target.name}.`,
           navigation: intent.target,
           intent,
           context: normalizedContext,
-          durationMs: Date.now() - startedAt,
         };
+        break;
 
       case "TOOL": {
-        const execution = await this.toolExecutor.execute({
-          toolName: intent.toolName,
-          args: intent.args || {},
-          user,
-          context: normalizedContext,
-          tx,
-        });
+        const execution =
+          await this.toolExecutor.execute({
+            toolName: intent.toolName,
+            args: intent.args || {},
+            user,
+            context: normalizedContext,
+            tx,
+          });
 
-        return {
+        response = {
           conversationId: resolvedConversationId,
           responseType: "TOOL_RESULT",
           message: this._buildToolMessage(execution),
           intent,
           execution,
           context: normalizedContext,
-          durationMs: Date.now() - startedAt,
         };
+        break;
       }
 
       case "FALLBACK":
       default: {
-        const generation = await this.providerEngine.generate({
-          message,
-          conversationId: resolvedConversationId,
-          user,
-          context: normalizedContext,
-        });
+        const generation =
+          await this.providerEngine.generate({
+            message,
+            conversationId: resolvedConversationId,
+            user,
+            context: normalizedContext,
+            history,
+            state,
+            tx,
+          });
 
-        return {
+        response = {
           conversationId: resolvedConversationId,
-          responseType: "AI_RESPONSE",
+          responseType:
+            generation.responseType || "AI_RESPONSE",
           message: generation.message,
           intent,
           provider: {
@@ -121,11 +179,39 @@ class ConversationEngine {
             usage: generation.usage,
             metadata: generation.metadata,
           },
+          execution: generation.execution || null,
           context: normalizedContext,
-          durationMs: Date.now() - startedAt,
         };
       }
     }
+
+    response.durationMs = Date.now() - startedAt;
+
+    await this.conversationStore.appendMessage({
+      tx,
+      conversationId: resolvedConversationId,
+      user,
+      role: "assistant",
+      content: response.message,
+      responseType: response.responseType,
+      toolName:
+        response.execution?.toolName ||
+        response.intent?.toolName ||
+        null,
+      toolArguments:
+        response.intent?.args ||
+        response.execution?.args ||
+        null,
+      toolResult:
+        response.execution?.result || null,
+      provider: response.provider?.id || null,
+      model: response.provider?.model || null,
+      usage: response.provider?.usage || {},
+      context: normalizedContext,
+      payload: response,
+    });
+
+    return response;
   }
 
   _buildDiscoveryResponse({
@@ -136,16 +222,19 @@ class ConversationEngine {
     startedAt,
   }) {
     if (intent.discoveryType === "SKILL_DETAIL") {
-      const skill = this.skillDiscovery.describeSkillById(intent.skillId, user);
+      const skill =
+        this.skillDiscovery.describeSkillById(
+          intent.skillId,
+          user,
+        );
 
       if (!skill) {
         return {
           conversationId,
           responseType: "SKILL_DISCOVERY",
-          message: "No encontré esa Skill entre las capacidades disponibles.",
-          discovery: {
-            skill: null,
-          },
+          message:
+            "No encontré esa Skill entre las capacidades disponibles.",
+          discovery: { skill: null },
           intent,
           context,
           durationMs: Date.now() - startedAt,
@@ -156,20 +245,18 @@ class ConversationEngine {
         conversationId,
         responseType: "SKILL_DISCOVERY",
         message:
-          `${skill.name} tiene ${skill.capabilities.length} capacidad` +
-          `${skill.capabilities.length === 1 ? "" : "es"} y ` +
-          `${skill.tools.length} herramienta` +
-          `${skill.tools.length === 1 ? "" : "s"} disponibles.`,
-        discovery: {
-          skill,
-        },
+          `${skill.name} tiene ` +
+          `${skill.capabilities.length} capacidades y ` +
+          `${skill.tools.length} herramientas disponibles.`,
+        discovery: { skill },
         intent,
         context,
         durationMs: Date.now() - startedAt,
       };
     }
 
-    const summary = this.skillDiscovery.buildGeneralSummary(user);
+    const summary =
+      this.skillDiscovery.buildGeneralSummary(user);
 
     return {
       conversationId,
@@ -189,22 +276,19 @@ class ConversationEngine {
       case "searchEmployees": {
         const count = execution.result?.count || 0;
 
-        if (count === 0) {
-          return "No encontré empleados que cumplan los criterios indicados.";
-        }
-
-        return `Encontré ${count} empleado${count === 1 ? "" : "s"}.`;
+        return count === 0
+          ? "No encontré empleados que cumplan los criterios indicados."
+          : `Encontré ${count} empleado${count === 1 ? "" : "s"}.`;
       }
 
       case "expiringContracts": {
         const count = execution.result?.count || 0;
-        const days = execution.result?.period?.days || 30;
+        const days =
+          execution.result?.period?.days || 30;
 
-        if (count === 0) {
-          return `No encontré contratos que venzan en los próximos ${days} días.`;
-        }
-
-        return `Encontré ${count} contrato${count === 1 ? "" : "s"} que vencen en los próximos ${days} días.`;
+        return count === 0
+          ? `No encontré contratos que venzan en los próximos ${days} días.`
+          : `Encontré ${count} contrato${count === 1 ? "" : "s"} que vencen en los próximos ${days} días.`;
       }
 
       default:

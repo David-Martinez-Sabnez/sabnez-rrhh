@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Sabnez Intelligence - Prueba local</title>
+
+  <script>
+    window["sap-ushell-config"] = {
+      defaultRenderer: "fiori2",
+      applications: {}
+    };
+  </script>
+
+  <script
+    id="sap-ui-bootstrap"
+    src="https://ui5.sap.com/resources/sap-ui-core.js"
+    data-sap-ui-theme="sap_horizon"
+    data-sap-ui-libs="sap.m,sap.f,sap.ui.core"
+    data-sap-ui-compat-version="edge"
+    data-sap-ui-async="true"
+  data-sap-ui-xx-component-preload="off"
+    data-sap-ui-resourceroots='{
+      "sabnez.intelligence.plugin": "../"
+    }'
+  ></script>
+
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    .localSandboxContent {
+      box-sizing: border-box;
+      min-height: 100%;
+      padding: 5rem 3rem;
+      background: #f5f6f7;
+      font-family: Arial, sans-serif;
+    }
+
+    .localSandboxCard {
+      max-width: 70rem;
+      margin: 0 auto;
+      padding: 2rem;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.12);
+    }
+  </style>
+
+  <script>
+    sap.ui.getCore().attachInit(async function () {
+      window.sap.ushell = window.sap.ushell || {};
+
+      window.sap.ushell.Container = {
+        getServiceAsync: async function (serviceName) {
+          if (serviceName === "UserInfo") {
+            return {
+              getUser: function () {
+                return {
+                  getId: function () {
+                    return "david.martinez@sabnez.com";
+                  },
+                  getEmail: function () {
+                    return "david.martinez@sabnez.com";
+                  },
+                  getFullName: function () {
+                    return "David Martínez";
+                  },
+                  getFirstName: function () {
+                    return "David";
+                  }
+                };
+              }
+            };
+          }
+
+          if (serviceName === "CrossApplicationNavigation") {
+            return {
+              toExternal: function (navigation) {
+                console.log(
+                  "[Local Sandbox] Navegación solicitada:",
+                  navigation
+                );
+
+                sap.m.MessageToast.show(
+                  "Navegación simulada: " +
+                  navigation.target.semanticObject
+                );
+              }
+            };
+          }
+
+          throw new Error(
+            "Servicio no simulado: " + serviceName
+          );
+        },
+
+        getService: function (serviceName) {
+          if (serviceName === "URLParsing") {
+            return {
+              parseShellHash: function () {
+                return {
+                  semanticObject: "Empleados",
+                  action: "display"
+                };
+              }
+            };
+          }
+
+          return null;
+        }
+      };
+
+      await sap.ui.core.Component.create({
+        name: "sabnez.intelligence.plugin",
+        manifest: true
+      });
+    });
+  </script>
+</head>
+
+<body class="sapUiBody sapUiSizeCompact">
+  <main class="localSandboxContent">
+    <section class="localSandboxCard">
+      <h1>Sabnez Cloud ERP</h1>
+
+      <p>
+        Esta página simula una aplicación abierta dentro de
+        SAP Build Work Zone.
+      </p>
+
+      <p>
+        El botón flotante de Sabnez Intelligence debe aparecer
+        en la esquina inferior derecha.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

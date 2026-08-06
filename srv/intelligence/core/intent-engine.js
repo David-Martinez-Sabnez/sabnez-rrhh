@@ -127,6 +127,12 @@ class IntentEngine {
       return toolIntent;
     }
 
+    const employeeSearchIntent = this._matchEmployeeSearch(message, user);
+
+    if (employeeSearchIntent) {
+      return employeeSearchIntent;
+    }
+
     return {
       type: "FALLBACK",
       confidence: 0,
@@ -273,6 +279,40 @@ class IntentEngine {
       args: extractToolArgs(selectedTool.name, message),
     };
   }
+
+  _matchEmployeeSearch(message, user) {
+    if (!isEmployeeSearchMessage(message)) {
+      return null;
+    }
+
+    const tool = this.registry.getTool
+      ? this.registry.getTool("searchEmployees")
+      : this.registry
+          .listTools()
+          .find((candidate) => candidate.name === "searchEmployees");
+
+    if (!tool) {
+      return null;
+    }
+
+    if (
+      Array.isArray(tool.roles) &&
+      tool.roles.length > 0 &&
+      !tool.roles.some((role) => user?.is?.(role))
+    ) {
+      return null;
+    }
+
+    return {
+      type: "TOOL",
+      confidence: requestsActiveEmployees(message) ? 1 : 0.98,
+      toolName: "searchEmployees",
+      moduleId: "hr",
+      args: {
+        activeOnly: requestsActiveEmployees(message),
+      },
+    };
+  }
 }
 
 function isExplanatoryRequest(message) {
@@ -287,6 +327,40 @@ function isExplanatoryRequest(message) {
     "recomiendame",
     "analiza conceptualmente",
   ]);
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[¿?¡!.,;:()[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isEmployeeSearchMessage(message) {
+  const text = normalizeText(message);
+
+  const mentionsEmployees =
+    /\b(empleado|empleados|colaborador|colaboradores|personal|trabajadores)\b/.test(
+      text,
+    );
+
+  const requestsListing =
+    /\b(lista|listar|listame|muestra|muestrame|ver|buscar|busca|dame|quienes|consulta|consultar)\b/.test(
+      text,
+    );
+
+  return mentionsEmployees && requestsListing;
+}
+
+function requestsActiveEmployees(message) {
+  const text = normalizeText(message);
+
+  return /\b(activo|activos|vigente|vigentes|trabajando actualmente|no retirados)\b/.test(
+    text,
+  );
 }
 
 module.exports = {

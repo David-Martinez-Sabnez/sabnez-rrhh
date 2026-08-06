@@ -1,16 +1,9 @@
 "use strict";
 
-const {
-  IntelligenceError,
-  ProviderExecutionError,
-} = require("./errors");
+const { IntelligenceError, ProviderExecutionError } = require("./errors");
 
 class ProviderEngine {
-  constructor({
-    registry,
-    skillDiscovery,
-    defaultProviderId,
-  } = {}) {
+  constructor({ registry, skillDiscovery, defaultProviderId } = {}) {
     if (!registry) {
       throw new TypeError(
         "ProviderEngine requiere un registro de proveedores.",
@@ -18,9 +11,7 @@ class ProviderEngine {
     }
 
     if (!skillDiscovery) {
-      throw new TypeError(
-        "ProviderEngine requiere SkillDiscovery.",
-      );
+      throw new TypeError("ProviderEngine requiere SkillDiscovery.");
     }
 
     this.registry = registry;
@@ -34,14 +25,16 @@ class ProviderEngine {
     conversationId,
     user,
     context = {},
+    history = [],
+    state = null,
     providerId,
+    tx,
   }) {
     const provider = this.registry.getAvailable(
       providerId || this.defaultProviderId,
     );
 
-    const skills =
-      this.skillDiscovery.listInstalledSkills(user);
+    const skills = this.skillDiscovery.listInstalledSkills(user);
 
     try {
       const result = await provider.generate({
@@ -50,6 +43,9 @@ class ProviderEngine {
         user,
         context,
         skills,
+        history,
+        state,
+        tx,
       });
 
       return {

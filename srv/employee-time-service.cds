@@ -144,3 +144,5 @@ service EmployeeTimeService @(
 
   action enviarSemana(semanaInicio: Date) returns ResultadoEnvioSemanal;
 }
+
+annotate EmployeeTimeService with @cds.server.body_parser.limit: '15mb';
