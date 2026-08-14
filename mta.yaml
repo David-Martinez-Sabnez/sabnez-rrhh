@@ -86,6 +86,10 @@ modules:
             - sabnezcomtiemposempleadoui.zip
           name: sabnezcomtiemposempleadoui
           target-path: app/
+        - artifacts:
+            - sabnezcomreportestiemposui.zip
+          name: sabnezcomreportestiemposui
+          target-path: app/
   - name: sabnez-rrhh-destinations
     type: com.sap.application.content
     requires:
@@ -187,6 +191,16 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
+  - name: sabnezcomreportestiemposui
+    type: html5
+    path: app/reportestiemposui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
 resources:
   - name: sabnez-rrhh-db
     type: org.cloudfoundry.existing-service
@@ -225,6 +239,10 @@ resources:
             name: Tiempos Finanzas
             role-template-references:
               - $XSAPPNAME.TimeFinance
+          - description: Generación de entregables para clientes
+            name: Entregables Tiempos
+            role-template-references:
+              - $XSAPPNAME.TimeDeliverables    
         tenant-mode: dedicated
         xsappname: sabnez-rrhh
       path: ./xs-security.json

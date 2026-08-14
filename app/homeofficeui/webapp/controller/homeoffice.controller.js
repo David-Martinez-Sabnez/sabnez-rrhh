@@ -387,6 +387,10 @@ sap.ui.define(
           return "Reservado temporalmente";
         }
 
+        if (oDay.esFeriado) {
+          return "Festivo";
+        }
+
         if (oDay.bloqueadoSemanaAnterior) {
           return "Usado la semana anterior";
         }
@@ -415,6 +419,10 @@ sap.ui.define(
           return "Error";
         }
 
+        if (oDay.esFeriado) {
+          return "Error";
+        }
+
         if (oDay.bloqueadoSemanaAnterior || !oDay.ventanaAbierta) {
           return "None";
         }
@@ -435,6 +443,10 @@ sap.ui.define(
           return "sap-icon://decline";
         }
 
+        if (oDay.esFeriado) {
+          return "sap-icon://calendar";
+        }
+
         if (oDay.bloqueadoSemanaAnterior) {
           return "sap-icon://locked";
         }
@@ -449,6 +461,10 @@ sap.ui.define(
 
         if (oDay.estadoSeleccion === "RESERVADA") {
           return "Liberar reserva";
+        }
+
+        if (oDay.esFeriado) {
+          return "Festivo";
         }
 
         if (!oDay.habilitado) {
@@ -481,6 +497,10 @@ sap.ui.define(
 
         if (oDay.estadoSeleccion === "RESERVADA") {
           return "sap-icon://undo";
+        }
+
+        if (oDay.esFeriado) {
+          return "sap-icon://locked";
         }
 
         if (!oDay.habilitado) {

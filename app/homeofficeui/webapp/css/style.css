@@ -85,3 +85,20 @@
 .reservationCountdown {
   font-weight: 700;
 }
+
+.dayCard[data-day-kind="holiday"] {
+  background: #fff2f0;
+  border-color: #e6a29b;
+}
+
+.dayCard[data-day-kind="holiday"]:hover {
+  box-shadow: var(--sapContent_Shadow0);
+}
+
+.dayCard[data-day-kind="holiday"] .sapMTitle {
+  color: #8b2c24;
+}
+
+.dayCard[data-day-kind="holiday"] .dayDate {
+  color: #9b514a;
+}

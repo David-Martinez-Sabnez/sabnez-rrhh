@@ -12,7 +12,10 @@
     "@cap-js/postgres": "^2.3.0",
     "@sap/cds": "^9.9.2",
     "@sap/xssec": "^4",
+    "docx": "^9.7.1",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
     "openai": "^7.4.0"
   },
   "devDependencies": {
@@ -143,7 +146,8 @@
                 "Editor",
                 "Admin",
                 "TimeAdmin",
-                "TimeFinance"
+                "TimeFinance",
+                "TimeDeliverables"
               ],
               "attr": {
                 "email": "david.martinez@sabnez.com"
@@ -222,6 +226,7 @@
     "app/ausenciasui",
     "app/aprobacionesui",
     "app/tiemposadminui",
-    "app/tiemposempleadoui"
+    "app/tiemposempleadoui",
+    "app/reportestiemposui"
   ]
 }

@@ -15,30 +15,35 @@ service HomeOfficeService @(
     // Información de cada día mostrada en la aplicación
     // ----------------------------------------------------------
     type DiaHomeOffice {
-        fecha                   : Date;
-        semanaInicio            : Date;
-        diaSemana               : Integer;
-        nombreDia               : String(20);
+        fecha                       : Date;
+        semanaInicio                : Date;
+        diaSemana                   : Integer;
+        nombreDia                   : String(20);
 
-        cuposTotales            : Integer;
-        cuposOcupados           : Integer;
-        cuposDisponibles        : Integer;
+        cuposTotales                : Integer;
+        cuposOcupados               : Integer;
+        cuposDisponibles            : Integer;
 
-        seleccionadoPorMi       : Boolean;
-        estadoSeleccion         : String(15);
-        tokenReserva            : UUID;
-        reservaExpiraEn         : Timestamp;
+        seleccionadoPorMi           : Boolean;
+        estadoSeleccion             : String(15);
+        tokenReserva                : UUID;
+        reservaExpiraEn             : Timestamp;
 
-        bloqueadoSemanaAnterior : Boolean;
-        cupoCompleto            : Boolean;
-        habilitado              : Boolean;
-        motivoNoDisponible      : String(300);
+        esFeriado                   : Boolean;
+        bloqueadoSemanaAnterior     : Boolean;
+        bloqueadoPorConsecutivo     : Boolean;
+        cupoCompleto                : Boolean;
+        semanaConFeriado            : Boolean;
+        reiniciaReglaSemanaAnterior : Boolean;
 
-        diasSeleccionados       : Integer;
-        maxDiasPermitidos       : Integer;
+        habilitado                  : Boolean;
+        motivoNoDisponible          : String(300);
 
-        ventanaAbierta          : Boolean;
-        fechaHoraCierre         : Timestamp;
+        diasSeleccionados           : Integer;
+        maxDiasPermitidos           : Integer;
+
+        ventanaAbierta              : Boolean;
+        fechaHoraCierre             : Timestamp;
     }
 
     // ----------------------------------------------------------

@@ -1,0 +1,1522 @@
+<mvc:View
+    controllerName="sabnez.com.reportestiemposui.ext.main.Dashboard"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f"
+    xmlns:viz="sap.viz.ui5.controls"
+    xmlns:viz.data="sap.viz.ui5.data"
+    xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds"
+    displayBlock="true"
+    height="100%">
+
+    <f:DynamicPage
+        id="reportsDynamicPage"
+        class="sabnezReportsPage"
+        fitContent="false"
+        headerExpanded="true"
+        toggleHeaderOnTitleClick="true"
+        preserveHeaderStateOnScroll="true">
+
+        <f:title>
+            <f:DynamicPageTitle class="sabnezReportsTitle">
+                <f:heading>
+                    <VBox>
+                        <Title
+                            text="Reportes de tiempos"
+                            level="H1"
+                            class="sabnezDashboardTitle" />
+                    </VBox>
+                </f:heading>
+
+                <f:expandedContent>
+                    <HBox wrap="Wrap" class="sabnezHeaderFacts">
+                        <ObjectStatus
+                            title="Periodo"
+                            text="{= ${dashboard>/totalHours} === '—' ? 'Pendiente de consulta' : 'Consultado' }"
+                            icon="sap-icon://calendar"
+                            state="Information"
+                            class="sapUiTinyMarginEnd" />
+                        <ObjectStatus
+                            title="Registros"
+                            text="{dashboard>/entryCount}"
+                            icon="sap-icon://number-sign"
+                            class="sapUiTinyMarginEnd" />
+                        <ObjectStatus
+                            title="Empleados"
+                            text="{dashboard>/employeeCount}"
+                            icon="sap-icon://employee" />
+                    </HBox>
+                </f:expandedContent>
+
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:header>
+            <f:DynamicPageHeader pinnable="true" class="sabnezReportsHeader">
+                <Panel
+                    headerText="Criterios del reporte"
+                    expandable="false"
+                    class="sabnezFilterPanel">
+                    <content>
+                        <HBox
+                            width="100%"
+                            wrap="Wrap"
+                            alignItems="End"
+                            class="sabnezFilterRow">
+
+                            <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                                <Label text="Periodo" required="true" labelFor="reportPeriod" />
+                                <DateRangeSelection
+                                    id="reportPeriod"
+                                    width="18rem"
+                                    displayFormat="dd/MM/yyyy"
+                                    delimiter=" - "
+                                    change=".onPeriodChange" />
+                            </VBox>
+
+                            <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                                <Label text="Cliente" labelFor="clientFilter" />
+                                <MultiInput
+                                    id="clientFilter"
+                                    width="18rem"
+                                    placeholder="Todos los clientes"
+                                    showValueHelp="true"
+                                    enableMultiLineMode="true"
+                                    valueHelpRequest=".onClientValueHelp"
+                                    tokenUpdate=".onClientTokenUpdate" />
+                            </VBox>
+
+                            <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                                <Label text="Proyecto" labelFor="projectFilter" />
+                                <MultiInput
+                                    id="projectFilter"
+                                    width="18rem"
+                                    placeholder="Todos los proyectos"
+                                    showValueHelp="true"
+                                    enableMultiLineMode="true"
+                                    valueHelpRequest=".onProjectValueHelp"
+                                    tokenUpdate=".onProjectTokenUpdate" />
+                            </VBox>
+
+                            <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                                <Label text="Empleado" labelFor="employeeFilter" />
+                                <MultiInput
+                                    id="employeeFilter"
+                                    width="18rem"
+                                    placeholder="Todos los empleados"
+                                    showValueHelp="true"
+                                    enableMultiLineMode="true"
+                                    valueHelpRequest=".onEmployeeValueHelp"
+                                    tokenUpdate=".onEmployeeTokenUpdate" />
+                            </VBox>
+
+                            <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                                <Label text="Estado" labelFor="statusFilter" />
+                                <MultiInput
+                                    id="statusFilter"
+                                    width="18rem"
+                                    placeholder="Todos los estados"
+                                    showValueHelp="true"
+                                    enableMultiLineMode="true"
+                                    valueHelpRequest=".onStatusValueHelp"
+                                    tokenUpdate=".onStatusTokenUpdate" />
+                            </VBox>
+
+                            <Button
+                                id="applyDashboardFilters"
+                                text="Consultar"
+                                icon="sap-icon://search"
+                                type="Emphasized"
+                                press=".onApplyFilters"
+                                class="sapUiTinyMarginEnd sapUiTinyMarginBottom" />
+
+                            <Button
+                                text="Limpiar"
+                                icon="sap-icon://reset"
+                                type="Transparent"
+                                press=".onClearFilters"
+                                class="sapUiTinyMarginBottom" />
+                        </HBox>
+                    </content>
+                </Panel>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content>
+
+            <VBox
+                width="100%"
+                class="sabnezReportsContent">
+
+                <!-- Selector de tipo de reporte -->
+
+                <IconTabBar
+                    id="reportTabs"
+                    selectedKey="summary"
+                    select=".onReportTabSelect"
+                    expandable="false"
+                    stretchContentHeight="false"
+                    applyContentPadding="false"
+                    class="sabnezSectionTabs">
+
+                    <items>
+                        <IconTabFilter
+                            key="summary"
+                            text="Resumen"
+                            icon="sap-icon://business-objects-experience">
+
+                            <VBox
+                                width="100%"
+                                class="sabnezExecutiveDashboard sabnezExecutiveDashboardV2">
+
+                                <HBox
+                                    width="100%"
+                                    justifyContent="SpaceBetween"
+                                    alignItems="Center"
+                                    wrap="Wrap"
+                                    class="sabnezExecutiveHeading">
+                                    <Title
+                                        text="Dashboard de tiempos"
+                                        level="H2"
+                                        class="sabnezExecutiveMainTitle" />
+                                    <ObjectStatus
+                                        text="{executive>/periodText}"
+                                        icon="sap-icon://calendar"
+                                        class="sabnezPeriodPill" />
+                                </HBox>
+
+                                <HBox
+                                    width="100%"
+                                    justifyContent="SpaceBetween"
+                                    alignItems="Stretch"
+                                    wrap="Wrap"
+                                    class="sabnezExecutiveKpiRowV3">
+
+                                    <VBox width="24.2%" class="sabnezExecutiveKpiCard">
+                                        <HBox alignItems="Center"
+                                            class="sabnezExecutiveKpiCardHeader">
+                                            <FlexBox
+                                                alignItems="Center"
+                                                justifyContent="Center"
+                                                class="sabnezExecutiveKpiIcon sabnezExecutiveKpiIconInfo">
+                                                <core:Icon src="sap-icon://time-entry-request" />
+                                            </FlexBox>
+                                            <VBox class="sabnezExecutiveKpiTextBlock">
+                                                <Text text="Horas registradas"
+                                                    class="sabnezExecutiveKpiCardLabel" />
+                                                <ObjectNumber
+                                                    number="{dashboard>/totalHours}"
+                                                    unit="h"
+                                                    class="sabnezExecutiveKpiCardNumber sabnezKpiNumberInfo" />
+                                            </VBox>
+                                        </HBox>
+                                        <Text
+                                            text="{= ${dashboard>/entryCount} === '—' ? 'Sin consulta' : ${dashboard>/entryCount} + ' registros en el periodo' }"
+                                            class="sabnezExecutiveKpiCardHint" />
+                                        <ProgressIndicator
+                                            percentValue="{executive>/monthlyTargetPercentage}"
+                                            displayValue=""
+                                            showValue="false"
+                                            state="None"
+                                            class="sabnezKpiTargetProgress" />
+                                        <HBox
+                                            width="100%"
+                                            justifyContent="SpaceBetween"
+                                            alignItems="Center"
+                                            class="sabnezKpiFootRow">
+                                            <Text
+                                                text="{executive>/monthlyTargetText}"
+                                                class="sabnezExecutiveKpiCardHint sabnezKpiFootText" />
+                                            <core:Icon
+                                                src="sap-icon://information"
+                                                tooltip="{= 'Avance frente al objetivo mensual de ' + ${executive>/monthlyTargetHours} + ' h registradas' }"
+                                                class="sabnezKpiInfoIcon" />
+                                        </HBox>
+                                    </VBox>
+
+                                    <VBox width="24.2%" class="sabnezExecutiveKpiCard">
+                                        <HBox alignItems="Center"
+                                            class="sabnezExecutiveKpiCardHeader">
+                                            <FlexBox
+                                                alignItems="Center"
+                                                justifyContent="Center"
+                                                class="sabnezExecutiveKpiIcon sabnezExecutiveKpiIconSuccess">
+                                                <core:Icon src="sap-icon://money-bills" />
+                                            </FlexBox>
+                                            <VBox class="sabnezExecutiveKpiTextBlock">
+                                                <Text text="Utilización facturable"
+                                                    class="sabnezExecutiveKpiCardLabel" />
+                                                <ObjectNumber
+                                                    number="{path:'executive>/billablePercentage', formatter:'.formatPercentage'}"
+                                                    state="Success"
+                                                    class="sabnezExecutiveKpiCardNumber sabnezKpiNumberSuccess" />
+                                            </VBox>
+                                        </HBox>
+                                        <Text
+                                            text="{= ${executive>/billableHours} + ' h facturables' }"
+                                            class="sabnezExecutiveKpiCardHint" />
+                                        <HBox
+                                            alignItems="Center"
+                                            class="sabnezKpiFootRow">
+                                            <Text
+                                                text="Meta: 85%"
+                                                class="sabnezExecutiveKpiCardHint sabnezKpiFootText" />
+                                            <core:Icon
+                                                src="sap-icon://information"
+                                                tooltip="Meta de utilización facturable del equipo"
+                                                class="sabnezKpiInfoIcon" />
+                                        </HBox>
+                                    </VBox>
+
+                                    <VBox width="24.2%" class="sabnezExecutiveKpiCard">
+                                        <HBox alignItems="Center"
+                                            class="sabnezExecutiveKpiCardHeader">
+                                            <FlexBox
+                                                alignItems="Center"
+                                                justifyContent="Center"
+                                                class="sabnezExecutiveKpiIcon sabnezExecutiveKpiIconWarning">
+                                                <core:Icon src="sap-icon://pending" />
+                                            </FlexBox>
+                                            <VBox class="sabnezExecutiveKpiTextBlock">
+                                                <Text text="Pendiente de aprobar"
+                                                    class="sabnezExecutiveKpiCardLabel" />
+                                                <ObjectNumber
+                                                    number="{dashboard>/pendingHours}"
+                                                    unit="h"
+                                                    state="Warning"
+                                                    class="sabnezExecutiveKpiCardNumber sabnezKpiNumberWarning" />
+                                            </VBox>
+                                        </HBox>
+                                        <Text
+                                            text="{= ${executive>/pendingEntryCount} + ' registros requieren gestión' }"
+                                            class="sabnezExecutiveKpiCardHint" />
+                                    </VBox>
+
+                                    <VBox width="24.2%" class="sabnezExecutiveKpiCard">
+                                        <HBox alignItems="Center"
+                                            class="sabnezExecutiveKpiCardHeader">
+                                            <FlexBox
+                                                alignItems="Center"
+                                                justifyContent="Center"
+                                                class="sabnezExecutiveKpiIcon sabnezExecutiveKpiIconError">
+                                                <core:Icon src="sap-icon://alert" />
+                                            </FlexBox>
+                                            <VBox class="sabnezExecutiveKpiTextBlock">
+                                                <Text text="Sin clasificación comercial"
+                                                    class="sabnezExecutiveKpiCardLabel" />
+                                                <ObjectNumber
+                                                    number="{executive>/unclassifiedEntryCount}"
+                                                    unit="reg."
+                                                    state="Error"
+                                                    class="sabnezExecutiveKpiCardNumber sabnezKpiNumberError" />
+                                            </VBox>
+                                        </HBox>
+                                        <Text
+                                            text="{= ${executive>/unclassifiedHours} + ' h pendientes de clasificación' }"
+                                            class="sabnezExecutiveKpiCardHint" />
+                                    </VBox>
+
+                                </HBox>
+
+                                <HBox
+                                    width="100%"
+                                    justifyContent="SpaceBetween"
+                                    alignItems="Stretch"
+                                    wrap="Wrap"
+                                    class="sabnezExecutiveRowV2">
+
+                                    <VBox
+                                        width="49.25%"
+                                        class="sabnezExecutiveCard sabnezExecutiveCardV2">
+                                        <Title
+                                            text="Horas por semana"
+                                            level="H3"
+                                            class="sabnezExecutiveCardTitle" />
+
+                                        <viz:VizFrame
+                                            id="weeklyHoursChart"
+                                            width="100%"
+                                            height="15rem"
+                                            vizType="column"
+                                            visible="{ path: 'executive>/weeklyHours', formatter: '.hasCollectionData' }"
+                                            uiConfig="{applicationSet:'fiori'}"
+                                            vizProperties="{
+                                                    plotArea: {
+                                                        dataLabel: { visible: true, formatString: '0.##' },
+                                                        drawingEffect: 'normal',
+                                                        colorPalette: ['#1B90FF']
+                                                    },
+                                                    valueAxis: {
+                                                        title: { visible: false },
+                                                        label: { visible: true }
+                                                    },
+                                                    categoryAxis: {
+                                                        title: { visible: false }
+                                                    },
+                                                    legend: { visible: false },
+                                                    title: { visible: false }
+                                                }">
+                                            <viz:dataset>
+                                                <viz.data:FlattenedDataset
+                                                    data="{executive>/weeklyHours}">
+                                                    <viz.data:dimensions>
+                                                        <viz.data:DimensionDefinition name="Semana"
+                                                            value="{executive>week}" />
+                                                    </viz.data:dimensions>
+                                                    <viz.data:measures>
+                                                        <viz.data:MeasureDefinition name="Horas"
+                                                            value="{executive>hours}" />
+                                                    </viz.data:measures>
+                                                </viz.data:FlattenedDataset>
+                                            </viz:dataset>
+                                            <viz:feeds>
+                                                <viz.feeds:FeedItem uid="valueAxis" type="Measure"
+                                                    values="Horas" />
+                                                <viz.feeds:FeedItem uid="categoryAxis"
+                                                    type="Dimension" values="Semana" />
+                                            </viz:feeds>
+                                        </viz:VizFrame>
+                                    </VBox>
+
+                                    <VBox
+                                        width="49.25%"
+                                        class="sabnezExecutiveCard sabnezExecutiveCardV2">
+                                        <Title
+                                            text="Horas por cliente"
+                                            level="H3"
+                                            class="sabnezExecutiveCardTitle" />
+
+                                        <HBox
+                                            width="100%"
+                                            alignItems="Center"
+                                            justifyContent="SpaceBetween"
+                                            wrap="Wrap"
+                                            class="sabnezDonutRow">
+
+                                            <viz:VizFrame
+                                                id="clientDonutChart"
+                                                width="17rem"
+                                                height="15rem"
+                                                vizType="donut"
+                                                visible="{ path: 'analytics>/byClient', formatter: '.hasCollectionData' }"
+                                                uiConfig="{applicationSet:'fiori'}"
+                                                class="sabnezDonutChart"
+                                                vizProperties="{
+                                                        plotArea: {
+                                                            dataLabel: { visible: true, type: 'percentage' },
+                                                            drawingEffect: 'normal',
+                                                            colorPalette: ['#1B90FF', '#E76500', '#36A41D', '#7858FF', '#FA4F96', '#0F828F']
+                                                        },
+                                                        legend: {
+                                                            visible: false
+                                                        },
+                                                        title: { visible: false }
+                                                    }">
+                                                <viz:layoutData>
+                                                    <FlexItemData shrinkFactor="0" />
+                                                </viz:layoutData>
+                                                <viz:dataset>
+                                                    <viz.data:FlattenedDataset
+                                                        data="{analytics>/byClient}">
+                                                        <viz.data:dimensions>
+                                                            <viz.data:DimensionDefinition
+                                                                name="Cliente"
+                                                                value="{analytics>name}" />
+                                                        </viz.data:dimensions>
+                                                        <viz.data:measures>
+                                                            <viz.data:MeasureDefinition name="Horas"
+                                                                value="{analytics>registeredHours}" />
+                                                        </viz.data:measures>
+                                                    </viz.data:FlattenedDataset>
+                                                </viz:dataset>
+                                                <viz:feeds>
+                                                    <viz.feeds:FeedItem uid="size" type="Measure"
+                                                        values="Horas" />
+                                                    <viz.feeds:FeedItem uid="color" type="Dimension"
+                                                        values="Cliente" />
+                                                </viz:feeds>
+                                            </viz:VizFrame>
+
+                                            <VBox
+                                                class="sabnezClientLegend"
+                                                items="{executive>/clientLegend}">
+                                                <layoutData>
+                                                    <FlexItemData growFactor="1" baseSize="0%" />
+                                                </layoutData>
+                                                <HBox
+                                                    width="100%"
+                                                    alignItems="Center"
+                                                    justifyContent="SpaceBetween"
+                                                    class="sabnezClientLegendRow">
+                                                    <HBox alignItems="Center"
+                                                        class="sabnezClientLegendLeft">
+                                                        <core:Icon
+                                                            src="sap-icon://stop"
+                                                            color="{executive>color}"
+                                                            class="sabnezLegendSwatch" />
+                                                        <Text
+                                                            text="{executive>name}"
+                                                            wrapping="false"
+                                                            tooltip="{executive>name}"
+                                                            class="sabnezLegendName" />
+                                                    </HBox>
+                                                    <Text
+                                                        text="{executive>shareText}"
+                                                        class="sabnezLegendValue" />
+                                                </HBox>
+                                            </VBox>
+                                        </HBox>
+                                    </VBox>
+                                </HBox>
+
+                                <HBox
+                                    width="100%"
+                                    justifyContent="SpaceBetween"
+                                    alignItems="Stretch"
+                                    wrap="Wrap"
+                                    class="sabnezExecutiveRowV2 sabnezExecutiveBottomRow">
+
+                                    <VBox
+                                        width="32.6%"
+                                        class="sabnezExecutiveCard sabnezExecutiveCardV2 sabnezBottomCard">
+                                        <HBox
+                                            width="100%"
+                                            justifyContent="SpaceBetween"
+                                            alignItems="Center"
+                                            wrap="Wrap">
+                                            <Title
+                                                text="Horas por proyecto"
+                                                level="H3"
+                                                class="sabnezExecutiveCardTitle" />
+                                            <Text
+                                                text="Horas del periodo"
+                                                class="sabnezExecutiveCardHint" />
+                                        </HBox>
+
+                                        <List
+                                            items="{executive>/projectHours}"
+                                            showSeparators="None"
+                                            noDataText="Sin horas en el periodo."
+                                            class="sabnezBarList">
+                                            <CustomListItem
+                                                type="Active"
+                                                press=".onProjectBarPress"
+                                                tooltip="Ver desglose de {executive>name}">
+                                                <HBox
+                                                    width="100%"
+                                                    alignItems="Center"
+                                                    class="sabnezExecutiveBarRowV2">
+                                                    <Text
+                                                        text="{executive>name}"
+                                                        width="9rem"
+                                                        wrapping="false"
+                                                        tooltip="{executive>name}"
+                                                        class="sabnezExecutiveBarLabel">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0" />
+                                                        </layoutData>
+                                                    </Text>
+                                                    <ProgressIndicator
+                                                        percentValue="{executive>relativePercentage}"
+                                                        displayValue=""
+                                                        showValue="false"
+                                                        state="None"
+                                                        class="sabnezExecutiveBarV2">
+                                                        <layoutData>
+                                                            <FlexItemData growFactor="1"
+                                                                baseSize="0%" />
+                                                        </layoutData>
+                                                    </ProgressIndicator>
+                                                    <ObjectNumber
+                                                        number="{path:'executive>hours', formatter:'.formatNumberForTable'}"
+                                                        unit="h"
+                                                        class="sabnezExecutiveBarValue">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0"
+                                                                minWidth="4.5rem" />
+                                                        </layoutData>
+                                                    </ObjectNumber>
+                                                    <Text
+                                                        text="{executive>shareText}"
+                                                        width="3.5rem"
+                                                        textAlign="End"
+                                                        tooltip="{= ${executive>shareText} + ' de las horas del periodo' }"
+                                                        class="sabnezEmployeeShare">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0" />
+                                                        </layoutData>
+                                                    </Text>
+                                                </HBox>
+                                            </CustomListItem>
+                                        </List>
+                                    </VBox>
+
+                                    <VBox
+                                        width="32.6%"
+                                        class="sabnezExecutiveCard sabnezExecutiveCardV2 sabnezBottomCard">
+                                        <HBox
+                                            width="100%"
+                                            justifyContent="SpaceBetween"
+                                            alignItems="Center">
+                                            <Title
+                                                text="Horas por empleado"
+                                                level="H3"
+                                                class="sabnezExecutiveCardTitle" />
+                                            <Text
+                                                text="Comparación relativa"
+                                                class="sabnezExecutiveCardHint" />
+                                        </HBox>
+
+                                        <List
+                                            items="{executive>/employeeHours}"
+                                            showSeparators="None"
+                                            noDataText="Sin horas en el periodo."
+                                            class="sabnezBarList">
+                                            <CustomListItem
+                                                type="Active"
+                                                press=".onEmployeeBarPress"
+                                                tooltip="Ver desglose de {executive>name}">
+                                                <HBox
+                                                    width="100%"
+                                                    alignItems="Center"
+                                                    class="sabnezExecutiveBarRowV2">
+                                                    <Avatar
+                                                        initials="{executive>initials}"
+                                                        displaySize="XS"
+                                                        backgroundColor="{executive>avatarColor}"
+                                                        class="sabnezEmployeeAvatar">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0" />
+                                                        </layoutData>
+                                                    </Avatar>
+                                                    <Text
+                                                        text="{executive>name}"
+                                                        width="7.5rem"
+                                                        wrapping="false"
+                                                        tooltip="{executive>name}"
+                                                        class="sabnezExecutiveBarLabel">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0" />
+                                                        </layoutData>
+                                                    </Text>
+                                                    <ProgressIndicator
+                                                        percentValue="{executive>relativePercentage}"
+                                                        displayValue=""
+                                                        showValue="false"
+                                                        state="None"
+                                                        class="sabnezExecutiveBarV2">
+                                                        <layoutData>
+                                                            <FlexItemData growFactor="1"
+                                                                baseSize="0%" />
+                                                        </layoutData>
+                                                    </ProgressIndicator>
+                                                    <ObjectNumber
+                                                        number="{path:'executive>hours', formatter:'.formatNumberForTable'}"
+                                                        unit="h"
+                                                        class="sabnezExecutiveBarValue">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0"
+                                                                minWidth="4rem" />
+                                                        </layoutData>
+                                                    </ObjectNumber>
+                                                    <Text
+                                                        text="{executive>shareText}"
+                                                        width="4rem"
+                                                        textAlign="End"
+                                                        class="sabnezEmployeeShare">
+                                                        <layoutData>
+                                                            <FlexItemData shrinkFactor="0" />
+                                                        </layoutData>
+                                                    </Text>
+                                                </HBox>
+                                            </CustomListItem>
+                                        </List>
+                                    </VBox>
+
+                                    <VBox
+                                        width="32.6%"
+                                        class="sabnezExecutiveCard sabnezExecutiveCardV2 sabnezBottomCard">
+                                        <HBox
+                                            width="100%"
+                                            justifyContent="SpaceBetween"
+                                            alignItems="Center">
+                                            <Title
+                                                text="Aprobaciones pendientes"
+                                                level="H3"
+                                                class="sabnezExecutiveCardTitle" />
+                                            <ObjectStatus
+                                                text="{= ${dashboard>/pendingHours} + ' h' }"
+                                                state="Warning"
+                                                class="sabnezPendingPill" />
+                                        </HBox>
+
+                                        <List
+                                            items="{executive>/pendingApprovals}"
+                                            showSeparators="Inner"
+                                            noDataText="No hay aprobaciones pendientes."
+                                            class="sabnezPendingList">
+                                            <CustomListItem>
+                                                <HBox
+                                                    width="100%"
+                                                    justifyContent="SpaceBetween"
+                                                    alignItems="Center"
+                                                    class="sabnezPendingRow">
+                                                    <HBox
+                                                        alignItems="Center"
+                                                        class="sabnezPendingLeft">
+                                                        <core:Icon
+                                                            src="sap-icon://employee"
+                                                            class="sabnezPendingIcon" />
+                                                        <Text
+                                                            text="{executive>employeeName} • {executive>projectName}"
+                                                            wrapping="false"
+                                                            tooltip="{executive>employeeName} • {executive>projectName}"
+                                                            class="sabnezPendingEmployee" />
+                                                    </HBox>
+                                                    <ObjectNumber
+                                                        number="{path:'executive>hours', formatter:'.formatNumberForTable'}"
+                                                        unit="h"
+                                                        state="Warning" />
+                                                </HBox>
+                                            </CustomListItem>
+                                        </List>
+
+                                        <Button
+                                            text="Ir al detalle diario"
+                                            type="Default"
+                                            icon="sap-icon://navigation-right-arrow"
+                                            iconFirst="false"
+                                            press=".onGoToDailyDetail"
+                                            class="sabnezExecutiveActionButton" />
+                                    </VBox>
+                                </HBox>
+
+                            </VBox>
+                        </IconTabFilter>
+
+                        <IconTabFilter
+                            key="daily"
+                            text="Detalle diario"
+                            icon="sap-icon://calendar">
+
+                            <VBox
+                                width="100%"
+                                class="sabnezReportContent">
+
+                                <VBox
+                                    width="100%"
+                                    class="sabnezDailyTableShell">
+
+                                    <OverflowToolbar class="sabnezReportTableToolbar">
+
+                                        <Title
+                                            text="Detalle diario de tiempos"
+                                            level="H2" />
+
+                                        <ToolbarSpacer />
+
+                                        <ObjectStatus
+                                            text="{
+                                                        path: 'report>/count',
+                                                        formatter: '.formatRecordCount'
+                                                    }"
+                                            state="Information" />
+
+                                        <Button
+                                            id="dailySortButton"
+                                            text="Ordenar"
+                                            icon="sap-icon://sort"
+                                            type="Transparent"
+                                            press=".onOpenDailyViewSettings" />
+
+                                        <Button
+                                            id="dailyGroupButton"
+                                            text="Agrupar"
+                                            icon="sap-icon://group-2"
+                                            type="Transparent"
+                                            press=".onOpenDailyViewSettings" />
+
+                                        <Button
+                                            id="dailyFilterButton"
+                                            text="Filtrar"
+                                            icon="sap-icon://filter"
+                                            type="Transparent"
+                                            press=".onOpenDailyViewSettings" />
+
+                                        <Button
+                                            text="Restablecer"
+                                            icon="sap-icon://refresh"
+                                            type="Transparent"
+                                            visible="{report>/tableSettingsActive}"
+                                            press=".onClearDailyViewSettings" />
+
+                                        <Button
+                                            text="Exportar"
+                                            icon="sap-icon://excel-attachment"
+                                            type="Transparent"
+                                            press=".onExportDailyDetails"
+                                            enabled="{= ${report>/count} > 0 }" />
+
+                                    </OverflowToolbar>
+
+                                    <ScrollContainer
+                                        width="100%"
+                                        horizontal="true"
+                                        vertical="false"
+                                        focusable="false"
+                                        class="sabnezDailyTableViewport">
+
+                                        <Table
+                                            id="dailyDetailsTable"
+                                            width="100%"
+                                            items="{report>/dailyDetails}"
+                                            growing="true"
+                                            growingThreshold="50"
+                                            growingScrollToLoad="true"
+                                            sticky="ColumnHeaders"
+                                            fixedLayout="true"
+                                            autoPopinMode="true"
+                                            popinLayout="Block"
+                                            alternateRowColors="true"
+                                            noDataText="No hay registros para los filtros seleccionados."
+                                            class="sabnezResponsiveReportTable">
+
+
+                                            <columns>
+
+                                                <Column
+                                                    width="7rem"
+                                                    importance="High">
+                                                    <Text text="Fecha" />
+                                                </Column>
+
+                                                <Column
+                                                    width="11rem"
+                                                    importance="High">
+                                                    <Text text="Empleado" />
+                                                </Column>
+
+                                                <Column
+                                                    width="12rem"
+                                                    importance="High">
+                                                    <Text text="Cliente" />
+                                                </Column>
+
+                                                <Column
+                                                    width="13rem"
+                                                    importance="High">
+                                                    <Text text="Proyecto" />
+                                                </Column>
+
+                                                <Column
+                                                    width="6rem"
+                                                    importance="Low">
+                                                    <Text text="Hora inicio" />
+                                                </Column>
+
+                                                <Column
+                                                    width="6rem"
+                                                    importance="Low">
+                                                    <Text text="Hora fin" />
+                                                </Column>
+
+                                                <Column
+                                                    width="16rem"
+                                                    importance="Medium">
+                                                    <Text text="Actividad / descripción" />
+                                                </Column>
+
+                                                <Column
+                                                    width="10rem"
+                                                    importance="Low">
+                                                    <Text text="Tipo de tiempo" />
+                                                </Column>
+
+                                                <Column
+                                                    width="5rem"
+                                                    importance="High"
+                                                    hAlign="End">
+                                                    <Text text="Horas" />
+                                                </Column>
+
+                                                <Column
+                                                    width="6rem"
+                                                    importance="Low"
+                                                    hAlign="End">
+                                                    <Text text="Facturables" />
+                                                </Column>
+
+                                                <Column
+                                                    width="9rem"
+                                                    importance="High">
+                                                    <Text text="Estado" />
+                                                </Column>
+
+                                                <Column
+                                                    width="13rem"
+                                                    importance="Low">
+                                                    <Text text="Tratamiento comercial" />
+                                                </Column>
+
+                                            </columns>
+
+                                            <items>
+
+                                                <ColumnListItem
+                                                    type="Inactive"
+                                                    vAlign="Middle"
+                                                    highlight="{
+                                                    path: 'report>entryStatusCriticality',
+                                                    formatter: '.formatStatusHighlight'
+                                                }">
+
+                                                    <cells>
+
+                                                        <Text
+                                                            text="{
+                                                            path: 'report>workDate',
+                                                            formatter: '.formatChartDate'
+                                                        }"
+                                                            wrapping="false" />
+
+                                                        <ObjectIdentifier
+                                                            title="{report>employeeName}" />
+
+                                                        <ObjectIdentifier
+                                                            title="{report>clientName}" />
+
+                                                        <ObjectIdentifier
+                                                            title="{report>projectName}" />
+
+                                                        <Text
+                                                            text="{
+                                                            path: 'report>approximateStartTime',
+                                                            formatter: '.formatTime'
+                                                        }"
+                                                            textAlign="Center"
+                                                            wrapping="false" />
+
+                                                        <Text
+                                                            text="{
+                                                            path: 'report>approximateEndTime',
+                                                            formatter: '.formatTime'
+                                                        }"
+                                                            textAlign="Center"
+                                                            wrapping="false" />
+
+                                                        <Text
+                                                            text="{report>description}"
+                                                            maxLines="2"
+                                                            wrapping="true"
+                                                            tooltip="{report>description}" />
+
+                                                        <Text
+                                                            text="{report>requestedTypeText}"
+                                                            wrapping="false" />
+
+                                                        <ObjectNumber
+                                                            number="{
+                                                            path: 'report>registeredHours',
+                                                            formatter: '.formatNumberForTable'
+                                                        }"
+                                                            unit="h" />
+
+                                                        <ObjectNumber
+                                                            number="{
+                                                            path: 'report>billableHours',
+                                                            formatter: '.formatNumberForTable'
+                                                        }"
+                                                            unit="h" />
+
+                                                        <ObjectStatus
+                                                            text="{report>entryStatusText}"
+                                                            state="{
+                                                            path: 'report>entryStatusCriticality',
+                                                            formatter: '.formatCriticalityState'
+                                                        }" />
+
+                                                        <Text
+                                                            text="{report>commercialTreatmentText}"
+                                                            maxLines="2"
+                                                            wrapping="true"
+                                                            tooltip="{report>commercialTreatmentText}" />
+
+                                                    </cells>
+
+                                                </ColumnListItem>
+
+                                            </items>
+
+
+                                        </Table>
+
+                                    </ScrollContainer>
+
+                                </VBox>
+
+                            </VBox>
+
+                        </IconTabFilter>
+
+                        <IconTabFilter
+                            key="employee"
+                            text="Por empleado"
+                            icon="sap-icon://employee">
+                            <VBox width="100%" class="sabnezTabContent">
+                                <VBox width="100%" class="sabnezReportContent">
+                                    <OverflowToolbar class="sabnezReportTableToolbar">
+                                        <Title text="Consolidado por empleado" level="H2" />
+                                        <ToolbarSpacer />
+                                        <ObjectStatus
+                                            text="{= ${consolidated>/employeeCount} + ' empleados' }"
+                                            state="Information" />
+                                        <Button
+                                            text="Exportar"
+                                            icon="sap-icon://excel-attachment"
+                                            type="Transparent"
+                                            press=".onExportConsolidated">
+                                            <customData>
+                                                <core:CustomData key="reportType" value="employee"
+                                                    writeToDom="false" />
+                                            </customData>
+                                        </Button>
+                                    </OverflowToolbar>
+
+                                    <Table
+                                        width="100%"
+                                        items="{consolidated>/employees}"
+                                        growing="true"
+                                        growingThreshold="50"
+                                        fixedLayout="Strict"
+                                        autoPopinMode="true"
+                                        popinLayout="Block"
+                                        alternateRowColors="true"
+                                        noDataText="No hay información por empleado para los filtros seleccionados."
+                                        class="sabnezConsolidatedTable">
+                                        <columns>
+                                            <Column width="17rem" importance="High">
+                                                <Text text="Empleado" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Registradas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Facturables" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Aprobadas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Pendientes" />
+                                            </Column>
+                                            <Column width="7rem" hAlign="End" importance="Medium">
+                                                <Text text="Clientes" />
+                                            </Column>
+                                            <Column width="7rem" hAlign="End" importance="Medium">
+                                                <Text text="Proyectos" />
+                                            </Column>
+                                            <Column width="7rem" hAlign="End" importance="Low">
+                                                <Text text="Registros" />
+                                            </Column>
+                                            <Column width="10rem" hAlign="End" importance="High">
+                                                <Text text="% aprobación" />
+                                            </Column>
+                                        </columns>
+                                        <items>
+                                            <ColumnListItem vAlign="Middle">
+                                                <cells>
+                                                    <ObjectIdentifier title="{consolidated>name}" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>registeredHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>billableHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>approvedHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Success" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>pendingHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Warning" />
+                                                    <ObjectNumber
+                                                        number="{consolidated>clientCount}" />
+                                                    <ObjectNumber
+                                                        number="{consolidated>projectCount}" />
+                                                    <ObjectNumber number="{consolidated>entryCount}" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>approvalPercentage', formatter:'.formatPercentage'}" />
+                                                </cells>
+                                            </ColumnListItem>
+                                        </items>
+                                    </Table>
+                                </VBox>
+                            </VBox>
+                        </IconTabFilter>
+
+                        <IconTabFilter
+                            key="project"
+                            text="Por proyecto"
+                            icon="sap-icon://project-definition-triangle-2">
+                            <VBox width="100%" class="sabnezTabContent">
+                                <VBox width="100%" class="sabnezReportContent">
+                                    <OverflowToolbar class="sabnezReportTableToolbar">
+                                        <Title text="Consolidado por proyecto" level="H2" />
+                                        <ToolbarSpacer />
+                                        <ObjectStatus
+                                            text="{= ${consolidated>/projectCount} + ' proyectos' }"
+                                            state="Information" />
+                                        <Button
+                                            text="Exportar"
+                                            icon="sap-icon://excel-attachment"
+                                            type="Transparent"
+                                            press=".onExportConsolidated">
+                                            <customData>
+                                                <core:CustomData key="reportType" value="project"
+                                                    writeToDom="false" />
+                                            </customData>
+                                        </Button>
+                                    </OverflowToolbar>
+                                    <Table
+                                        width="100%"
+                                        items="{consolidated>/projects}"
+                                        growing="true"
+                                        growingThreshold="50"
+                                        fixedLayout="Strict"
+                                        autoPopinMode="true"
+                                        popinLayout="Block"
+                                        alternateRowColors="true"
+                                        noDataText="No hay información por proyecto para los filtros seleccionados."
+                                        class="sabnezConsolidatedTable">
+                                        <columns>
+                                            <Column width="20rem" importance="High">
+                                                <Text text="Proyecto" />
+                                            </Column>
+                                            <Column width="18rem" importance="High">
+                                                <Text text="Cliente" />
+                                            </Column>
+                                            <Column width="8rem" hAlign="End" importance="Medium">
+                                                <Text text="Empleados" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Registradas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Facturables" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Aprobadas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Pendientes" />
+                                            </Column>
+                                            <Column width="7rem" hAlign="End" importance="Low">
+                                                <Text text="Registros" />
+                                            </Column>
+                                        </columns>
+                                        <items>
+                                            <ColumnListItem vAlign="Middle">
+                                                <cells>
+                                                    <ObjectIdentifier title="{consolidated>name}" />
+                                                    <Text text="{consolidated>clientNames}"
+                                                        maxLines="2" />
+                                                    <ObjectNumber
+                                                        number="{consolidated>employeeCount}" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>registeredHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>billableHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>approvedHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Success" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>pendingHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Warning" />
+                                                    <ObjectNumber number="{consolidated>entryCount}" />
+                                                </cells>
+                                            </ColumnListItem>
+                                        </items>
+                                    </Table>
+                                </VBox>
+                            </VBox>
+                        </IconTabFilter>
+
+                        <IconTabFilter
+                            key="client"
+                            text="Por cliente"
+                            icon="sap-icon://customer">
+                            <VBox width="100%" class="sabnezTabContent">
+                                <VBox width="100%" class="sabnezReportContent">
+                                    <OverflowToolbar class="sabnezReportTableToolbar">
+                                        <Title text="Consolidado por cliente" level="H2" />
+                                        <ToolbarSpacer />
+                                        <ObjectStatus
+                                            text="{= ${consolidated>/clientCount} + ' clientes' }"
+                                            state="Information" />
+                                        <Button
+                                            text="Exportar"
+                                            icon="sap-icon://excel-attachment"
+                                            type="Transparent"
+                                            press=".onExportConsolidated">
+                                            <customData>
+                                                <core:CustomData key="reportType" value="client"
+                                                    writeToDom="false" />
+                                            </customData>
+                                        </Button>
+                                    </OverflowToolbar>
+                                    <Table
+                                        width="100%"
+                                        items="{consolidated>/clients}"
+                                        growing="true"
+                                        growingThreshold="50"
+                                        fixedLayout="Strict"
+                                        autoPopinMode="true"
+                                        popinLayout="Block"
+                                        alternateRowColors="true"
+                                        noDataText="No hay información por cliente para los filtros seleccionados."
+                                        class="sabnezConsolidatedTable">
+                                        <columns>
+                                            <Column width="20rem" importance="High">
+                                                <Text text="Cliente" />
+                                            </Column>
+                                            <Column width="8rem" hAlign="End" importance="Medium">
+                                                <Text text="Proyectos" />
+                                            </Column>
+                                            <Column width="8rem" hAlign="End" importance="Medium">
+                                                <Text text="Empleados" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Registradas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Facturables" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Aprobadas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Pendientes" />
+                                            </Column>
+                                            <Column width="7rem" hAlign="End" importance="Low">
+                                                <Text text="Registros" />
+                                            </Column>
+                                        </columns>
+                                        <items>
+                                            <ColumnListItem vAlign="Middle">
+                                                <cells>
+                                                    <ObjectIdentifier title="{consolidated>name}" />
+                                                    <ObjectNumber
+                                                        number="{consolidated>projectCount}" />
+                                                    <ObjectNumber
+                                                        number="{consolidated>employeeCount}" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>registeredHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>billableHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>approvedHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Success" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>pendingHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Warning" />
+                                                    <ObjectNumber number="{consolidated>entryCount}" />
+                                                </cells>
+                                            </ColumnListItem>
+                                        </items>
+                                    </Table>
+                                </VBox>
+                            </VBox>
+                        </IconTabFilter>
+
+                        <IconTabFilter
+                            key="compliance"
+                            text="Cumplimiento"
+                            icon="sap-icon://performance">
+                            <VBox width="100%" class="sabnezTabContent">
+                                <VBox width="100%" class="sabnezReportContent">
+                                    <OverflowToolbar class="sabnezReportTableToolbar">
+                                        <Title text="Cumplimiento de gestión" level="H2" />
+                                        <ToolbarSpacer />
+                                        <ObjectStatus
+                                            text="{= ${consolidated>/complianceCount} + ' empleados' }"
+                                            state="Information" />
+                                        <Button
+                                            text="Exportar"
+                                            icon="sap-icon://excel-attachment"
+                                            type="Transparent"
+                                            press=".onExportConsolidated">
+                                            <customData>
+                                                <core:CustomData key="reportType" value="compliance"
+                                                    writeToDom="false" />
+                                            </customData>
+                                        </Button>
+                                    </OverflowToolbar>
+                                    <Table
+                                        width="100%"
+                                        items="{consolidated>/compliance}"
+                                        growing="true"
+                                        growingThreshold="50"
+                                        fixedLayout="Strict"
+                                        autoPopinMode="true"
+                                        popinLayout="Block"
+                                        alternateRowColors="true"
+                                        noDataText="No hay información de cumplimiento para los filtros seleccionados."
+                                        class="sabnezConsolidatedTable">
+                                        <columns>
+                                            <Column width="18rem" importance="High">
+                                                <Text text="Empleado" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Registradas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Aprobadas" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="High">
+                                                <Text text="Pendientes" />
+                                            </Column>
+                                            <Column width="9rem" hAlign="End" importance="Medium">
+                                                <Text text="Facturables" />
+                                            </Column>
+                                            <Column width="10rem" hAlign="End" importance="Medium">
+                                                <Text text="% aprobación" />
+                                            </Column>
+                                            <Column width="10rem" hAlign="End" importance="Low">
+                                                <Text text="% facturable" />
+                                            </Column>
+                                            <Column width="12rem" importance="High">
+                                                <Text text="Estado" />
+                                            </Column>
+                                        </columns>
+                                        <items>
+                                            <ColumnListItem vAlign="Middle">
+                                                <cells>
+                                                    <ObjectIdentifier title="{consolidated>name}" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>registeredHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>approvedHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Success" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>pendingHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" state="Warning" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>billableHours', formatter:'.formatNumberForTable'}"
+                                                        unit="h" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>approvalPercentage', formatter:'.formatPercentage'}" />
+                                                    <ObjectNumber
+                                                        number="{path:'consolidated>billablePercentage', formatter:'.formatPercentage'}" />
+                                                    <ObjectStatus
+                                                        text="{consolidated>complianceText}"
+                                                        state="{consolidated>complianceState}" />
+                                                </cells>
+                                            </ColumnListItem>
+                                        </items>
+                                    </Table>
+                                </VBox>
+                            </VBox>
+                        </IconTabFilter>
+
+                        <IconTabFilter
+                            key="deliverables"
+                            text="Entregables"
+                            icon="sap-icon://document"
+                            visible="{auth>/canGenerateDeliverables}">
+
+                            <VBox width="100%" class="sabnezTabContent sabnezDeliverablesTab">
+
+                                <MessageStrip
+                                    text="El periodo se toma de los criterios superiores. Los demás filtros del reporte no afectan la generación del entregable."
+                                    type="Information"
+                                    showIcon="true"
+                                    showCloseButton="false"
+                                    class="sabnezDeliverablesInfo" />
+
+                                <HBox
+                                    width="100%"
+                                    wrap="Wrap"
+                                    alignItems="Stretch"
+                                    class="sabnezDeliverablesLayout">
+
+                                    <VBox class="sabnezDeliverablesCard sabnezDeliverablesFormCard">
+                                        <HBox
+                                            width="100%"
+                                            justifyContent="SpaceBetween"
+                                            alignItems="Center"
+                                            wrap="Wrap"
+                                            class="sabnezDeliverablesCardHeader">
+                                            <VBox>
+                                                <Title text="Generación de entregables" level="H2" />
+                                                <Text
+                                                    text="Seleccione el cliente, los proyectos y el tipo de documento que desea preparar."
+                                                    class="sabnezDeliverablesSubtitle" />
+                                            </VBox>
+                                            <ObjectStatus
+                                                text="{deliverables>/periodText}"
+                                                icon="sap-icon://calendar"
+                                                state="Information"
+                                                class="sabnezDeliverablesPeriod" />
+                                        </HBox>
+
+                                        <VBox class="sabnezDeliverablesForm">
+
+                                            <Label
+                                                text="Cliente"
+                                                required="true"
+                                                labelFor="deliverableClient" />
+                                            <Select
+                                                id="deliverableClient"
+                                                width="100%"
+                                                selectedKey="{deliverables>/selectedClientID}"
+                                                change=".onDeliverableClientChange"
+                                                items="{deliverables>/clients}">
+                                                <core:Item
+                                                    key="{deliverables>ID}"
+                                                    text="{= ${deliverables>tradeName} || ${deliverables>legalName} }" />
+                                            </Select>
+
+                                            <HBox
+                                                width="100%"
+                                                justifyContent="SpaceBetween"
+                                                alignItems="Center"
+                                                class="sapUiSmallMarginTop">
+                                                <Label
+                                                    text="Proyectos vigentes en el periodo"
+                                                    required="true"
+                                                    labelFor="deliverableProjects" />
+                                                <Button
+                                                    text="{deliverables>/projectSelectionButtonText}"
+                                                    icon="{deliverables>/projectSelectionButtonIcon}"
+                                                    type="Transparent"
+                                                    enabled="{= ${deliverables>/availableProjects}.length > 0 }"
+                                                    press=".onToggleAllDeliverableProjects" />
+                                            </HBox>
+                                            <MultiComboBox
+                                                id="deliverableProjects"
+                                                width="100%"
+                                                selectedKeys="{deliverables>/selectedProjectIDs}"
+                                                selectionFinish=".onDeliverableProjectsChange"
+                                                enabled="{= !!${deliverables>/selectedClientID} }"
+                                                placeholder="Seleccione uno o varios proyectos"
+                                                items="{deliverables>/availableProjects}">
+                                                <core:Item
+                                                    key="{deliverables>ID}"
+                                                    text="{deliverables>name}" />
+                                            </MultiComboBox>
+                                            <Text
+                                                text="{deliverables>/projectAvailabilityText}"
+                                                class="sabnezDeliverablesHelp" />
+
+                                            <Label
+                                                text="Tipo de entregable"
+                                                required="true"
+                                                class="sapUiSmallMarginTop" />
+                                            <RadioButtonGroup
+                                                id="deliverableType"
+                                                columns="2"
+                                                selectedIndex="{deliverables>/formatIndex}"
+                                                select=".onDeliverableTypeSelect"
+                                                class="sabnezDeliverableTypeGroup">
+                                                <buttons>
+                                                    <RadioButton text="Reporte resumen" />
+                                                    <RadioButton text="Reporte detallado" />
+                                                </buttons>
+                                            </RadioButtonGroup>
+
+                                            <HBox
+                                                width="100%"
+                                                alignItems="Center"
+                                                justifyContent="SpaceBetween"
+                                                visible="{deliverables>/showEvidenceOption}"
+                                                class="sabnezEvidenceOption">
+                                                <VBox width="75%">
+                                                    <Text
+                                                        text="Incluir documento de evidencias"
+                                                        class="sabnezEvidenceTitle" />
+                                                    <Text
+                                                        text="Se incluirán únicamente las evidencias existentes en los registros de tiempo seleccionados."
+                                                        class="sabnezDeliverablesHelp" />
+                                                </VBox>
+                                                <Switch
+                                                    id="deliverableEvidence"
+                                                    state="{deliverables>/includeEvidence}"
+                                                    change=".onDeliverableEvidenceChange"
+                                                    customTextOn="Sí"
+                                                    customTextOff="No" />
+                                            </HBox>
+
+                                        </VBox>
+
+                                        <Toolbar class="sabnezDeliverablesActions">
+                                            <ToolbarSpacer />
+                                            <Button
+                                                id="generateDeliverableButton"
+                                                text="Generar entregable"
+                                                icon="sap-icon://download"
+                                                type="Emphasized"
+                                                press=".onGenerateDeliverable"
+                                                enabled="{= !!${deliverables>/selectedClientID} &amp;&amp; ${deliverables>/selectedProjectIDs}.length > 0 }" />
+                                        </Toolbar>
+                                    </VBox>
+
+                                    <VBox
+                                        class="sabnezDeliverablesCard sabnezDeliverablesPreviewCard">
+                                        <Title text="Qué se generará" level="H3" />
+                                        <VBox class="sabnezDeliverablesPreviewContent">
+                                            <HBox alignItems="Center"
+                                                class="sabnezDeliverablesPreviewRow">
+                                                <core:Icon
+                                                    src="{= ${deliverables>/formatType} === 'SUMMARY' ? 'sap-icon://excel-attachment' : 'sap-icon://table-view' }"
+                                                    class="sabnezDeliverablesPreviewIcon" />
+                                                <VBox>
+                                                    <Text
+                                                        text="{= ${deliverables>/formatType} === 'SUMMARY' ? 'Reporte resumen' : 'Reporte detallado' }"
+                                                        class="sabnezDeliverablesPreviewTitle" />
+                                                    <Text
+                                                        text="Formato Excel brandeado de Sabnez Consulting."
+                                                        class="sabnezDeliverablesHelp" />
+                                                </VBox>
+                                            </HBox>
+
+                                            <HBox
+                                                alignItems="Center"
+                                                visible="{= ${deliverables>/formatType} === 'DETAILED' &amp;&amp; ${deliverables>/includeEvidence} }"
+                                                class="sabnezDeliverablesPreviewRow">
+                                                <core:Icon
+                                                    src="sap-icon://doc-attachment"
+                                                    class="sabnezDeliverablesPreviewIcon" />
+                                                <VBox>
+                                                    <Text
+                                                        text="Reporte de evidencias"
+                                                        class="sabnezDeliverablesPreviewTitle" />
+                                                    <Text
+                                                        text="Documento Word organizado por fecha, usando solo evidencias existentes."
+                                                        class="sabnezDeliverablesHelp" />
+                                                </VBox>
+                                            </HBox>
+
+                                            <MessageStrip
+                                                visible="{= ${deliverables>/formatType} === 'DETAILED' &amp;&amp; ${deliverables>/includeEvidence} }"
+                                                text="La evidencia se tomará de los adjuntos existentes en los registros de tiempo."
+                                                type="Information"
+                                                showIcon="true"
+                                                showCloseButton="false"
+                                                class="sapUiSmallMarginTop" />
+                                        </VBox>
+                                    </VBox>
+
+                                </HBox>
+                            </VBox>
+                        </IconTabFilter>
+                    </items>
+                </IconTabBar>
+            </VBox>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

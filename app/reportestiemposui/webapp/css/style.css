@@ -1,0 +1,1034 @@
+:root {
+  --sabnez-navy: #0b2347;
+  --sabnez-blue: #325eb4;
+  --sabnez-light-blue: #56a9f3;
+  --sabnez-gold: #f2b544;
+  --sabnez-page-bg: #f5f7fa;
+  --sabnez-border: #e4e9f0;
+  --sabnez-radius: 0.875rem;
+  --sabnez-shadow: 0 0.125rem 0.375rem rgba(11, 35, 71, 0.08);
+}
+
+/* PAGE / HEADER */
+.sabnezReportsPage {
+  background: var(--sabnez-page-bg);
+}
+
+.sabnezReportsTitle {
+  border-top: 0.25rem solid var(--sabnez-blue);
+}
+
+.sabnezDashboardTitle {
+  color: var(--sabnez-navy);
+  font-weight: 700;
+}
+
+.sabnezHeaderFacts {
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.sabnezReportsHeader {
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.sabnezReportsPage .sapFDynamicPageContent,
+.sabnezReportsPage .sapFDynamicPageContentFitContainer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.75rem 1rem 1rem !important;
+  overflow-x: hidden;
+  background: var(--sabnez-page-bg);
+}
+
+.sabnezReportsContent {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* FILTERS */
+.sabnezFilterPanel {
+  box-sizing: border-box;
+  width: 100%;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: var(--sabnez-radius);
+  box-shadow: 0 0.125rem 0.375rem rgba(11, 35, 71, 0.05);
+  overflow: hidden;
+}
+
+.sabnezFilterPanel .sapMPanelHdr {
+  color: var(--sabnez-navy);
+  font-weight: 700;
+  background: #ffffff;
+  border-bottom: 0.0625rem solid var(--sabnez-border);
+}
+
+.sabnezFilterPanel .sapMPanelContent {
+  box-sizing: border-box;
+  padding: 0.75rem 1rem 0.5rem;
+  border-bottom: none;
+}
+
+.sabnezFilterRow {
+  gap: 0.25rem;
+}
+
+.sabnezFilterField {
+  min-width: 16rem;
+}
+
+/* REPORT TYPE SELECTOR */
+.sabnezSectionTabs {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  background: transparent;
+}
+
+/* UI5-like rounded selector card, matching Gestión Comercial */
+.sabnezSectionTabs .sapMITH {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 0.75rem 0;
+  /* El icono de la pestaña activa crece unos px; sin holgura arriba el
+     overflow:hidden del contenedor redondeado lo recorta. */
+  padding: 0.9rem 0.9rem 0;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: var(--sabnez-radius);
+  box-shadow: var(--sabnez-shadow);
+  overflow: hidden;
+}
+
+.sabnezSectionTabs .sapMITBHeadContainer {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  border: 0;
+  border-radius: inherit;
+  overflow: visible;
+}
+
+.sabnezSectionTabs .sapMITBScrollContainer,
+.sabnezSectionTabs .sapMITBHead {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+}
+
+.sabnezSectionTabs .sapMITBFilter { margin-right: 0.4rem; }
+
+/* Evita que el borde/relleno del icono activo toque el borde de la tarjeta */
+.sabnezSectionTabs .sapMITBScrollContainer,
+.sabnezSectionTabs .sapMITBHead,
+.sabnezSectionTabs .sapMITBFilter {
+  overflow: visible;
+}
+
+.sabnezSectionTabs .sapMITBFilterIcon {
+  box-sizing: border-box;
+  margin-top: 0.1rem;
+}
+
+/* UI5 recorta la etiqueta de cada pestaña con un max-width fijo
+   ("Cumplimiento" -> "Cumplimien..."). Se muestra completa en una línea. */
+.sabnezSectionTabs .sapMITBText,
+.sabnezSectionTabs .sapMITBHorizontalWrapper > .sapMITBText,
+.sabnezSectionTabs .sapMITBFilter .sapMITBText {
+  max-width: none;
+  width: auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.sabnezSectionTabs .sapMITBFilter {
+  min-width: 5rem;
+  width: auto;
+}
+.sabnezSectionTabs .sapMITBContainerContent,
+.sabnezSectionTabs .sapMITBContent {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 !important;
+  background: transparent;
+  border: none !important;
+}
+.sabnezSectionTabs .sapMITBContentArrow { display: none; }
+.sabnezSectionTabs .sapMITBSelected .sapMITBFilterIcon { background: var(--sabnez-blue); color: #fff; }
+.sabnezSectionTabs .sapMITBFilterDefault .sapMITBFilterIcon { border-color: var(--sabnez-blue); }
+
+/* TAB CONTENT */
+.sabnezTabContent {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* KPI CARDS */
+.sabnezKpiContainer {
+  display: grid !important;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.sabnezKpiTile {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  border-radius: var(--sabnez-radius);
+  overflow: hidden;
+}
+
+.sabnezKpiTile .sapMGT {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-top: 0.25rem solid var(--sabnez-blue);
+  border-radius: var(--sabnez-radius) !important;
+  box-shadow: 0 0.125rem 0.375rem rgba(11, 35, 71, 0.06);
+  overflow: hidden;
+}
+
+/* ANALYTICS */
+.sabnezAnalyticsRow {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  align-items: stretch;
+}
+
+.sabnezAnalyticsPanel {
+  box-sizing: border-box;
+  min-width: 0;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: var(--sabnez-radius);
+  box-shadow: 0 0.125rem 0.375rem rgba(11, 35, 71, 0.06);
+  overflow: hidden;
+}
+
+.sabnezAnalyticsPanel .sapMPanelHdr {
+  color: var(--sabnez-navy);
+  font-weight: 700;
+  background: #ffffff;
+  border-bottom: 0.0625rem solid var(--sabnez-border);
+}
+
+.sabnezClientVizPanel .sapMPanelContent,
+.sabnezTrendPanel .sapMPanelContent {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 1rem;
+}
+
+.sabnezChartHost {
+  width: 100%;
+}
+
+.sabnezClientVizPanel .sapVizFrame {
+  width: 100% !important;
+  min-width: 0 !important;
+  background: #ffffff;
+}
+
+.sabnezChartRow {
+  padding: 0.45rem 0;
+  border-bottom: 0.0625rem solid #edf1f6;
+}
+
+.sabnezChartRow:last-child {
+  border-bottom: none;
+}
+
+.sabnezChartLabel {
+  color: #263746;
+  font-weight: 500;
+}
+
+.sabnezChartBar .sapMPIBar {
+  border-radius: 0.4rem;
+}
+
+.sabnezChartBar .sapMPIText {
+  font-weight: 600;
+}
+
+/* DAILY DETAIL REPORT CARD */
+.sabnezReportContent {
+  box-sizing: border-box; width: 100%; max-width: 100%; margin: 0; padding: 0;
+  background: #ffffff; border: 0.0625rem solid var(--sabnez-border);
+  border-radius: var(--sabnez-radius); box-shadow: 0 0.125rem 0.375rem rgba(11,35,71,.06); overflow: hidden;
+}
+.sabnezDailyTableShell { box-sizing: border-box; width:100%; max-width:100%; min-width:0; overflow:hidden; background:#fff; }
+.sabnezReportTableToolbar { box-sizing:border-box; width:100%!important; max-width:100%!important; min-height:3.25rem; padding:0 .75rem; background:#fff; border-bottom:.0625rem solid var(--sabnez-border); }
+.sabnezDailyTableViewport { box-sizing:border-box; display:block; width:100%!important; max-width:100%!important; min-width:0!important; overflow-x:auto!important; overflow-y:hidden!important; background:#fff; }
+.sabnezDailyTableViewport > .sapMScrollContScroll { box-sizing:border-box; width:100%; min-width:92rem; }
+.sabnezResponsiveReportTable { box-sizing:border-box; width:100%!important; min-width:92rem!important; max-width:none!important; margin:0; padding:0; background:#fff; }
+.sabnezResponsiveReportTable .sapMListTblCnt { box-sizing:border-box; width:100%; min-width:92rem; max-width:none; overflow:visible; }
+.sabnezResponsiveReportTable .sapMListTbl { width:100%!important; min-width:92rem!important; max-width:none!important; table-layout:fixed!important; }
+.sabnezResponsiveReportTable .sapMListTblHeader { background:#f7f9fc; }
+.sabnezResponsiveReportTable .sapMListTblHeaderCell { color:var(--sabnez-navy); font-weight:700; border-bottom:.0625rem solid #d9e2ec; }
+.sabnezResponsiveReportTable .sapMListTblHeaderCell, .sabnezResponsiveReportTable .sapMListTblCell { box-sizing:border-box; padding-left:.75rem; padding-right:.5rem; }
+.sabnezResponsiveReportTable .sapMListTblCell { padding-top:.65rem; padding-bottom:.65rem; vertical-align:middle; overflow:hidden; }
+.sabnezResponsiveReportTable .sapMText, .sabnezResponsiveReportTable .sapMObjectIdentifier, .sabnezResponsiveReportTable .sapMObjectNumber, .sabnezResponsiveReportTable .sapMObjStatus { max-width:100%; }
+.sabnezResponsiveReportTable .sapMText { overflow:hidden; text-overflow:ellipsis; }
+.sabnezResponsiveReportTable .sapMListTblRow { background:#fff; }
+.sabnezResponsiveReportTable .sapMListTblRowAlternate { background:#f8fafc; }
+.sabnezResponsiveReportTable .sapMListTblSubCnt { box-sizing:border-box; padding:.55rem .75rem .8rem; }
+.sabnezResponsiveReportTable .sapMListTblSubCntRow { margin-bottom:.25rem; }
+.sabnezResponsiveReportTable .sapMObjIdentifierTitle { color:var(--sabnez-navy); font-weight:600; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .sabnezReportsPage .sapFDynamicPageContent,
+  .sabnezReportsPage .sapFDynamicPageContentFitContainer {
+    padding: 0.75rem !important;
+  }
+
+  .sabnezSectionTabs .sapMITH,
+  .sabnezSectionTabs .sapMITBHeadContainer,
+  .sabnezFilterPanel,
+  .sabnezAnalyticsPanel,
+  .sabnezReportContent {
+    border-radius: 0.75rem;
+  }
+
+  .sabnezAnalyticsRow {
+    flex-wrap: wrap !important;
+  }
+
+  .sabnezAnalyticsPanel {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  .sabnezFilterField,
+  .sabnezFilterField .sapMInputBase {
+    width: 100% !important;
+    min-width: 100%;
+  }
+
+  .sabnezReportTableToolbar .sapMBtnInner {
+    min-width: 2.5rem;
+  }
+}
+
+/* CONSOLIDATED REPORTS */
+.sabnezConsolidatedTable {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  background: #ffffff;
+}
+
+.sabnezConsolidatedTable .sapMListTbl {
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.sabnezConsolidatedTable .sapMListTblHeader {
+  background: #f7f9fc;
+}
+
+.sabnezConsolidatedTable .sapMListTblHeaderCell {
+  color: var(--sabnez-navy);
+  font-weight: 700;
+  border-bottom: 0.0625rem solid #d9e2ec;
+}
+
+.sabnezConsolidatedTable .sapMListTblCell,
+.sabnezConsolidatedTable .sapMListTblHeaderCell {
+  box-sizing: border-box;
+  padding-left: 0.75rem;
+  padding-right: 0.5rem;
+}
+
+.sabnezConsolidatedTable .sapMListTblCell {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  vertical-align: middle;
+}
+
+.sabnezConsolidatedTable .sapMObjIdentifierTitle {
+  color: var(--sabnez-navy);
+  font-weight: 600;
+}
+
+.sabnezConsolidatedTable .sapMListTblRowAlternate {
+  background: #f8fafc;
+}
+
+
+
+
+
+/* EXECUTIVE SUMMARY DASHBOARD V2 */
+.sabnezExecutiveDashboardV2 {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 120rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.sabnezExecutiveHeading {
+  margin-bottom: 0.85rem;
+}
+
+.sabnezExecutiveMainTitle {
+  color: var(--sabnez-navy);
+  font-weight: 700;
+}
+
+.sabnezPeriodPill {
+  padding: 0.3rem 0.7rem;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: 999px;
+}
+
+.sabnezExecutiveKpiRowV2 {
+  box-sizing: border-box;
+  margin-bottom: 1rem;
+}
+
+.sabnezExecutiveKpiV2 {
+  box-sizing: border-box;
+  min-width: 13rem;
+  padding: 0.6rem 0.9rem 0.8rem;
+}
+
+.sabnezExecutiveKpiLabel {
+  color: #4d5f72;
+  font-size: 0.95rem;
+  margin-bottom: 0.15rem;
+}
+
+.sabnezExecutiveKpiNumber .sapMObjectNumberText {
+  color: var(--sabnez-navy);
+  font-size: 2.1rem;
+  line-height: 2.25rem;
+  font-weight: 500;
+}
+
+.sabnezExecutiveKpiNumber .sapMObjectNumberUnit {
+  font-size: 1rem;
+}
+
+.sabnezExecutiveKpiHint {
+  color: #5f6f7f;
+  font-size: 0.82rem;
+  margin-top: 0.3rem;
+}
+
+.sabnezExecutiveMiniProgress {
+  margin-top: 0.2rem;
+  max-width: 14rem;
+}
+
+.sabnezExecutiveMiniProgress .sapMPI {
+  height: 0.45rem;
+}
+
+.sabnezExecutiveRowV2 {
+  box-sizing: border-box;
+  margin-bottom: 1rem;
+}
+
+.sabnezExecutiveCardV2 {
+  box-sizing: border-box;
+  min-width: 24rem;
+  padding: 1rem 1.15rem 1.05rem;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: 1rem;
+  box-shadow: 0 0.125rem 0.4rem rgba(11, 35, 71, 0.05);
+  overflow: hidden;
+}
+
+.sabnezExecutiveWideCardV2 {
+  margin-bottom: 1rem;
+}
+
+.sabnezExecutiveCardTitle {
+  color: var(--sabnez-navy);
+  font-weight: 700;
+  margin-bottom: 0.55rem;
+}
+
+.sabnezExecutiveCardHint {
+  color: #6a7785;
+  font-size: 0.84rem;
+}
+
+.sabnezExecutiveCardV2 .sapVizFrame {
+  width: 100% !important;
+  background: #ffffff;
+}
+
+.sabnezExecutiveBarRowV2 {
+  box-sizing: border-box;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+}
+
+.sabnezExecutiveBarLabel {
+  color: #263746;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sabnezExecutiveBarV2 {
+  min-width: 10rem;
+}
+
+.sabnezExecutiveBarV2 .sapMPI {
+  height: 0.6rem;
+  border-radius: 0.45rem;
+}
+
+.sabnezExecutiveBarV2 .sapMPIBar {
+  border-radius: 0.45rem;
+}
+
+.sabnezExecutiveBarValue {
+  text-align: right;
+}
+
+.sabnezPendingPill {
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: #fff4d6;
+}
+
+.sabnezPendingList {
+  margin-top: 0.2rem;
+  background: transparent;
+}
+
+.sabnezPendingList .sapMLIB {
+  background: transparent;
+}
+
+.sabnezPendingList .sapMLIBContent {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sabnezPendingEmployee {
+  color: var(--sabnez-navy);
+  font-weight: 600;
+}
+
+.sabnezPendingProject {
+  color: #64788e;
+  font-size: 0.84rem;
+}
+
+.sabnezExecutiveActionButton {
+  width: 100%;
+  margin-top: 0.7rem;
+}
+
+@media (max-width: 1050px) {
+  .sabnezExecutiveDashboardV2 {
+    max-width: 100%;
+  }
+
+  .sabnezExecutiveKpiV2 {
+    width: 49% !important;
+    margin-bottom: 0.5rem;
+  }
+
+  .sabnezExecutiveCardV2 {
+    width: 100% !important;
+    min-width: 0;
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 650px) {
+  .sabnezExecutiveKpiV2 {
+    width: 100% !important;
+  }
+
+  .sabnezExecutiveDashboardV2 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+
+/* EXECUTIVE KPI CARDS V3 */
+.sabnezExecutiveKpiRowV3 {
+  box-sizing: border-box;
+  width: 100%;
+  gap: 0.75rem;
+  margin: 0.15rem 0 1rem;
+}
+
+.sabnezExecutiveKpiCard {
+  box-sizing: border-box;
+  min-width: 15rem;
+  padding: 0.9rem 1rem 0.8rem;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: 0.9rem;
+  box-shadow: 0 0.125rem 0.35rem rgba(11, 35, 71, 0.06);
+  overflow: hidden;
+}
+
+.sabnezExecutiveKpiCardHeader {
+  width: 100%;
+}
+
+.sabnezExecutiveKpiIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  border-radius: 0.75rem;
+  margin-right: 0.8rem;
+}
+
+.sabnezExecutiveKpiIcon .sapUiIcon {
+  font-size: 1.2rem;
+}
+
+.sabnezExecutiveKpiIconInfo {
+  background: #eaf3ff;
+}
+
+.sabnezExecutiveKpiIconInfo .sapUiIcon {
+  color: #0a6ed1;
+}
+
+.sabnezExecutiveKpiIconSuccess {
+  background: #edf8ef;
+}
+
+.sabnezExecutiveKpiIconSuccess .sapUiIcon {
+  color: #2b7d2b;
+}
+
+.sabnezExecutiveKpiIconWarning {
+  background: #fff4d6;
+}
+
+.sabnezExecutiveKpiIconWarning .sapUiIcon {
+  color: #b35a00;
+}
+
+.sabnezExecutiveKpiIconError {
+  background: #fdeeee;
+}
+
+.sabnezExecutiveKpiIconError .sapUiIcon {
+  color: #bb0000;
+}
+
+.sabnezExecutiveKpiTextBlock {
+  min-width: 0;
+}
+
+.sabnezExecutiveKpiCardLabel {
+  color: #4d5f72;
+  font-size: 0.84rem;
+  margin-bottom: 0.08rem;
+}
+
+.sabnezExecutiveKpiCardNumber .sapMObjectNumberText {
+  color: var(--sabnez-navy);
+  font-size: 1.65rem;
+  line-height: 1.9rem;
+  font-weight: 600;
+}
+
+.sabnezExecutiveKpiCardNumber .sapMObjectNumberUnit {
+  font-size: 0.9rem;
+}
+
+.sabnezExecutiveKpiCardHint {
+  color: #64788e;
+  font-size: 0.78rem;
+  margin-top: 0.55rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Contenedores base del dashboard (alias sin sufijo V2) */
+.sabnezExecutiveDashboard {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.sabnezExecutiveCard {
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 0.0625rem solid var(--sabnez-border);
+  border-radius: 1rem;
+}
+
+/* KPI: color del número por semántica */
+.sabnezKpiNumberInfo .sapMObjectNumberText,
+.sabnezKpiNumberInfo .sapMObjectNumberUnit {
+  color: #0a6ed1;
+}
+
+.sabnezKpiNumberSuccess .sapMObjectNumberText,
+.sabnezKpiNumberSuccess .sapMObjectNumberUnit {
+  color: #2b7d2b;
+}
+
+.sabnezKpiNumberWarning .sapMObjectNumberText,
+.sabnezKpiNumberWarning .sapMObjectNumberUnit {
+  color: #c35500;
+}
+
+.sabnezKpiNumberError .sapMObjectNumberText,
+.sabnezKpiNumberError .sapMObjectNumberUnit {
+  color: #bb0000;
+}
+
+/* KPI: barra de avance vs objetivo y pie de tarjeta */
+.sabnezKpiTargetProgress {
+  width: 100%;
+  margin-top: 0.7rem;
+}
+
+.sabnezKpiTargetProgress .sapMPI {
+  height: 0.4rem;
+  border-radius: 0.3rem;
+  background: #eaeef4;
+}
+
+.sabnezKpiTargetProgress .sapMPIBar {
+  border-radius: 0.3rem;
+  background: #0a6ed1;
+}
+
+.sabnezKpiFootRow {
+  width: 100%;
+  margin-top: 0.35rem;
+  gap: 0.4rem;
+}
+
+.sabnezKpiFootText {
+  margin-top: 0;
+  min-width: 0;
+}
+
+.sabnezKpiInfoIcon {
+  color: #9aa7b6;
+  font-size: 0.85rem;
+  min-width: 1rem;
+}
+
+/* Donut de clientes con leyenda propia */
+.sabnezDonutRow {
+  width: 100%;
+  gap: 0.75rem;
+}
+
+.sabnezDonutChart {
+  min-width: 15rem;
+}
+
+.sabnezClientLegend {
+  min-width: 13rem;
+  gap: 0.35rem;
+}
+
+.sabnezClientLegendRow {
+  width: 100%;
+  padding: 0.22rem 0;
+  gap: 0.75rem;
+}
+
+.sabnezClientLegendLeft {
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.sabnezLegendSwatch {
+  font-size: 0.7rem;
+  min-width: 0.9rem;
+}
+
+.sabnezLegendName {
+  color: #263746;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sabnezLegendValue {
+  color: #64788e;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Barras por empleado: avatar y porcentaje relativo */
+.sabnezEmployeeAvatar {
+  margin-right: 0.6rem;
+}
+
+.sabnezEmployeeShare {
+  color: #0a6ed1;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+/* Aprobaciones pendientes en una sola línea */
+.sabnezPendingRow {
+  width: 100%;
+  gap: 0.75rem;
+  padding: 0.1rem 0;
+}
+
+.sabnezPendingLeft {
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.sabnezPendingIcon {
+  color: #9aa7b6;
+  font-size: 0.95rem;
+  min-width: 1.1rem;
+}
+
+.sabnezPendingEmployee {
+  color: var(--sabnez-navy);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Filas de barra pulsables (List + CustomListItem type="Active") */
+.sabnezBarList,
+.sabnezBarList .sapMLIB {
+  background: transparent;
+}
+
+.sabnezBarList .sapMLIB {
+  padding: 0;
+  border-radius: 0.5rem;
+}
+
+.sabnezBarList .sapMLIBContent {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sabnezBarList .sapMLIBActive,
+.sabnezBarList .sapMLIB:hover {
+  background: #f2f6fb;
+}
+
+.sabnezBarList .sapMLIBActive .sabnezExecutiveBarLabel,
+.sabnezBarList .sapMLIBActive .sabnezEmployeeShare {
+  color: var(--sabnez-navy);
+}
+
+/* Popover de desglose */
+.sabnezBreakdownPopover .sapMPopoverCont {
+  padding: 0 1rem 0.5rem;
+}
+
+.sabnezBreakdownBody {
+  padding: 0.25rem 0 0;
+}
+
+.sabnezBreakdownSubtitle {
+  color: #64788e;
+  font-size: 0.82rem;
+  margin-bottom: 0.5rem;
+}
+
+.sabnezBreakdownFact {
+  padding: 0.3rem 0;
+  border-top: 0.0625rem solid var(--sabnez-border);
+  gap: 0.75rem;
+}
+
+.sabnezBreakdownFactLabel {
+  color: #64788e;
+  font-size: 0.85rem;
+}
+
+.sabnezBreakdownFactValue {
+  color: var(--sabnez-navy);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sabnezBreakdownList {
+  margin-top: 0.6rem;
+  background: transparent;
+}
+
+.sabnezBreakdownList .sapMLIB {
+  background: transparent;
+}
+
+.sabnezBreakdownRow {
+  width: 100%;
+  padding: 0.35rem 0;
+  gap: 0.3rem;
+}
+
+.sabnezBreakdownRowName {
+  color: var(--sabnez-navy);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sabnezBreakdownRowValue {
+  color: #64788e;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.sabnezBreakdownBar .sapMPI {
+  height: 0.4rem;
+}
+
+/* Botón de acción: aspecto de botón, no de enlace */
+.sabnezExecutiveActionButton .sapMBtnInner {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 0.0625rem solid #b8c4d4;
+  background: #ffffff;
+}
+
+.sabnezExecutiveActionButton .sapMBtnInner:hover {
+  background: #f2f6fb;
+  border-color: var(--sabnez-blue);
+}
+
+.sabnezExecutiveActionButton .sapMBtnContent,
+.sabnezExecutiveActionButton .sapMBtnIcon {
+  color: var(--sabnez-blue);
+  font-weight: 600;
+}
+
+/* Barras: alto y color consistentes */
+.sabnezExecutiveBarV2 .sapMPIBar {
+  background: #1b90ff;
+}
+
+.sabnezExecutiveBarV2 .sapMPI,
+.sabnezExecutiveBarV2 .sapMPIBarRemaining {
+  background: #eaeef4;
+}
+
+/* Fila inferior de 3 columnas: proyecto | empleado | aprobaciones */
+.sabnezExecutiveBottomRow {
+  gap: 0;
+}
+
+.sabnezBottomCard {
+  min-width: 20rem;
+  margin-bottom: 0.9rem;
+}
+
+/* La lista de aprobaciones crece y empuja el botón al pie de la tarjeta */
+.sabnezBottomCard .sabnezPendingList {
+  flex: 1 1 auto;
+}
+
+/* Escalones responsive: 3 columnas -> 2 -> 1 */
+@media (max-width: 1500px) {
+  .sabnezBottomCard {
+    width: 49.25% !important;
+  }
+}
+
+@media (max-width: 1150px) {
+  .sabnezExecutiveKpiCard {
+    width: 49% !important;
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 1050px) {
+  .sabnezBottomCard,
+  .sabnezExecutiveCardV2 {
+    width: 100% !important;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .sabnezDonutChart,
+  .sabnezClientLegend {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 650px) {
+  .sabnezExecutiveKpiCard {
+    width: 100% !important;
+  }
+}
+
+
+/* GENERACIÓN DE ENTREGABLES */
+.sabnezDeliverablesTab { box-sizing: border-box; width: 100%; padding: 1rem; }
+.sabnezDeliverablesInfo { margin-bottom: 1rem; border-radius: 0.75rem; }
+.sabnezDeliverablesLayout { box-sizing: border-box; width: 100%; gap: 1rem; align-items: stretch; }
+.sabnezDeliverablesCard {
+  box-sizing: border-box; background: #fff; border: 0.0625rem solid var(--sabnez-border);
+  border-radius: 1rem; box-shadow: 0 0.125rem 0.4rem rgba(11,35,71,.06); overflow: hidden;
+}
+.sabnezDeliverablesFormCard { flex: 1 1 65%; min-width: 36rem; padding: 1rem 1.15rem 0; }
+.sabnezDeliverablesPreviewCard { flex: 1 1 30%; min-width: 20rem; padding: 1rem 1.15rem; }
+.sabnezDeliverablesCardHeader { padding-bottom: .85rem; border-bottom: .0625rem solid #e7edf5; }
+.sabnezDeliverablesSubtitle, .sabnezDeliverablesHelp { color: #64788e; }
+.sabnezDeliverablesSubtitle { margin-top: .2rem; }
+.sabnezDeliverablesHelp { font-size: .82rem; margin-top: .25rem; }
+.sabnezDeliverablesPeriod {
+  padding: .3rem .7rem; background: #f7f9fc; border: .0625rem solid var(--sabnez-border); border-radius: 999px;
+}
+.sabnezDeliverablesForm { padding: 1rem 0 .5rem; }
+.sabnezDeliverableTypeGroup { margin-top: .25rem; }
+.sabnezEvidenceOption {
+  box-sizing: border-box; margin-top: 1rem; padding: .85rem 1rem; background: #f7f9fc;
+  border: .0625rem solid #e1e8f0; border-radius: .75rem;
+}
+.sabnezEvidenceTitle { color: var(--sabnez-navy); font-weight: 600; }
+.sabnezDeliverablesActions {
+  margin: 0 -1.15rem; padding: 0 1rem; background: #fafbfd; border-top: .0625rem solid #e7edf5;
+}
+.sabnezDeliverablesPreviewContent { margin-top: .75rem; }
+.sabnezDeliverablesPreviewRow { box-sizing: border-box; padding: .85rem 0; border-bottom: .0625rem solid #edf1f6; }
+.sabnezDeliverablesPreviewIcon { width: 2.5rem; min-width: 2.5rem; margin-right: .75rem; color: var(--sabnez-blue); font-size: 1.4rem; }
+.sabnezDeliverablesPreviewTitle { color: var(--sabnez-navy); font-weight: 600; }
+
+@media (max-width: 1000px) {
+  .sabnezDeliverablesLayout { flex-wrap: wrap; }
+  .sabnezDeliverablesFormCard, .sabnezDeliverablesPreviewCard {
+    flex: 1 1 100%; min-width: 0; width: 100%;
+  }
+}

@@ -1,0 +1,117 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+
+    <ResponsivePopover
+        title="{breakdown>/title}"
+        placement="Auto"
+        contentWidth="24rem"
+        class="sabnezBreakdownPopover">
+
+        <content>
+            <VBox class="sabnezBreakdownBody">
+
+                <Text
+                    text="{breakdown>/subtitle}"
+                    class="sabnezBreakdownSubtitle" />
+
+                <HBox
+                    width="100%"
+                    justifyContent="SpaceBetween"
+                    alignItems="Center"
+                    class="sabnezBreakdownFact">
+                    <Text text="{breakdown>/contextLabel}" class="sabnezBreakdownFactLabel" />
+                    <Text
+                        text="{breakdown>/contextValue}"
+                        textAlign="End"
+                        class="sabnezBreakdownFactValue" />
+                </HBox>
+
+                <HBox
+                    width="100%"
+                    justifyContent="SpaceBetween"
+                    alignItems="Center"
+                    class="sabnezBreakdownFact">
+                    <Text text="Horas registradas" class="sabnezBreakdownFactLabel" />
+                    <Text
+                        text="{breakdown>/totalHoursText}"
+                        textAlign="End"
+                        class="sabnezBreakdownFactValue" />
+                </HBox>
+
+                <HBox
+                    width="100%"
+                    justifyContent="SpaceBetween"
+                    alignItems="Center"
+                    class="sabnezBreakdownFact">
+                    <Text text="Horas facturables" class="sabnezBreakdownFactLabel" />
+                    <Text
+                        text="{breakdown>/billableHoursText}"
+                        textAlign="End"
+                        class="sabnezBreakdownFactValue" />
+                </HBox>
+
+                <HBox
+                    width="100%"
+                    justifyContent="SpaceBetween"
+                    alignItems="Center"
+                    class="sabnezBreakdownFact">
+                    <Text text="Pendiente de aprobar" class="sabnezBreakdownFactLabel" />
+                    <ObjectStatus
+                        text="{breakdown>/pendingHoursText}"
+                        state="{= ${breakdown>/hasPending} ? 'Warning' : 'Success' }" />
+                </HBox>
+
+                <HBox
+                    width="100%"
+                    justifyContent="SpaceBetween"
+                    alignItems="Center"
+                    class="sabnezBreakdownFact">
+                    <Text text="Registros" class="sabnezBreakdownFactLabel" />
+                    <Text
+                        text="{breakdown>/entryCount}"
+                        textAlign="End"
+                        class="sabnezBreakdownFactValue" />
+                </HBox>
+
+                <List
+                    items="{breakdown>/items}"
+                    showSeparators="Inner"
+                    noDataText="Sin registros para desglosar."
+                    class="sabnezBreakdownList">
+                    <CustomListItem>
+                        <VBox class="sabnezBreakdownRow">
+                            <HBox
+                                width="100%"
+                                justifyContent="SpaceBetween"
+                                alignItems="Center">
+                                <Text
+                                    text="{breakdown>name}"
+                                    wrapping="false"
+                                    tooltip="{breakdown>name}"
+                                    class="sabnezBreakdownRowName" />
+                                <Text
+                                    text="{breakdown>hoursText} · {breakdown>shareText}"
+                                    textAlign="End"
+                                    wrapping="false"
+                                    class="sabnezBreakdownRowValue" />
+                            </HBox>
+                            <ProgressIndicator
+                                percentValue="{breakdown>sharePercentage}"
+                                displayValue=""
+                                showValue="false"
+                                state="None"
+                                class="sabnezExecutiveBarV2 sabnezBreakdownBar" />
+                        </VBox>
+                    </CustomListItem>
+                </List>
+
+            </VBox>
+        </content>
+
+        <endButton>
+            <Button text="Cerrar" press=".onCloseBreakdown" />
+        </endButton>
+
+    </ResponsivePopover>
+</core:FragmentDefinition>

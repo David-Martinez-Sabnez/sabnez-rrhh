@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Reportes de tiempos</title>
+
+    <script
+      id="sap-ui-bootstrap"
+      src="https://ui5.sap.com/resources/sap-ui-core.js"
+      data-sap-ui-theme="sap_horizon"
+      data-sap-ui-compat-version="edge"
+      data-sap-ui-async="true"
+      data-sap-ui-frame-options="trusted"
+      data-sap-ui-libs="sap.m,sap.ui.core,sap.fe.templates"
+      data-sap-ui-resource-roots='{
+        "sabnez.com.reportestiemposui": "./"
+      }'
+    ></script>
+
+    <script>
+      sap.ui.getCore().attachInit(function () {
+        sap.ui.require(
+          ["sap/ui/core/ComponentContainer"],
+          function (ComponentContainer) {
+            new ComponentContainer({
+              name: "sabnez.com.reportestiemposui",
+              settings: {
+                id: "sabnez.com.reportestiemposui"
+              },
+              height: "100%",
+              async: true,
+              manifest: true
+            }).placeAt("content");
+          }
+        );
+      });
+    </script>
+
+    <style>
+      html,
+      body,
+      #content {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+
+  <body
+    id="content"
+    class="sapUiBody sapUiSizeCompact"
+  ></body>
+</html>

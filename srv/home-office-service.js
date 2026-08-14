@@ -2,6 +2,7 @@
 
 const cds = require("@sap/cds");
 const { randomUUID } = require("node:crypto");
+const { isColombianHoliday } = require("./lib/absence-rules");
 
 const { SELECT, INSERT, UPDATE, UPSERT } = cds.ql;
 
@@ -41,6 +42,11 @@ module.exports = cds.service.impl(function () {
     const ciclo = calcularCicloSeleccion(ahora, configuracion);
 
     const semanaAnteriorInicio = sumarDias(ciclo.semanaObjetivoInicio, -7);
+    const semanaConFeriado = tieneFeriadoEnSemana(ciclo.semanaObjetivoInicio);
+
+    const reiniciaReglaSemanaAnterior =
+      obtenerMesISO(semanaAnteriorInicio) !==
+      obtenerMesISO(ciclo.semanaObjetivoInicio);
 
     /*
      * Consultamos:
@@ -83,9 +89,16 @@ module.exports = cds.service.impl(function () {
       diasConfigurados.map((dia) => [dia.fecha, Number(dia.capacidad)]),
     );
 
-    const diasSemanaAnterior = new Set(
-      seleccionesSemanaAnterior.map((seleccion) => Number(seleccion.diaSemana)),
-    );
+    const omitirReglaSemanaAnterior =
+      reiniciaReglaSemanaAnterior || semanaConFeriado;
+
+    const diasSemanaAnterior = omitirReglaSemanaAnterior
+      ? new Set()
+      : new Set(
+          seleccionesSemanaAnterior.map((seleccion) =>
+            Number(seleccion.diaSemana),
+          ),
+        );
 
     const maxDiasPermitidos = Number(configuracion.maxDiasPorSemana);
 
@@ -93,10 +106,23 @@ module.exports = cds.service.impl(function () {
 
     const resultado = [];
 
+    const misDiasSeleccionados = new Set(
+      misSelecciones.map((seleccion) => Number(seleccion.diaSemana)),
+    );
+
     for (let indice = 0; indice < 5; indice += 1) {
       const diaSemana = indice + 1;
 
       const fecha = sumarDias(ciclo.semanaObjetivoInicio, indice);
+
+      const esFeriado = esFeriadoColombia(fecha);
+
+      const bloqueadoPorConsecutivo =
+        !semanaConFeriado &&
+        !misSeleccionesPorFecha.has(fecha) &&
+        Array.from(misDiasSeleccionados).some(
+          (diaSeleccionado) => Math.abs(diaSeleccionado - diaSemana) === 1,
+        );
 
       const miSeleccion = misSeleccionesPorFecha.get(fecha);
 
@@ -115,7 +141,9 @@ module.exports = cds.service.impl(function () {
       const disponibilidad = determinarDisponibilidad({
         ventanaAbierta: ciclo.ventanaAbierta,
         seleccionadoPorMi,
+        esFeriado,
         bloqueadoSemanaAnterior,
+        bloqueadoPorConsecutivo,
         cupoCompleto,
         diasSeleccionados: misSelecciones.length,
         maxDiasPermitidos,
@@ -142,8 +170,12 @@ module.exports = cds.service.impl(function () {
             ? miSeleccion.reservaExpiraEn
             : null,
 
+        esFeriado,
         bloqueadoSemanaAnterior,
+        bloqueadoPorConsecutivo,
         cupoCompleto,
+        semanaConFeriado,
+        reiniciaReglaSemanaAnterior,
 
         habilitado: disponibilidad.habilitado,
 
@@ -217,6 +249,13 @@ module.exports = cds.service.impl(function () {
       );
     }
 
+    if (esFeriadoColombia(fecha)) {
+      return req.reject(
+        409,
+        "No puedes seleccionar Home Office en un día festivo.",
+      );
+    }
+
     /*
      * Primer bloqueo:
      *
@@ -287,21 +326,32 @@ module.exports = cds.service.impl(function () {
      */
     const semanaAnteriorInicio = sumarDias(ciclo.semanaObjetivoInicio, -7);
 
-    const seleccionSemanaAnterior = await SELECT.one
-      .from(SeleccionesHomeOffice)
-      .columns("ID")
-      .where({
-        empleado_ID: empleado.ID,
-        semanaInicio: semanaAnteriorInicio,
-        diaSemana,
-        estado: "CONFIRMADA",
-      });
+    const reiniciaReglaSemanaAnterior =
+      obtenerMesISO(semanaAnteriorInicio) !==
+      obtenerMesISO(ciclo.semanaObjetivoInicio);
 
-    if (seleccionSemanaAnterior) {
-      return req.reject(
-        409,
-        "No puedes seleccionar este día porque lo escogiste la semana anterior.",
-      );
+    const semanaConFeriado = tieneFeriadoEnSemana(ciclo.semanaObjetivoInicio);
+
+    const omitirReglaSemanaAnterior =
+      reiniciaReglaSemanaAnterior || semanaConFeriado;
+
+    if (!omitirReglaSemanaAnterior) {
+      const seleccionSemanaAnterior = await SELECT.one
+        .from(SeleccionesHomeOffice)
+        .columns("ID")
+        .where({
+          empleado_ID: empleado.ID,
+          semanaInicio: semanaAnteriorInicio,
+          diaSemana,
+          estado: "CONFIRMADA",
+        });
+
+      if (seleccionSemanaAnterior) {
+        return req.reject(
+          409,
+          "No puedes seleccionar este día porque lo escogiste la semana anterior.",
+        );
+      }
     }
 
     /*
@@ -375,6 +425,20 @@ module.exports = cds.service.impl(function () {
         409,
         `Ya seleccionaste los ${maxDiasPermitidos} días permitidos para esta semana.`,
       );
+    }
+
+    if (!semanaConFeriado) {
+      const tieneDiaConsecutivo = seleccionesActivasEmpleado.some(
+        (seleccion) =>
+          Math.abs(Number(seleccion.diaSemana) - Number(diaSemana)) === 1,
+      );
+
+      if (tieneDiaConsecutivo) {
+        return req.reject(
+          409,
+          "No puedes seleccionar dos días consecutivos en una semana normal.",
+        );
+      }
     }
 
     /*
@@ -1049,7 +1113,9 @@ function contarOcupacionPorFecha(selecciones) {
 function determinarDisponibilidad({
   ventanaAbierta,
   seleccionadoPorMi,
+  esFeriado,
   bloqueadoSemanaAnterior,
+  bloqueadoPorConsecutivo,
   cupoCompleto,
   diasSeleccionados,
   maxDiasPermitidos,
@@ -1062,8 +1128,8 @@ function determinarDisponibilidad({
   }
 
   /*
-   * Una selección existente debe seguir siendo interactiva
-   * para que posteriormente pueda liberarse o cancelarse.
+   * Si ya existe selección del empleado, debe poder
+   * liberarla o cancelarla.
    */
   if (seleccionadoPorMi) {
     return {
@@ -1072,10 +1138,32 @@ function determinarDisponibilidad({
     };
   }
 
+  /*
+   * Un festivo nunca puede ser seleccionado.
+   */
+  if (esFeriado) {
+    return {
+      habilitado: false,
+      motivo: "Festivo nacional. Este día no está disponible para Home Office.",
+    };
+  }
+
   if (bloqueadoSemanaAnterior) {
     return {
       habilitado: false,
       motivo: "Seleccionaste este mismo día la semana anterior.",
+    };
+  }
+
+  /*
+   * Esta regla se desactiva para toda la semana
+   * cuando existe al menos un festivo.
+   */
+  if (bloqueadoPorConsecutivo) {
+    return {
+      habilitado: false,
+      motivo:
+        "No puedes seleccionar dos días consecutivos en una semana normal.",
     };
   }
 
@@ -1284,6 +1372,40 @@ function esUUIDValido(valor) {
       valor,
     )
   );
+}
+
+function esFeriadoColombia(fechaISO) {
+  if (!fechaISO) {
+    return false;
+  }
+
+  const fecha = new Date(`${fechaISO}T00:00:00.000Z`);
+
+  if (Number.isNaN(fecha.getTime())) {
+    return false;
+  }
+
+  return isColombianHoliday(fecha);
+}
+
+function tieneFeriadoEnSemana(semanaInicio) {
+  for (let indice = 0; indice < 5; indice += 1) {
+    const fecha = sumarDias(semanaInicio, indice);
+
+    if (esFeriadoColombia(fecha)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function obtenerMesISO(fechaISO) {
+  if (typeof fechaISO !== "string" || fechaISO.length < 7) {
+    return "";
+  }
+
+  return fechaISO.substring(0, 7);
 }
 
 async function calcularResultadoDespuesCancelacion({

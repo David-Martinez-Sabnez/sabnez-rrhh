@@ -19,6 +19,10 @@
     {
       "name": "$XSAPPNAME.TimeFinance",
       "description": "Acceso a tarifas, costos y rentabilidad"
+    },
+    {
+      "name": "$XSAPPNAME.TimeDeliverables",
+      "description": "Generación de entregables de reportes de tiempos"
     }
   ],
   "attributes": [],
@@ -26,41 +30,31 @@
     {
       "name": "Editor",
       "description": "generated",
-      "scope-references": [
-        "$XSAPPNAME.Editor"
-      ],
+      "scope-references": ["$XSAPPNAME.Editor"],
       "attribute-references": []
     },
     {
       "name": "Admin",
       "description": "generated",
-      "scope-references": [
-        "$XSAPPNAME.Admin"
-      ],
+      "scope-references": ["$XSAPPNAME.Admin"],
       "attribute-references": []
     },
     {
       "name": "ApprovalAdmin",
       "description": "Administración de aprobaciones y delegaciones",
-      "scope-references": [
-        "$XSAPPNAME.ApprovalAdmin"
-      ],
+      "scope-references": ["$XSAPPNAME.ApprovalAdmin"],
       "attribute-references": []
     },
     {
       "name": "TimeAdmin",
       "description": "Administración de clientes, proyectos y tiempos",
-      "scope-references": [
-        "$XSAPPNAME.TimeAdmin"
-      ],
+      "scope-references": ["$XSAPPNAME.TimeAdmin"],
       "attribute-references": []
     },
     {
       "name": "TimeFinance",
       "description": "Acceso a tarifas, costos y rentabilidad",
-      "scope-references": [
-        "$XSAPPNAME.TimeFinance"
-      ],
+      "scope-references": ["$XSAPPNAME.TimeFinance"],
       "attribute-references": []
     }
   ]

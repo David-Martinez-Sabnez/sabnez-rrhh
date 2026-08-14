@@ -2,6 +2,7 @@
     id="homeOfficeView"
     controllerName="sabnez.com.homeofficeui.controller.homeoffice"
     xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
     xmlns:f="sap.f"
     xmlns="sap.m"
     displayBlock="true">
@@ -17,11 +18,16 @@
 
         <f:title>
             <f:DynamicPageTitle>
-                <f:heading><Title text="{i18n>appTitle}" level="H1" /></f:heading>
-                <f:expandedContent><Text text="Selecciona y confirma tus días de trabajo remoto" /></f:expandedContent>
-                <f:snappedContent><Text text="{view>/weekLabel}" /></f:snappedContent>
+                <f:heading>
+                    <Title text="{i18n>appTitle}" level="H1" />
+                </f:heading>
+                <f:snappedContent>
+                    <Text text="{view>/weekLabel}" />
+                </f:snappedContent>
                 <f:actions>
-                    <Button id="refreshButton" icon="sap-icon://refresh" tooltip="Actualizar disponibilidad" enabled="{= !${view>/busy} }" press=".onRefreshButtonPress" />
+                    <Button id="refreshButton" icon="sap-icon://refresh"
+                        tooltip="Actualizar disponibilidad" enabled="{= !${view>/busy} }"
+                        press=".onRefreshButtonPress" />
                 </f:actions>
             </f:DynamicPageTitle>
         </f:title>
@@ -32,16 +38,23 @@
                     <VBox width="100%" class="homeOfficeHeaderContent">
                         <VBox id="weekHeaderBox" class="homeOfficeHeader">
                             <Title id="weekTitle" text="{view>/weekLabel}" level="H2" />
-                            <Text id="deadlineText" text="{view>/deadlineLabel}" wrapping="true" class="homeOfficeDeadline" />
+                            <Text id="deadlineText" text="{view>/deadlineLabel}" wrapping="true"
+                                class="homeOfficeDeadline" />
                         </VBox>
-                        <HBox id="summaryBox" wrap="Wrap" alignItems="Center" class="homeOfficeSummary">
+                        <HBox id="summaryBox" wrap="Wrap" alignItems="Center"
+                            class="homeOfficeSummary">
                             <VBox id="selectionSummaryBox" class="summaryBlock">
                                 <Label id="selectionSummaryLabel" text="Tu selección" />
-                                <ObjectNumber id="selectionSummaryNumber" number="{view>/selectedCount}" unit="{= 'de ' + ${view>/maxDays} + ' días' }" />
+                                <ObjectNumber id="selectionSummaryNumber"
+                                    number="{view>/selectedCount}"
+                                    unit="{= 'de ' + ${view>/maxDays} + ' días' }" />
                             </VBox>
                             <VBox id="windowSummaryBox" class="summaryBlock">
                                 <Label id="windowSummaryLabel" text="Estado de la ventana" />
-                                <ObjectStatus id="windowStatus" text="{= ${view>/windowOpen} ? 'Abierta' : 'Cerrada' }" state="{= ${view>/windowOpen} ? 'Success' : 'Error' }" icon="{= ${view>/windowOpen} ? 'sap-icon://unlocked' : 'sap-icon://locked' }" />
+                                <ObjectStatus id="windowStatus"
+                                    text="{= ${view>/windowOpen} ? 'Abierta' : 'Cerrada' }"
+                                    state="{= ${view>/windowOpen} ? 'Success' : 'Error' }"
+                                    icon="{= ${view>/windowOpen} ? 'sap-icon://unlocked' : 'sap-icon://locked' }" />
                             </VBox>
                         </HBox>
                     </VBox>
@@ -86,6 +99,13 @@
                         <VBox
                             id="dayCardBox"
                             class="dayCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+
+                            <customData>
+                                <core:CustomData
+                                    key="dayKind"
+                                    value="{= ${view>esFeriado} ? 'holiday' : 'regular' }"
+                                    writeToDom="true" />
+                            </customData>
 
                             <Title
                                 id="dayTitle"
