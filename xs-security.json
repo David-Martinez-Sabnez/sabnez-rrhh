@@ -56,6 +56,12 @@
       "description": "Acceso a tarifas, costos y rentabilidad",
       "scope-references": ["$XSAPPNAME.TimeFinance"],
       "attribute-references": []
+    },
+    {
+      "name": "TimeDeliverables",
+      "description": "Generación de entregables de reportes de tiempos",
+      "scope-references": ["$XSAPPNAME.TimeDeliverables"],
+      "attribute-references": []
     }
   ]
 }
