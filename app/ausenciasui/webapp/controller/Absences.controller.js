@@ -68,6 +68,17 @@ sap.ui.define(
         this._loadAll(true);
       },
 
+      onShowBirthdayInfo: function () {
+        var sDetail = this.getView()
+          .getModel("view")
+          .getProperty("/summary/birthdayWeekLabel");
+        if (sDetail) {
+          MessageBox.information(sDetail, {
+            title: "Beneficio de cumpleaños",
+          });
+        }
+      },
+
       onSearch: function (oEvent) {
         this.getView()
           .getModel("view")

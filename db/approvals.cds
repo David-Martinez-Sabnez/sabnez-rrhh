@@ -247,6 +247,16 @@ entity ApprovalNotificationOutbox : cuid, managed {
   idempotencyKey  : String(120) @mandatory;
 }
 
+// Miembros del pool de aprobadores de un proceso. XSUAA concede el rol pero no
+// se puede consultar quién lo tiene, así que la pertenencia al pool se
+// administra aquí: es lo que permite asignar la tarea y saber a quién avisar.
+@assert.unique: {miembroProceso: [processCode, empleado]}
+entity ApprovalRolePools : cuid, managed {
+  processCode : String(40)             @mandatory;
+  empleado    : Association to Empleados @mandatory;
+  activo      : Boolean default true;
+}
+
 @assert.unique: {identidad: [issuer, subjectNormalizado]}
 entity ApprovalIdentities : cuid, managed {
   empleado          : Association to Empleados @mandatory;

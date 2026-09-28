@@ -1,0 +1,239 @@
+<mvc:View
+  controllerName="sabnez.com.finanzasui.controller.InvoiceDetail"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:uxap="sap.uxap"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <uxap:ObjectPageLayout id="invoicePage"
+    showTitleInHeaderContent="false"
+    upperCaseAnchorBar="false"
+    useIconTabBar="false"
+    preserveHeaderStateOnScroll="false"
+    toggleHeaderOnTitleClick="false"
+    busy="{view>/busy}" busyIndicatorDelay="300">
+
+    <uxap:headerTitle>
+      <uxap:ObjectPageDynamicHeaderTitle>
+        <uxap:expandedHeading>
+          <VBox>
+            <Text class="objectEyebrow" text="{= 'Factura · ' + (${view>/currentInvoice/clientName} || '') }"/>
+            <Title text="{= ${view>/currentInvoice/number} || 'Borrador sin número' }" level="H1" wrapping="true"/>
+          </VBox>
+        </uxap:expandedHeading>
+        <uxap:snappedHeading>
+          <Title text="{= ${view>/currentInvoice/number} || 'Borrador' }" level="H2"/>
+        </uxap:snappedHeading>
+        <uxap:actions>
+          <Button text="Emitir" icon="sap-icon://outbox" type="Emphasized"
+            press=".onIssue" visible="{= ${view>/currentInvoice/status} === 'DRAFT' }"/>
+          <Button text="Registrar recaudo" icon="sap-icon://money-bills"
+            press=".onPayment"
+            visible="{= ${view>/currentInvoice/status} === 'ISSUED' || ${view>/currentInvoice/status} === 'SENT' || ${view>/currentInvoice/status} === 'PARTIALLY_PAID' }"/>
+          <Button text="Recalcular" icon="sap-icon://refresh"
+            press=".onRecalculate" visible="{= ${view>/currentInvoice/status} === 'DRAFT' }"/>
+          <Button text="Eliminar borrador" icon="sap-icon://delete"
+            press=".onDeleteDraft"
+            visible="{= ${view>/currentInvoice/status} === 'DRAFT' || (${view>/currentInvoice/status} === 'VOID' &amp;&amp; !${view>/currentInvoice/number} &amp;&amp; !${view>/currentInvoice/issueDate}) }"/>
+          <Button text="Anular" icon="sap-icon://cancel"
+            press=".onVoid"
+            visible="{= ${view>/currentInvoice/status} !== 'DRAFT' &amp;&amp; ${view>/currentInvoice/status} !== 'VOID' &amp;&amp; ${view>/currentInvoice/paidAmount} === 0 }"/>
+          <Button icon="sap-icon://decline" tooltip="Cerrar detalle" type="Transparent" press=".onCloseDetail"/>
+        </uxap:actions>
+      </uxap:ObjectPageDynamicHeaderTitle>
+    </uxap:headerTitle>
+
+    <uxap:headerContent>
+      <FlexBox wrap="Wrap" class="objectFacts" alignItems="Start">
+        <VBox class="fact">
+          <Label text="Estado"/>
+          <ObjectStatus text="{path: 'view>/currentInvoice/status', formatter: '.formatter.estadoFactura'}"
+            state="{path: 'view>/currentInvoice/status', formatter: '.formatter.estadoFacturaState'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Periodo trabajado"/>
+          <Text text="{parts: ['view>/currentInvoice/periodStart', 'view>/currentInvoice/periodEnd'], formatter: '.formatter.periodo'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Emisión"/>
+          <Text text="{path: 'view>/currentInvoice/issueDate', formatter: '.formatter.fecha'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Plazo"/>
+          <Text text="{path: 'view>/currentInvoice/paymentTermDays', formatter: '.formatter.plazo'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Se espera el pago"/>
+          <ObjectStatus text="{path: 'view>/currentInvoice/expectedPaymentDate', formatter: '.formatter.fecha'}"
+            state="{= ${view>/currentInvoice/vencida} ? 'Error' : 'None' }"/>
+        </VBox>
+        <VBox class="fact" visible="{= ${view>/currentInvoice/currency} !== 'COP' }">
+          <Label text="TRM de emisión"/>
+          <Text text="{path: 'view>/currentInvoice/exchangeRate', formatter: '.formatter.tasa'}"/>
+        </VBox>
+      </FlexBox>
+    </uxap:headerContent>
+
+    <uxap:sections>
+
+      <!-- ============ EL PESO QUE SE ENCOGE ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Resumen">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <VBox class="finTablero">
+                <FlexBox class="finKpis" wrap="Wrap">
+                  <VBox class="finKpi">
+                    <Text class="finKpiLabel" text="Total facturado"/>
+                    <Text class="finKpiValue"
+                      text="{parts: ['view>/currentInvoice/total', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                    <Text class="finKpiHint"
+                      text="{parts: ['view>/currentInvoice/subtotal', 'view>/currentInvoice/currency'], formatter: '.formatter.masIva'}"/>
+                  </VBox>
+                  <VBox class="finKpi finKpiPrimario">
+                    <Text class="finKpiLabel" text="Lo que consignan"/>
+                    <Text class="finKpiValue"
+                      text="{parts: ['view>/currentInvoice/netExpected', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                    <Text class="finKpiHint" text="Total menos lo que retiene el cliente"/>
+                  </VBox>
+                  <VBox class="finKpi">
+                    <Text class="finKpiLabel" text="Ya recibido"/>
+                    <Text class="finKpiValue"
+                      text="{parts: ['view>/currentInvoice/paidAmount', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                    <Text class="finKpiHint"
+                      text="{parts: ['view>/currentInvoice/pendiente', 'view>/currentInvoice/currency'], formatter: '.formatter.pendienteHint'}"/>
+                  </VBox>
+                  <VBox class="finKpi" visible="{= ${view>/currentInvoice/currency} !== 'COP' }">
+                    <Text class="finKpiLabel" text="Diferencia en cambio"/>
+                    <ObjectStatus class="finKpiValue"
+                      text="{path: 'view>/currentInvoice/fxDifferenceCOP', formatter: '.formatter.conSignoCompacto'}"
+                      state="{path: 'view>/currentInvoice/fxDifferenceCOP', formatter: '.formatter.signoState'}"/>
+                    <Text class="finKpiHint" text="Lo que movió el dólar entre emitir y cobrar"/>
+                  </VBox>
+                </FlexBox>
+
+                <MessageStrip class="sapUiSmallMarginTop" showIcon="true" type="Information"
+                  visible="{= ${view>/currentInvoice/exportOfServices} }"
+                  text="Exportación de servicios: excluida de IVA y sin retenciones colombianas, porque quien paga está fuera del país."/>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- ============ LÍNEAS ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Detalle">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <Table id="linesTable" items="{view>/currentLines}"
+                noDataText="Esta factura no tiene líneas.">
+                <headerToolbar>
+                  <Toolbar class="tableToolbar">
+                    <Title text="Qué se está cobrando" level="H4"/>
+                  </Toolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><Text text="Concepto"/></Column>
+                  <Column hAlign="End" width="8rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Cantidad"/></Column>
+                  <Column hAlign="End" width="10rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Unitario"/></Column>
+                  <Column hAlign="End" width="11rem"><Text text="Importe"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem vAlign="Middle">
+                    <cells>
+                      <Text text="{view>description}"/>
+                      <Text class="finNumero" text="{path: 'view>quantity', formatter: '.formatter.cantidad'}"/>
+                      <Text class="finNumero"
+                        text="{parts: ['view>unitPrice', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                      <Text class="finNumero"
+                        text="{parts: ['view>amount', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+
+              <VBox class="finTotales sapUiSmallMarginTop">
+                <Table id="withholdingsTable" items="{view>/currentWithholdings}"
+                  noDataText="Este cliente no practica retenciones sobre esta factura.">
+                  <headerToolbar>
+                    <Toolbar class="tableToolbar">
+                      <Title text="Lo que retiene el cliente" level="H4"/>
+                      <Text class="resultCount"
+                        text="{parts: ['view>/currentInvoice/withheldAmount', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                    </Toolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><Text text="Retención"/></Column>
+                    <Column hAlign="End" width="12rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Base"/></Column>
+                    <Column hAlign="End" width="7rem"><Text text="Tarifa"/></Column>
+                    <Column hAlign="End" width="11rem"><Text text="Valor"/></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem vAlign="Middle">
+                      <cells>
+                        <ObjectIdentifier
+                          title="{= ${view>label} || '' }"
+                          text="{path: 'view>type', formatter: '.formatter.tipoRetencion'}"/>
+                        <Text class="finNumero"
+                          text="{parts: ['view>base', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                        <Text class="finNumero" text="{path: 'view>rate', formatter: '.formatter.porcentaje'}"/>
+                        <Text class="finNumero"
+                          text="{parts: ['view>amount', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+                <Text class="finHint"
+                  text="La retefuente y el reteICA no son un gasto: son anticipo de tu impuesto de renta y se descuentan en la declaración del año siguiente. El reteIVA baja lo que hay que declarar de IVA."/>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- ============ RECAUDOS ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Recaudos">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <Table id="paymentsTable" items="{view>/currentPayments}"
+                noDataText="Todavía no ha entrado plata de esta factura.">
+                <headerToolbar>
+                  <Toolbar class="tableToolbar">
+                    <Title text="Lo que ha entrado" level="H4"/>
+                    <ToolbarSpacer/>
+                    <Button text="Registrar recaudo" icon="sap-icon://money-bills" press=".onPayment"
+                      visible="{= ${view>/currentInvoice/status} === 'ISSUED' || ${view>/currentInvoice/status} === 'SENT' || ${view>/currentInvoice/status} === 'PARTIALLY_PAID' }"/>
+                  </Toolbar>
+                </headerToolbar>
+                <columns>
+                  <Column width="10rem"><Text text="Fecha"/></Column>
+                  <Column hAlign="End" width="11rem"><Text text="Monto"/></Column>
+                  <Column hAlign="End" width="8rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="TRM"/></Column>
+                  <Column hAlign="End" width="12rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Diferencia en cambio"/></Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Referencia"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem vAlign="Middle">
+                    <cells>
+                      <Text text="{path: 'view>paymentDate', formatter: '.formatter.fecha'}"/>
+                      <Text class="finNumero"
+                        text="{parts: ['view>amount', 'view>/currentInvoice/currency'], formatter: '.formatter.importe'}"/>
+                      <Text class="finNumero" text="{path: 'view>exchangeRate', formatter: '.formatter.tasa'}"/>
+                      <ObjectStatus class="finNumero"
+                        text="{path: 'view>fxDifferenceCOP', formatter: '.formatter.conSigno'}"
+                        state="{path: 'view>fxDifferenceCOP', formatter: '.formatter.signoState'}"/>
+                      <Text text="{= ${view>reference} || '—' }"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+    </uxap:sections>
+  </uxap:ObjectPageLayout>
+</mvc:View>

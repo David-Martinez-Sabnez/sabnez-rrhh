@@ -83,6 +83,12 @@ service AdminService @(
   ])
   entity Contratos             as projection on db.Contratos;
 
+  entity CuentasBancarias      as projection on db.CuentasBancarias;
+
+  entity DependientesTributarios as projection on db.DependientesTributarios;
+
+  entity DocumentosEmpleado    as projection on db.DocumentosEmpleado;
+
   @(restrict: [
     {
       grant: [
@@ -226,6 +232,21 @@ service AdminService @(
 
   @readonly
   entity TiposContrato         as projection on cat.TiposContrato;
+
+  @readonly
+  entity TiposDocumentoEmpleado as projection on cat.TiposDocumentoEmpleado;
+
+  @readonly
+  entity TratamientosRetencionCuentaCobro as projection on cat.TratamientosRetencionCuentaCobro;
+
+  @readonly
+  entity EntidadesFinancieras as projection on cat.EntidadesFinancieras;
+
+  @readonly
+  entity TiposCuentaBancaria as projection on cat.TiposCuentaBancaria;
+
+  @readonly
+  entity Monedas as projection on cat.Monedas;
 
   @readonly
   entity TiposAusencia         as projection on cat.TiposAusencia;

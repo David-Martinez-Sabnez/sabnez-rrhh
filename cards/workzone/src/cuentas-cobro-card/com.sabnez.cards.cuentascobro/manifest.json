@@ -1,0 +1,85 @@
+{
+  "_version": "1.64.0",
+  "sap.app": {
+    "id": "com.sabnez.cards.cuentascobro",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis cuentas de cobro",
+    "subTitle": "Periodos aprobados y cuentas en proceso",
+    "applicationVersion": { "version": "1.5.0" },
+    "description": "Resumen de cuentas de cobro del prestador autenticado"
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": { "icon": "sap-icon://receipt" }
+  },
+  "sap.card": {
+    "type": "List",
+    "extension": "./Extension",
+    "configuration": {
+      "destinations": {
+        "sabnezApi": { "name": "CAP_APPS", "label": "Sabnez Apps API" }
+      },
+      "parameters": {
+        "pathContexto": {
+          "value": "/cuentas-cobro/getContext()",
+          "type": "string",
+          "label": "Ruta del contexto de cuentas de cobro"
+        },
+        "pathPeriodos": {
+          "value": "/cuentas-cobro/getEligiblePeriods()",
+          "type": "string",
+          "label": "Ruta de periodos disponibles"
+        },
+        "urlContexto": { "value": "", "type": "string", "label": "URL de contexto para pruebas" },
+        "urlPeriodos": { "value": "", "type": "string", "label": "URL de periodos para pruebas" }
+      }
+    },
+    "data": { "extension": { "method": "getData" } },
+    "header": {
+      "type": "Numeric",
+      "title": "Mis cuentas de cobro",
+      "subtitle": "Honorarios aprobados",
+      "icon": { "src": "sap-icon://receipt" },
+      "mainIndicator": {
+        "number": "{eligibleCount}",
+        "unit": "periodos",
+        "state": "{headerState}"
+      },
+      "details": "{alertText}",
+      "sideIndicators": [
+        { "title": "En proceso", "number": "{pendingCount}", "unit": "cuentas" },
+        { "title": "Histórico", "number": "{historyCount}", "unit": "cuentas" }
+      ]
+    },
+    "content": {
+      "data": { "path": "/items" },
+      "item": {
+        "title": "{title}",
+        "description": "{description}",
+        "info": { "value": "{info}", "state": "{state}" },
+        "icon": { "src": "{icon}" }
+      },
+      "maxItems": 3
+    },
+    "footer": {
+      "showSeparator": true,
+      "actionsStrip": [
+        {
+          "text": "Generar o consultar cuentas",
+          "icon": "sap-icon://navigation-right-arrow",
+          "buttonType": "Transparent",
+          "overflowPriority": "High",
+          "actions": [
+            {
+              "type": "Navigation",
+              "parameters": {
+                "ibnTarget": { "semanticObject": "CuentasCobro", "action": "display" }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

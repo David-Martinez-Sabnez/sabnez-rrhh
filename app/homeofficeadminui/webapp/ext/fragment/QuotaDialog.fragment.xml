@@ -1,0 +1,60 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.ui.layout.form">
+  <Dialog
+    title="Configurar cupos de Home Office"
+    contentWidth="32rem"
+    busy="{cupos>/busy}">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+        <Label text="Aplicar a" required="true" />
+        <Select selectedKey="{cupos>/scope}" change=".onQuotaScopeChange">
+          <core:Item key="VIGENCIA" text="Desde una fecha en adelante" />
+          <core:Item key="DIA" text="Un día específico" />
+        </Select>
+
+        <Label
+          text="{= ${cupos>/ongoing} ? 'Fecha desde la que aplica' : 'Día que deseas configurar' }"
+          required="true" />
+        <DatePicker dateValue="{cupos>/date}" displayFormat="long" />
+
+        <Label text="Máximo por empleado en la semana" visible="{cupos>/ongoing}" />
+        <StepInput value="{cupos>/maxDays}" min="1" max="5" step="1" visible="{cupos>/ongoing}" />
+
+        <Label text="Cupos simultáneos por día" required="true" visible="{= !${cupos>/ongoing} }" />
+        <StepInput value="{cupos>/dailyCapacity}" min="1" step="1" visible="{= !${cupos>/ongoing} }" />
+
+        <Label text="Cupos los lunes" required="true" visible="{cupos>/ongoing}" />
+        <StepInput value="{cupos>/mondayCapacity}" min="1" step="1" visible="{cupos>/ongoing}" />
+
+        <Label text="Cupos los martes" required="true" visible="{cupos>/ongoing}" />
+        <StepInput value="{cupos>/tuesdayCapacity}" min="1" step="1" visible="{cupos>/ongoing}" />
+
+        <Label text="Cupos los miércoles" required="true" visible="{cupos>/ongoing}" />
+        <StepInput value="{cupos>/wednesdayCapacity}" min="1" step="1" visible="{cupos>/ongoing}" />
+
+        <Label text="Cupos los jueves" required="true" visible="{cupos>/ongoing}" />
+        <StepInput value="{cupos>/thursdayCapacity}" min="1" step="1" visible="{cupos>/ongoing}" />
+
+        <Label text="Cupos los viernes" required="true" visible="{cupos>/ongoing}" />
+        <StepInput value="{cupos>/fridayCapacity}" min="1" step="1" visible="{cupos>/ongoing}" />
+
+        <Label text="Motivo" required="true" />
+        <TextArea value="{cupos>/reason}" rows="3" maxLength="300"
+          placeholder="Ej.: reducción temporal por capacidad de la oficina" />
+      </f:SimpleForm>
+      <MessageStrip
+        class="sapUiSmallMargin"
+        type="Information"
+        showIcon="true"
+        text="Las solicitudes ya confirmadas se conservan. No se permitirá guardar un cupo inferior a la ocupación actual." />
+    </content>
+    <beginButton>
+      <Button text="Guardar" type="Emphasized" press=".onSaveQuotas" />
+    </beginButton>
+    <endButton>
+      <Button text="Cancelar" press=".onCancelQuotas" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

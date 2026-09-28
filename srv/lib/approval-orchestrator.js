@@ -14,7 +14,31 @@ const {
 const { SELECT, INSERT, UPDATE } = cds.ql;
 const LOG = cds.log("approval-orchestrator");
 
-const PROCESS_CODES = Object.freeze({ ABSENCE: "ABSENCE" });
+const PROCESS_CODES = Object.freeze({
+  ABSENCE: "ABSENCE",
+  COLLECTION_ACCOUNT: "COLLECTION_ACCOUNT",
+  COLLECTION_ACCOUNT_CORRECTION: "COLLECTION_ACCOUNT_CORRECTION",
+});
+
+// Cada proceso nombra sus notificaciones para que el correo y la campana de
+// Work Zone usen la redacción correcta. Sin entrada se usa el genérico.
+const NOTIFICATION_TYPES = Object.freeze({
+  COLLECTION_ACCOUNT: {
+    assigned: "COLLECTION_ACCOUNT_SUBMITTED",
+    decided: "COLLECTION_ACCOUNT_DECIDED",
+  },
+  COLLECTION_ACCOUNT_CORRECTION: {
+    assigned: "COLLECTION_ACCOUNT_CORRECTION_REQUESTED",
+    decided: "COLLECTION_ACCOUNT_CORRECTION_RESOLVED",
+  },
+});
+
+function notificationType(processCode, kind) {
+  return (
+    NOTIFICATION_TYPES[processCode]?.[kind] ||
+    (kind === "assigned" ? "APPROVAL_ASSIGNED" : "APPROVAL_DECIDED")
+  );
+}
 const DECISIONS = Object.freeze({ APPROVE: "APPROVE", REJECT: "REJECT" });
 const DELEGATION_MODES = Object.freeze({
   BACKUP: "BACKUP",
@@ -114,10 +138,12 @@ async function startApproval(req, input = {}) {
     normalized.dueAt || addHours(submittedAt, process.horasVencimiento || 72);
   const instanceID = cds.utils.uuid();
 
-  const approverResolution = await resolveDirectManager({
+  const approverResolution = await resolveApprovers({
     tx,
     entities,
     employees,
+    stage,
+    process,
     requester,
   });
   const instanceState = approverResolution.approver
@@ -171,6 +197,7 @@ async function startApproval(req, input = {}) {
       stage,
       approver: approverResolution.approver,
       approverUserID: approverResolution.userID,
+      pool: approverResolution.pool,
       submittedAt,
       dueAt,
       idempotencyKey: normalized.idempotencyKey,
@@ -498,7 +525,7 @@ async function decideApproval(req, input = {}) {
   });
   await persistNotification(tx, entities, {
     eventID,
-    type: "APPROVAL_DECIDED",
+    type: notificationType(bundle.instance.processCode, "decided"),
     instanceID: bundle.instance.ID,
     taskID,
     recipientID: bundle.instance.solicitanteUserID,
@@ -598,6 +625,7 @@ async function createAssignedTask({
   stage,
   approver,
   approverUserID,
+  pool = [],
   submittedAt,
   dueAt,
   idempotencyKey,
@@ -627,6 +655,17 @@ async function createAssignedTask({
       estado: "ACTIVE",
       validaDesde: submittedAt.slice(0, 10),
     },
+    // El resto del pool decide con el mismo rol; sin ellos la tarea quedaría
+    // atada a una sola persona pese a estar configurada como ROLE_POOL.
+    ...pool.map((member) => ({
+      ID: cds.utils.uuid(),
+      tarea_ID: taskID,
+      empleado_ID: member.employee.ID,
+      approverUserID: member.userID,
+      tipo: ASSIGNMENT_TYPES.POOL,
+      estado: "ACTIVE",
+      validaDesde: submittedAt.slice(0, 10),
+    })),
   ];
 
   const date = todayInColombia(new Date(submittedAt));
@@ -669,7 +708,7 @@ async function createAssignedTask({
   );
   for (const recipientID of uniqueRecipients) {
     await persistNotification(tx, entities, {
-      type: "APPROVAL_ASSIGNED",
+      type: notificationType(process.codigo, "assigned"),
       instanceID,
       taskID,
       recipientID,
@@ -694,6 +733,59 @@ async function createUnassignedTask({ tx, entities, instanceID, stage, dueAt }) 
     }),
   );
   return tx.run(SELECT.one.from(entities.ApprovalTasks).where({ ID }));
+}
+
+/**
+ * Resuelve quién debe recibir la tarea según el `resolver` de la etapa.
+ * Devuelve el aprobador responsable y, para pools, el resto de miembros que
+ * también podrán decidirla.
+ */
+async function resolveApprovers({ tx, entities, employees, stage, process, requester }) {
+  if (stage?.resolver === "ROLE_POOL") {
+    return resolveRolePool({ tx, entities, employees, process });
+  }
+  return resolveDirectManager({ tx, entities, employees, requester });
+}
+
+// Pool de RR. HH.: la tarea queda asignada al primer miembro como responsable
+// y al resto como POOL, de modo que cualquiera con el rol pueda decidirla.
+async function resolveRolePool({ tx, entities, employees, process }) {
+  const members = await tx.run(
+    SELECT.from(entities.ApprovalRolePools).where({
+      processCode: process.codigo,
+      activo: true,
+    }),
+  );
+  if (!members.length) {
+    return {
+      reason: `El proceso ${process.codigo} no tiene miembros configurados en el pool de aprobadores.`,
+    };
+  }
+
+  const resolved = [];
+  for (const member of members) {
+    const employee = await tx.run(
+      SELECT.one
+        .from(employees.Empleados)
+        .columns("ID", "nombreCompleto", "correoCorporativo", "estado_codigo")
+        .where({ ID: member.empleado_ID }),
+    );
+    if (!employee || employee.estado_codigo !== "AC") continue;
+    const userID = await resolveEmployeeUserID(tx, entities, employee);
+    if (!userID) continue;
+    resolved.push({ employee, userID });
+  }
+
+  if (!resolved.length) {
+    return {
+      reason: `Ningún miembro del pool de ${process.codigo} está activo o tiene identidad aprobadora.`,
+    };
+  }
+
+  // Orden estable para que el responsable no cambie entre ejecuciones.
+  resolved.sort((left, right) => left.employee.ID.localeCompare(right.employee.ID));
+  const [primary, ...rest] = resolved;
+  return { approver: primary.employee, userID: primary.userID, pool: rest };
 }
 
 async function resolveDirectManager({ tx, entities, employees, requester }) {

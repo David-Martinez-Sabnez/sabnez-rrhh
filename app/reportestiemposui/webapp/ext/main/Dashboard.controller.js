@@ -89,6 +89,9 @@ sap.ui.define(
               pendingEntryCount: 0,
               unclassifiedEntryCount: 0,
               unclassifiedHours: 0,
+              projectRankingText: "Top 8 por horas",
+              employeeRankingText: "Top 8 por horas",
+              clientRankingText: "Top 6 por horas",
               weeklyHours: [],
               projectHours: [],
               employeeHours: [],
@@ -96,6 +99,12 @@ sap.ui.define(
               monthlyTargetHours: 0,
               monthlyTargetPercentage: 0,
               monthlyTargetText: "Sin objetivo calculado",
+            billableResources: 0,
+            unsoldCapacity: 0,
+            internalHours: 0,
+              billableResources: 0,
+              unsoldCapacity: 0,
+              internalHours: 0,
               pendingApprovals: [],
             }),
             "executive",
@@ -146,6 +155,12 @@ sap.ui.define(
               formatIndex: 0,
               showEvidenceOption: false,
               includeEvidence: false,
+              previewRows: [],
+              previewVisible: false,
+              previewBusy: false,
+              selectedConceptIDs: [],
+              selectedCount: 0,
+              previewSummary: "Consulte los conceptos antes de generar el archivo.",
             }),
             "deliverables",
           );
@@ -503,15 +518,7 @@ sap.ui.define(
               path: "lookups>/filteredProjects",
               template: new StandardListItem({
                 title: "{lookups>name}",
-                description: {
-                  parts: [
-                    { path: "lookups>code" },
-                    { path: "lookups>clientName" },
-                  ],
-                  formatter: function (code, clientName) {
-                    return [code, clientName].filter(Boolean).join(" · ");
-                  },
-                },
+                description: "{lookups>clientName}",
                 type: "Active",
               }),
             });
@@ -667,6 +674,37 @@ sap.ui.define(
           );
         },
 
+        _addSuggestionToken: function (event, controlID, afterSelect) {
+          const item = event.getParameter("selectedItem");
+          const control = this.byId(controlID);
+          if (!item || !control) return;
+
+          const key = item.getKey();
+          const text = item.getText();
+          const exists = control.getTokens().some((token) => token.getKey() === key);
+          if (!exists) {
+            control.addToken(new Token({ key: key, text: text }));
+          }
+          control.setValue("");
+          if (typeof afterSelect === "function") afterSelect.call(this);
+        },
+
+        onClientSuggestionSelected: function (event) {
+          this._addSuggestionToken(event, "clientFilter", this._filterProjectsBySelectedClients);
+        },
+
+        onProjectSuggestionSelected: function (event) {
+          this._addSuggestionToken(event, "projectFilter");
+        },
+
+        onEmployeeSuggestionSelected: function (event) {
+          this._addSuggestionToken(event, "employeeFilter");
+        },
+
+        onStatusSuggestionSelected: function (event) {
+          this._addSuggestionToken(event, "statusFilter");
+        },
+
         _getTokenKeys: function (controlID) {
           const control = this.byId(controlID);
 
@@ -770,6 +808,7 @@ sap.ui.define(
             .getSource()
             .setValueStateText(valid ? "" : "Ingrese un periodo válido.");
 
+          this._clearDeliverablePreview();
           if (valid) {
             this._syncDeliverablePeriod();
             this._refreshDeliverableProjects();
@@ -822,6 +861,19 @@ sap.ui.define(
               deliverablesModel.setProperty("/selectedProjectIDs", projectIDs);
             }
           }
+        },
+
+        _clearDeliverablePreview: function () {
+          const model = this.getView().getModel("deliverables");
+          if (!model) return;
+          model.setProperty("/previewRows", []);
+          model.setProperty("/previewVisible", false);
+          model.setProperty("/selectedConceptIDs", []);
+          model.setProperty("/selectedCount", 0);
+          model.setProperty(
+            "/previewSummary",
+            "Consulte los conceptos antes de generar el archivo.",
+          );
         },
 
         _syncDeliverablePeriod: function () {
@@ -922,6 +974,7 @@ sap.ui.define(
             event.getSource().getSelectedKey(),
           );
           model.setProperty("/selectedProjectIDs", []);
+          this._clearDeliverablePreview();
           this._refreshDeliverableProjects();
         },
 
@@ -936,6 +989,7 @@ sap.ui.define(
                 .map((item) => item.getKey()),
             );
 
+          this._clearDeliverablePreview();
           this._updateDeliverableProjectSelectionAction();
         },
 
@@ -957,6 +1011,7 @@ sap.ui.define(
           model.setProperty("/selectedProjectIDs", nextSelection);
           control.setSelectedKeys(nextSelection);
 
+          this._clearDeliverablePreview();
           this._updateDeliverableProjectSelectionAction();
         },
 
@@ -978,6 +1033,65 @@ sap.ui.define(
             .setProperty("/includeEvidence", event.getParameter("state"));
         },
 
+        onPreviewDeliverableConcepts: async function () {
+          const deliverablesModel = this.getView().getModel("deliverables");
+          const clientID = deliverablesModel.getProperty("/selectedClientID");
+          const projectIDs = deliverablesModel.getProperty("/selectedProjectIDs") || [];
+          const periodControl = this.byId("reportPeriod");
+          const dateFrom = periodControl?.getDateValue();
+          const dateTo = periodControl?.getSecondDateValue();
+
+          if (!dateFrom || !dateTo) {
+            MessageBox.warning("Seleccione primero el periodo del entregable.");
+            return;
+          }
+          if (!clientID || !projectIDs.length) {
+            MessageBox.warning("Seleccione el cliente y al menos un proyecto.");
+            return;
+          }
+
+          deliverablesModel.setProperty("/previewBusy", true);
+          this._clearDeliverablePreview();
+          try {
+            const operation = this.getView().getModel().bindContext("/previewDeliverableConcepts(...)");
+            operation.setParameter("dateFrom", this._formatDate(dateFrom));
+            operation.setParameter("dateTo", this._formatDate(dateTo));
+            operation.setParameter("clientID", clientID);
+            operation.setParameter("projectIDsJson", JSON.stringify(projectIDs));
+            await operation.execute();
+            const result = operation.getBoundContext()?.getObject();
+            const rows = JSON.parse(result?.dataJson || "[]").map((row) => ({ ...row, selected: true }));
+            deliverablesModel.setProperty("/previewRows", rows);
+            deliverablesModel.setProperty("/previewVisible", true);
+            deliverablesModel.setProperty("/selectedConceptIDs", rows.map((row) => row.conceptID));
+            deliverablesModel.setProperty("/selectedCount", rows.length);
+            deliverablesModel.setProperty(
+              "/previewSummary",
+              `${rows.length} concepto(s) encontrado(s) · todos seleccionados inicialmente.`,
+            );
+            this.byId("deliverableConceptTable")?.selectAll();
+          } catch (error) {
+            console.error("No fue posible consultar los conceptos:", error);
+            MessageBox.error(error?.message || "No fue posible consultar los conceptos disponibles.");
+          } finally {
+            deliverablesModel.setProperty("/previewBusy", false);
+          }
+        },
+
+        onDeliverableConceptSelectionChange: function () {
+          const table = this.byId("deliverableConceptTable");
+          const model = this.getView().getModel("deliverables");
+          const selectedIDs = (table?.getSelectedItems() || [])
+            .map((item) => item.getBindingContext("deliverables")?.getProperty("conceptID"))
+            .filter(Boolean);
+          model.setProperty("/selectedConceptIDs", selectedIDs);
+          model.setProperty("/selectedCount", selectedIDs.length);
+          model.setProperty(
+            "/previewSummary",
+            `${selectedIDs.length} de ${(model.getProperty("/previewRows") || []).length} concepto(s) seleccionados para el archivo.`,
+          );
+        },
+
         onGenerateDeliverable: async function () {
           const deliverablesModel = this.getView().getModel("deliverables");
           const clientID = deliverablesModel.getProperty("/selectedClientID");
@@ -988,6 +1102,8 @@ sap.ui.define(
           const includeEvidence = Boolean(
             deliverablesModel.getProperty("/includeEvidence"),
           );
+          const selectedConceptIDs =
+            deliverablesModel.getProperty("/selectedConceptIDs") || [];
           const periodControl = this.byId("reportPeriod");
           const dateFrom = periodControl?.getDateValue();
           const dateTo = periodControl?.getSecondDateValue();
@@ -1008,6 +1124,14 @@ sap.ui.define(
             );
             return;
           }
+          if (!deliverablesModel.getProperty("/previewVisible")) {
+            MessageBox.warning("Consulte primero la vista previa de conceptos.");
+            return;
+          }
+          if (!selectedConceptIDs.length) {
+            MessageBox.warning("Seleccione al menos un concepto para incluir en el archivo.");
+            return;
+          }
 
           const button = this.byId("generateDeliverableButton");
           if (button) button.setBusy(true);
@@ -1021,6 +1145,10 @@ sap.ui.define(
             operation.setParameter(
               "projectIDsJson",
               JSON.stringify(projectIDs),
+            );
+            operation.setParameter(
+              "selectedConceptIDsJson",
+              JSON.stringify(selectedConceptIDs),
             );
             operation.setParameter("formatType", formatType);
             operation.setParameter("includeEvidence", includeEvidence);
@@ -1149,7 +1277,7 @@ sap.ui.define(
             });
 
             this._buildConsolidatedReports(dailyDetails);
-            this._buildExecutiveDashboard(dailyDetails, result, filters);
+            await this._buildExecutiveDashboard(dailyDetails, result, filters);
 
             this._dailyTableSettings = null;
             this._applyDailyTableSettings();
@@ -1266,7 +1394,8 @@ sap.ui.define(
           try {
             const analytics = JSON.parse(response.dataJson);
 
-            analytics.byClient = (analytics.byClient || []).slice(0, 10);
+            analytics.clientTotalCount = (analytics.byClient || []).length;
+            analytics.byClient = (analytics.byClient || []).slice(0, 6);
 
             analytics.byDay = (analytics.byDay || []).slice(-31);
 
@@ -1347,7 +1476,7 @@ sap.ui.define(
 
           return contexts.map((context) => context.getObject());
         },
-        _buildExecutiveDashboard: function (dailyDetails, summary, filters) {
+        _buildExecutiveDashboard: async function (dailyDetails, summary, filters) {
           const rows = Array.isArray(dailyDetails) ? dailyDetails : [];
           const approvedStatuses = new Set([
             "LEADER_APPROVED",
@@ -1608,23 +1737,30 @@ sap.ui.define(
               };
             });
 
-          const monthlyTargetHours = this._getMonthlyTargetHours(
-            startDate,
-            endDate,
+          // La barra mide capacidad vendible colocada, no horas totales:
+          // el trabajo interno es costo y no cuenta como facturación.
+          const capacidad = await this._requestCompanyTarget({
+            dateFrom: filters?.dateFrom,
+            dateTo: filters?.dateTo,
+          });
+
+          const monthlyTargetHours = capacidad.horasObjetivo;
+          const monthlyTargetPercentage = Math.min(
+            100,
+            Number(capacidad.porcentaje) || 0,
           );
 
-          const monthlyTargetPercentage =
-            monthlyTargetHours > 0
-              ? Math.min(100, (totalHours / monthlyTargetHours) * 100)
-              : 0;
+          const num = (value) =>
+            Number(value || 0).toLocaleString("es-CO", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            });
 
-          const monthlyTargetText = `${monthlyTargetPercentage.toLocaleString(
-            "es-CO",
-            { minimumFractionDigits: 0, maximumFractionDigits: 0 },
-          )}% del objetivo mensual (${monthlyTargetHours.toLocaleString(
-            "es-CO",
-            { minimumFractionDigits: 0, maximumFractionDigits: 0 },
-          )} h)`;
+          const monthlyTargetText = monthlyTargetHours > 0
+            ? `${num(capacidad.porcentaje)}% de la capacidad facturable · ${num(
+                capacidad.horasFacturables,
+              )} de ${num(monthlyTargetHours)} h`
+            : "Sin objetivo calculado";
 
           const pendingApprovals = Array.from(pendingMap.values())
             .sort(function (a, b) {
@@ -1639,6 +1775,9 @@ sap.ui.define(
             pendingEntryCount: pendingEntryCount,
             unclassifiedEntryCount: unclassifiedEntryCount,
             unclassifiedHours: unclassifiedHours,
+            projectRankingText: `Top ${Math.min(8, projectMap.size)} por horas · ${projectMap.size} proyecto(s)`,
+            employeeRankingText: `Top ${Math.min(8, employeeMap.size)} por horas · ${employeeMap.size} empleado(s)`,
+            clientRankingText: `Top ${Math.min(6, Number(this.getView().getModel("analytics").getProperty("/clientTotalCount") || clientRows.length))} por horas · ${Number(this.getView().getModel("analytics").getProperty("/clientTotalCount") || clientRows.length)} cliente(s)`,
             weeklyHours: weeklyHours,
             projectHours: projectHours,
             employeeHours: employeeHours,
@@ -1646,47 +1785,51 @@ sap.ui.define(
             monthlyTargetHours: monthlyTargetHours,
             monthlyTargetPercentage: monthlyTargetPercentage,
             monthlyTargetText: monthlyTargetText,
+            billableResources: capacidad.recursos,
+            unsoldCapacity: capacidad.capacidadSinVender,
+            internalHours: capacidad.horasInternas,
             pendingApprovals: pendingApprovals,
           });
         },
 
         /**
-         * Objetivo de horas del periodo: días hábiles (lun-vie) x 8 h x número
-         * de empleados con registros. Sirve de referencia para el avance del KPI.
+         * Capacidad vendible del periodo, calculada en el servicio con la
+         * misma librería que la card de «Mis tiempos».
+         *
+         * Es una pregunta distinta a la del empleado: no mide si la gente
+         * registró su tiempo, sino cuánto del equipo colocable está
+         * efectivamente facturándose. Que viva por debajo del 100% es lo
+         * normal — ese hueco es capacidad sin vender, no incumplimiento.
          */
-        _getMonthlyTargetHours: function (startDate, endDate) {
-          const HOURS_PER_DAY = 8;
-          const employeeCount = Math.max(
-            1,
-            Number(
-              this.getView()
-                .getModel("dashboard")
-                .getProperty("/employeeCount"),
-            ) || 1,
-          );
-
-          if (
-            !(startDate instanceof Date) ||
-            !(endDate instanceof Date) ||
-            Number.isNaN(startDate.getTime()) ||
-            Number.isNaN(endDate.getTime()) ||
-            endDate < startDate
-          ) {
-            return 0;
+        _requestCompanyTarget: async function (parameters) {
+          const vacio = {
+            horasObjetivo: 0,
+            horasFacturables: 0,
+            horasInternas: 0,
+            porcentaje: 0,
+            recursos: 0,
+            capacidadSinVender: 0,
+          };
+          try {
+            const model = this.getView().getModel();
+            const operation = model.bindContext("/obtenerObjetivoEmpresa(...)");
+            operation.setParameter("dateFrom", parameters.dateFrom);
+            operation.setParameter("dateTo", parameters.dateTo);
+            await operation.execute();
+            const result = operation.getBoundContext().getObject() || {};
+            return {
+              horasObjetivo: Number(result.horasObjetivo) || 0,
+              horasFacturables: Number(result.horasFacturables) || 0,
+              horasInternas: Number(result.horasInternas) || 0,
+              porcentaje: Number(result.porcentaje) || 0,
+              recursos: Number(result.recursos) || 0,
+              capacidadSinVender: Number(result.capacidadSinVender) || 0,
+            };
+          } catch (error) {
+            // Sin objetivo se muestra "Sin objetivo calculado"; es
+            // preferible a inventar una cifra que contradiga la card.
+            return vacio;
           }
-
-          let businessDays = 0;
-          const cursor = new Date(startDate.getTime());
-
-          while (cursor <= endDate) {
-            const day = cursor.getDay();
-            if (day !== 0 && day !== 6) {
-              businessDays += 1;
-            }
-            cursor.setDate(cursor.getDate() + 1);
-          }
-
-          return businessDays * HOURS_PER_DAY * employeeCount;
         },
 
         onProjectBarPress: function (event) {
@@ -2320,6 +2463,9 @@ sap.ui.define(
             monthlyTargetHours: 0,
             monthlyTargetPercentage: 0,
             monthlyTargetText: "Sin objetivo calculado",
+            billableResources: 0,
+            unsoldCapacity: 0,
+            internalHours: 0,
             pendingApprovals: [],
           });
 
@@ -2348,7 +2494,7 @@ sap.ui.define(
               path: "lookups>/employees",
               template: new StandardListItem({
                 title: "{lookups>employeeName}",
-                description: "{lookups>employeeCode}",
+                description: "",
                 type: "Active",
               }),
             });
@@ -2532,7 +2678,7 @@ sap.ui.define(
               path: "lookups>/statuses",
               template: new StandardListItem({
                 title: "{lookups>text}",
-                description: "{lookups>key}",
+                description: "",
                 type: "Active",
               }),
             });

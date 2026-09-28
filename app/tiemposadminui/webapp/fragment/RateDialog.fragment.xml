@@ -1,0 +1,58 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="{= ${view>/rateForm/ID} ? 'Editar tarifa' : 'Nueva tarifa' }"
+    contentWidth="32rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Asignación" required="true"/>
+        <ComboBox selectedKey="{view>/rateForm/assignmentID}" items="{view>/assignmentsForRate}"
+          placeholder="¿A quién se le aplica?" selectionChange=".onRateAssignmentChange">
+          <core:Item key="{view>ID}" text="{view>assignmentLabel}"/>
+        </ComboBox>
+
+        <Label text="Inicio" required="true"/>
+        <DatePicker value="{view>/rateForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+
+        <core:Title text="Venta al cliente" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Label text="Moneda de venta" required="true" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Select selectedKey="{view>/rateForm/saleCurrency}" visible="{= ${view>/current/modality} !== 'INTERNAL' }">
+          <core:Item key="COP" text="COP · Peso colombiano"/>
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+          <core:Item key="MXN" text="MXN · Peso mexicano"/>
+          <core:Item key="PEN" text="PEN · Sol peruano"/>
+          <core:Item key="CLP" text="CLP · Peso chileno"/>
+        </Select>
+
+        <Label text="Mensual" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Input value="{view>/rateForm/monthlySaleRate}" type="Number" placeholder="0" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Label text="Hora regular" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Input value="{view>/rateForm/regularSaleHourlyRate}" type="Number" placeholder="0" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Label text="Hora extra" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <Input value="{view>/rateForm/overtimeSaleHourlyRate}" type="Number" placeholder="0" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+
+        <core:Title text="Costo interno"/>
+        <Label text="Moneda de costo" required="true"/>
+        <Select selectedKey="{view>/rateForm/costCurrency}">
+          <core:Item key="COP" text="COP · Peso colombiano"/>
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+          <core:Item key="MXN" text="MXN · Peso mexicano"/>
+          <core:Item key="PEN" text="PEN · Sol peruano"/>
+          <core:Item key="CLP" text="CLP · Peso chileno"/>
+        </Select>
+        <Label text="Mensual"/>
+        <Input value="{view>/rateForm/internalMonthlyCost}" type="Number" placeholder="0"/>
+        <Label text="Por hora"/>
+        <Input value="{view>/rateForm/internalHourlyCost}" type="Number" placeholder="0"/>
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        text="También puedes crear tarifas para asignaciones históricas. En ese caso, la tarifa se cerrará automáticamente con la asignación. Sólo los usuarios con rol financiero ven estos importes."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onRateCancel"/></beginButton>
+    <endButton>
+      <Button text="{= ${view>/rateForm/ID} ? 'Guardar cambios' : 'Crear tarifa' }"
+        type="Emphasized" press=".onRateSave"/>
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

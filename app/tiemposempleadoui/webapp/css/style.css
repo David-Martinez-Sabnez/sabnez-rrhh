@@ -5,7 +5,7 @@ html, body, #container, #container-uiarea { height: 100%; }
 .timeSectionGap { margin-bottom: 1rem; }
 .weekDaysScroll { padding: .35rem .75rem 1rem; box-sizing: border-box; }
 .weekDayStrip { gap: .6rem; min-width: 100%; justify-content: center; }
-.weekDayTile.sapMCustomTile { width: 9.1rem; height: 8.6rem; margin: 0; border: 1px solid #dce6ef; border-radius: .75rem; background: rgba(255,255,255,.9); box-shadow: 0 2px 7px rgba(36,73,104,.07); transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.weekDayTile.sapMCustomTile { width: 9.1rem; height: 8.6rem; margin: 0; overflow: hidden; border: 1px solid #dce6ef; border-radius: .75rem; background: rgba(255,255,255,.9); box-shadow: 0 2px 7px rgba(36,73,104,.07); transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .weekDayTile.sapMCustomTile:hover { transform: translateY(-2px); border-color: #8bb8dc; box-shadow: 0 5px 14px rgba(36,73,104,.13); }
 .weekDayContent { width: 100%; height: 100%; padding: .55rem; box-sizing: border-box; }
 .weekDayName { font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #4c6275; }
@@ -52,7 +52,13 @@ html, body, #container, #container-uiarea { height: 100%; }
 .weekDayTile[data-day-kind="HOLIDAY"] { background: #fff2f0; border-color: #e6a29b; }
 .weekDayTile[data-day-kind="HOLIDAY"] .weekDayName, .weekDayTile[data-day-kind="WEEKEND"] .weekDayName { color: #8b4b13; }
 .weekDayTile[data-day-state="selected"][data-day-kind="WEEKEND"], .weekDayTile[data-day-state="selected"][data-day-kind="HOLIDAY"] { border-color: #0a6ed1; box-shadow: inset 0 3px 0 #0a6ed1, 0 5px 15px rgba(10,110,209,.16); }
-.weekDayNonWorking { margin-top: .1rem; font-size: .68rem; }
+.weekDayNonWorking, .monthDayNonWorking { margin-top: .1rem; max-width: 100%; font-size: .68rem; overflow: hidden; }
+.weekDayNonWorking .sapMObjStatusText, .monthDayNonWorking .sapMObjStatusText { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .requiredHint { color: #9c2c2c; }
+.entryDescriptionPreview { flex: 1 1 auto; min-width: 0; }
+.entryExpandButton { flex: 0 0 auto; margin-top: -.35rem; }
+.entryExpandedDetail { margin: .2rem 0 .55rem; padding: .65rem .75rem; background: #f7f9fb; border-left: .2rem solid #0a6ed1; border-radius: .35rem; }
+.entryDescriptionFull { display: block; margin-top: .2rem; line-height: 1.45; user-select: text; white-space: pre-wrap; }
+.entryExpandedFacts { gap: .4rem 1rem; margin-top: .55rem; }
 @media (max-width: 900px) { .weekDayStrip { justify-content: flex-start; } .weekDayTile.sapMCustomTile { width: 7.6rem; } }
 @media (max-width: 600px) { .desktopWeekAction, .desktopMonthHeader { display: none !important; } .mobileWeekActions, .mobileMonthActions { display: flex; } .mobileMonthHeader { display: inline-block; } .desktopMonthlyCalendar { display: none !important; } .mobileMonthlyList { display: flex; } .monthTotal { min-width: 5.5rem; padding: 0 .2rem; } .copyEntryDialog.sapMDialog { width: calc(100vw - 1rem) !important; max-width: calc(100vw - 1rem) !important; border-radius: .7rem; } .copyEntryDialog .sapMDialogScrollCont { max-height: 72vh; } .timeEntryFields { max-width: none; margin: 0; } .weekTotal { min-width: 7rem; flex-basis: 7rem; padding-left: .35rem; text-align: left; } .compactHoursInput, .compactTypeSelect { width: 9rem !important; } .standardEntryField { max-width: none !important; } }

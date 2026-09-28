@@ -1,0 +1,95 @@
+{
+  "_version": "1.64.0",
+  "sap.app": {
+    "id": "com.sabnez.cards.vacacionesbienestar",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis vacaciones y bienestar",
+    "subTitle": "Vacaciones y valera emocional",
+    "applicationVersion": {
+      "version": "1.4.9"
+    },
+    "description": "Resumen de vacaciones y valera emocional del empleado autenticado"
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "sap-icon://calendar"
+    }
+  },
+  "sap.card": {
+    "type": "List",
+    "extension": "./Extension",
+    "configuration": {
+      "destinations": {
+        "sabnezApi": {
+          "name": "CAP_APPS",
+          "label": "Sabnez Apps API"
+        }
+      },
+      "parameters": {
+        "pathResumen": {
+          "value": "/ausencias-empleado/obtenerMiResumen()",
+          "type": "string",
+          "label": "Ruta del resumen de ausencias"
+        },
+        "urlResumen": {
+          "value": "",
+          "type": "string",
+          "label": "URL completa para pruebas"
+        }
+      }
+    },
+    "data": {
+      "extension": {
+        "method": "getData"
+      }
+    },
+    "header": {
+      "title": "Mis vacaciones y bienestar",
+      "subtitle": "Tu tiempo disponible",
+      "icon": {
+        "src": "sap-icon://calendar"
+      }
+    },
+    "content": {
+      "data": {
+        "path": "/items"
+      },
+      "item": {
+        "title": "{titulo}",
+        "description": "{descripcion}",
+        "info": {
+          "value": "{disponible}",
+          "state": "{estado}"
+        },
+        "icon": {
+          "src": "{icono}"
+        }
+      },
+      "maxItems": 2
+    },
+    "footer": {
+      "showSeparator": true,
+      "actionsStrip": [
+        {
+          "text": "Ver y solicitar ausencias",
+          "icon": "sap-icon://navigation-right-arrow",
+          "buttonType": "Transparent",
+          "overflowPriority": "High",
+          "actions": [
+            {
+              "type": "Navigation",
+              "parameters": {
+                "ibnTarget": {
+                  "semanticObject": "Ausencias",
+                  "action": "display"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

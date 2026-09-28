@@ -1,0 +1,73 @@
+{
+  "_version": "1.64.0",
+  "sap.app": {
+    "id": "com.sabnez.cards.proyectosactuales",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis proyectos actuales",
+    "subTitle": "Asignaciones vigentes",
+    "applicationVersion": {
+      "version": "1.5.1"
+    },
+    "description": "Proyectos vigentes asignados al empleado autenticado"
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "sap-icon://work-history"
+    }
+  },
+  "sap.card": {
+    "type": "List",
+    "extension": "./Extension",
+    "configuration": {
+      "destinations": {
+        "sabnezApi": {
+          "name": "CAP_APPS",
+          "label": "Sabnez Apps API"
+        }
+      },
+      "parameters": {
+        "pathProyectos": {
+          "value": "/tiempos-empleado/obtenerMisProyectosActuales()",
+          "type": "string",
+          "label": "Ruta de proyectos actuales"
+        },
+        "urlProyectos": {
+          "value": "",
+          "type": "string",
+          "label": "URL completa para pruebas"
+        }
+      }
+    },
+    "data": {
+      "extension": {
+        "method": "getData"
+      }
+    },
+    "header": {
+      "title": "Mis proyectos actuales",
+      "subtitle": "Prioridad por dedicación",
+      "icon": {
+        "src": "sap-icon://work-history"
+      }
+    },
+    "content": {
+      "data": {
+        "path": "/items"
+      },
+      "item": {
+        "title": "{proyectoNombre}",
+        "description": "{descripcion}",
+        "info": {
+          "value": "{info}",
+          "state": "{infoState}"
+        },
+        "icon": {
+          "src": "sap-icon://business-objects-experience"
+        }
+      },
+      "maxItems": 4
+    }
+  }
+}

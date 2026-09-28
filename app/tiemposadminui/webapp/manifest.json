@@ -5,17 +5,23 @@
     "type": "application",
     "i18n": {
       "bundleUrl": "i18n/i18n.properties",
-      "supportedLocales": [""],
+      "supportedLocales": [
+        ""
+      ],
       "fallbackLocale": ""
     },
-    "applicationVersion": { "version": "1.0.0" },
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
     "title": "{{appTitle}}",
     "description": "{{appDescription}}",
     "dataSources": {
       "mainService": {
         "uri": "tiempos-admin/",
         "type": "OData",
-        "settings": { "odataVersion": "4.0" }
+        "settings": {
+          "odataVersion": "4.0"
+        }
       }
     },
     "crossNavigation": {
@@ -25,33 +31,54 @@
           "action": "display",
           "title": "{{appTitle}}",
           "subTitle": "{{appSubtitle}}",
-          "icon": "sap-icon://business-objects-experience",
-          "signature": { "parameters": {}, "additionalParameters": "allowed" }
+          "icon": "sap-icon://blur",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
         }
       }
     }
   },
   "sap.ui": {
     "technology": "UI5",
-    "deviceTypes": { "desktop": true, "tablet": true, "phone": true }
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
   },
   "sap.ui5": {
     "flexEnabled": true,
     "dependencies": {
       "minUI5Version": "1.150.0",
-      "libs": { "sap.f": {}, "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {} }
+      "libs": {
+        "sap.f": {},
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.ui.layout": {},
+        "sap.uxap": {}
+      }
     },
     "models": {
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
           "bundleName": "sabnez.com.tiemposadminui.i18n.i18n",
-          "supportedLocales": [""],
+          "supportedLocales": [
+            ""
+          ],
           "fallbackLocale": ""
         }
       }
     },
-    "resources": { "css": [{ "uri": "css/style.css" }] },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
     "rootView": {
       "viewName": "sabnez.com.tiemposadminui.view.App",
       "type": "XML",
@@ -60,22 +87,90 @@
     },
     "routing": {
       "config": {
-        "routerClass": "sap.m.routing.Router",
-        "controlAggregation": "pages",
-        "controlId": "app",
-        "transition": "slide",
+        "routerClass": "sap.f.routing.Router",
+        "controlAggregation": "beginColumnPages",
+        "controlId": "fcl",
         "type": "View",
         "viewType": "XML",
         "path": "sabnez.com.tiemposadminui.view",
-        "async": true
+        "async": true,
+        "transition": "slide"
       },
       "routes": [
-        { "name": "Admin", "pattern": ":?query:", "target": "Admin" }
+        {
+          "name": "projects",
+          "pattern": "",
+          "target": [
+            "projectList"
+          ],
+          "layout": "OneColumn"
+        },
+        {
+          "name": "projectDetail",
+          "pattern": "proyectos/{projectId}",
+          "target": [
+            "projectList",
+            "projectDetail"
+          ],
+          "layout": "TwoColumnsMidExpanded"
+        },
+        {
+          "name": "clients",
+          "pattern": "clientes",
+          "target": [
+            "clientList"
+          ],
+          "layout": "OneColumn"
+        },
+        {
+          "name": "clientDetail",
+          "pattern": "clientes/{clientId}",
+          "target": [
+            "clientList",
+            "clientDetail"
+          ],
+          "layout": "TwoColumnsMidExpanded"
+        },
+        {
+          "name": "rates",
+          "pattern": "tarifas",
+          "target": [
+            "rateList"
+          ],
+          "layout": "OneColumn"
+        }
       ],
       "targets": {
-        "Admin": { "id": "Admin", "name": "Admin" }
+        "projectList": {
+          "id": "projectList",
+          "name": "ProjectList",
+          "controlAggregation": "beginColumnPages"
+        },
+        "projectDetail": {
+          "id": "projectDetail",
+          "name": "ProjectDetail",
+          "controlAggregation": "midColumnPages"
+        },
+        "clientList": {
+          "id": "clientList",
+          "name": "ClientList",
+          "controlAggregation": "beginColumnPages"
+        },
+        "clientDetail": {
+          "id": "clientDetail",
+          "name": "ClientDetail",
+          "controlAggregation": "midColumnPages"
+        },
+        "rateList": {
+          "id": "rateList",
+          "name": "RateList",
+          "controlAggregation": "beginColumnPages"
+        }
       }
     }
   },
-  "sap.cloud": { "public": true, "service": "sabnezrrhh.service" }
+  "sap.cloud": {
+    "public": true,
+    "service": "sabnezrrhh.service"
+  }
 }

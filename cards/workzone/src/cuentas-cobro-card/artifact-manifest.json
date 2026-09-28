@@ -1,0 +1,18 @@
+{
+  "_version": "1.27.0",
+  "_generator": "sabnez-content-package",
+  "sap.artifact": {
+    "id": "com.sabnez.cards.cuentascobro",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis cuentas de cobro",
+    "subTitle": "Periodos aprobados y cuentas en proceso",
+    "shortTitle": "Cuentas de cobro",
+    "info": "Pendientes de generación",
+    "description": "Resumen para generar y consultar cuentas de cobro del prestador",
+    "tags": {
+      "keywords": ["Sabnez", "Prestadores", "Cuentas de cobro"]
+    },
+    "artifactVersion": { "version": "1.5.0" }
+  }
+}

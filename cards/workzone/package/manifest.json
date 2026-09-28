@@ -1,0 +1,686 @@
+{
+  "sap.package": {
+    "id": "sbz.wz.cards",
+    "packageVersion": {
+      "version": "1.4.9",
+      "upgradeNotification": "all"
+    },
+    "i18n": "i18n/i18n.properties",
+    "icon": "sap-icon://business-objects-experience",
+    "title": "{{PACKAGE_TITLE}}",
+    "subTitle": "{{PACKAGE_SUBTITLE}}",
+    "shortTitle": "{{PACKAGE_SHORTTITLE}}",
+    "info": "{{PACKAGE_INFO}}",
+    "description": "{{PACKAGE_DESCRIPTION}}",
+    "tags": {
+      "keywords": [
+        "{{PACKAGE_KEYWORD1}}",
+        "{{PACKAGE_KEYWORD2}}"
+      ]
+    },
+    "vendor": {
+      "id": "com.sabnez",
+      "name": "Sabnez Consulting SAS",
+      "url": "https://sabnez.com"
+    },
+    "scope": "internal",
+    "license": {
+      "text": "Uso interno de Sabnez Consulting SAS",
+      "url": ""
+    },
+    "homepage": {
+      "text": "Sabnez",
+      "url": "https://sabnez.com"
+    },
+    "support": {
+      "text": "Sabnez Consulting SAS",
+      "url": "https://sabnez.com"
+    },
+    "contents": [
+      {
+        "manifest": {
+          "_version": "1.27.0",
+          "_generator": "sabnez-content-package",
+          "sap.artifact": {
+            "id": "com.sabnez.cards.mistiempos",
+            "type": "card",
+            "i18n": "i18n/i18n.properties",
+            "title": "Mis tiempos",
+            "subTitle": "Resumen mensual de tiempos",
+            "shortTitle": "Mis tiempos",
+            "info": "Resumen mensual de tiempos",
+            "description": "Resumen mensual de tiempos",
+            "tags": {
+              "keywords": [
+                "Sabnez",
+                "Portal"
+              ]
+            },
+            "artifactVersion": {
+              "version": "1.4.9"
+            }
+          }
+        },
+        "baseURL": "artifacts/mis-tiempos-card"
+      },
+      {
+        "manifest": {
+          "_version": "1.27.0",
+          "_generator": "sabnez-content-package",
+          "sap.artifact": {
+            "id": "com.sabnez.cards.bienvenida",
+            "type": "card",
+            "i18n": "i18n/i18n.properties",
+            "title": "Bienvenida",
+            "subTitle": "Saludo personalizado del portal",
+            "shortTitle": "Bienvenida",
+            "info": "Saludo personalizado del portal",
+            "description": "Saludo personalizado del portal",
+            "tags": {
+              "keywords": [
+                "Sabnez",
+                "Portal"
+              ]
+            },
+            "artifactVersion": {
+              "version": "1.4.9"
+            }
+          }
+        },
+        "baseURL": "artifacts/bienvenida-card"
+      },
+      {
+        "manifest": {
+          "_version": "1.27.0",
+          "_generator": "sabnez-content-package",
+          "sap.artifact": {
+            "id": "com.sabnez.cards.vacacionesbienestar",
+            "type": "card",
+            "i18n": "i18n/i18n.properties",
+            "title": "Mis vacaciones y bienestar",
+            "subTitle": "Vacaciones y valera emocional",
+            "shortTitle": "Mis vacaciones y bienestar",
+            "info": "Vacaciones y valera emocional",
+            "description": "Vacaciones y valera emocional",
+            "tags": {
+              "keywords": [
+                "Sabnez",
+                "Cards"
+              ]
+            },
+            "artifactVersion": {
+              "version": "1.4.9"
+            }
+          }
+        },
+        "baseURL": "artifacts/vacaciones-bienestar-card"
+      },
+      {
+        "manifest": {
+          "_version": "1.27.0",
+          "_generator": "sabnez-content-package",
+          "sap.artifact": {
+            "id": "com.sabnez.cards.proyectosactuales",
+            "type": "card",
+            "i18n": "i18n/i18n.properties",
+            "title": "Mis proyectos actuales",
+            "subTitle": "Asignaciones vigentes",
+            "shortTitle": "Mis proyectos actuales",
+            "info": "Asignaciones vigentes",
+            "description": "Asignaciones vigentes",
+            "tags": {
+              "keywords": [
+                "Sabnez",
+                "Cards"
+              ]
+            },
+            "artifactVersion": {
+              "version": "1.4.9"
+            }
+          }
+        },
+        "baseURL": "artifacts/proyectos-actuales-card"
+      }
+    ],
+    "documentation": {
+      "url": "https://sabnez.com"
+    },
+    "consumption": [],
+    "dependencies": {
+      "products": [],
+      "services": []
+    },
+    "cdmEntities": [
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "id": "sbz.wz.cards.general.role",
+          "title": "{{ROLE_GENERAL_TITLE}}",
+          "entityType": "role"
+        },
+        "payload": {
+          "apps": [
+            {
+              "id": "sbz.wz.cards.bienvenida.app"
+            },
+            {
+              "id": "sbz.wz.cards.mistiempos.app"
+            },
+            {
+              "id": "sbz.wz.cards.vacacionesbienestar.app"
+            },
+            {
+              "id": "sbz.wz.cards.proyectosactuales.app"
+            }
+          ]
+        },
+        "texts": [
+          {
+            "locale": "",
+            "textDictionary": {
+              "ROLE_GENERAL_TITLE": "General"
+            }
+          },
+          {
+            "locale": "es",
+            "textDictionary": {
+              "ROLE_GENERAL_TITLE": "General"
+            }
+          },
+          {
+            "locale": "en",
+            "textDictionary": {
+              "ROLE_GENERAL_TITLE": "General"
+            }
+          }
+        ]
+      },
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "id": "sbz.wz.cards.mistiempos.app",
+          "title": "Mis tiempos",
+          "entityType": "businessapp",
+          "description": "Resumen mensual de tiempos"
+        },
+        "payload": {
+          "visualizations": {
+            "sbz.wz.cards.mistiempos.app.viz": {
+              "vizType": "sap.card",
+              "vizConfig": {
+                "_version": "1.64.0",
+                "sap.app": {
+                  "id": "com.sabnez.cards.mistiempos",
+                  "type": "card",
+                  "i18n": "i18n/i18n.properties",
+                  "title": "Mis tiempos",
+                  "subTitle": "Resumen mensual de tiempos",
+                  "applicationVersion": {
+                    "version": "1.4.9"
+                  },
+                  "description": "Resumen mensual de tiempos"
+                },
+                "sap.ui": {
+                  "technology": "UI5",
+                  "icons": {
+                    "icon": "sap-icon://timesheet"
+                  }
+                },
+                "sap.card": {
+                  "type": "Analytical",
+                  "extension": "./Extension",
+                  "configuration": {
+                    "destinations": {
+                      "sabnezApi": {
+                        "name": "CAP_APPS",
+                        "label": "Sabnez Apps API"
+                      }
+                    },
+                    "parameters": {
+                      "pathResumen": {
+                        "value": "/tiempos-empleado/obtenerMiResumenMes()",
+                        "type": "string",
+                        "label": "Ruta del servicio de resumen"
+                      },
+                      "urlResumen": {
+                        "value": "",
+                        "type": "string",
+                        "label": "URL completa (solo pruebas; vacío = usa el destination)"
+                      }
+                    }
+                  },
+                  "data": {
+                    "extension": {
+                      "method": "getData"
+                    }
+                  },
+                  "header": {
+                    "type": "Numeric",
+                    "title": "Mis horas registradas",
+                    "subtitle": "{mesEtiqueta}",
+                    "mainIndicator": {
+                      "number": "{horasRegistradas}",
+                      "unit": "h",
+                      "trend": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Up' : 'None' }",
+                      "state": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Good' : 'Neutral' }"
+                    },
+                    "details": "{= format.float(${porcentaje}, {decimals: 1}) } % del objetivo de {horasObjetivo} h",
+                    "sideIndicators": [
+                      {
+                        "title": "Objetivo",
+                        "number": "{horasObjetivo}",
+                        "unit": "h"
+                      },
+                      {
+                        "title": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Excedente' : 'Pendiente' }",
+                        "number": "{= Math.abs(${horasRegistradas} - ${horasObjetivo}) }",
+                        "unit": "h",
+                        "state": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Good' : 'Critical' }"
+                      }
+                    ]
+                  },
+                  "content": {
+                    "chartType": "Donut",
+                    "measureAxis": "size",
+                    "dimensionAxis": "color",
+                    "data": {
+                      "path": "/desglose"
+                    },
+                    "dimensions": [
+                      {
+                        "label": "Concepto",
+                        "value": "{concepto}"
+                      }
+                    ],
+                    "measures": [
+                      {
+                        "label": "Horas",
+                        "value": "{horas}"
+                      }
+                    ],
+                    "title": {
+                      "visible": false
+                    },
+                    "legend": {
+                      "visible": true,
+                      "position": "Bottom",
+                      "alignment": "Center"
+                    },
+                    "plotArea": {
+                      "dataLabel": {
+                        "visible": true
+                      }
+                    }
+                  },
+                  "footer": {
+                    "showSeparator": true,
+                    "actionsStrip": [
+                      {
+                        "text": "Abrir Mis tiempos",
+                        "icon": "sap-icon://navigation-right-arrow",
+                        "buttonType": "Transparent",
+                        "overflowPriority": "High",
+                        "actions": [
+                          {
+                            "type": "Navigation",
+                            "parameters": {
+                              "ibnTarget": {
+                                "semanticObject": "MisTiempos",
+                                "action": "display"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "vizResources": {
+                "artifactId": "com.sabnez.cards.mistiempos"
+              }
+            }
+          }
+        },
+        "texts": [
+          {
+            "locale": "",
+            "textDictionary": {}
+          },
+          {
+            "locale": "es",
+            "textDictionary": {}
+          },
+          {
+            "locale": "en",
+            "textDictionary": {}
+          }
+        ]
+      },
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "id": "sbz.wz.cards.bienvenida.app",
+          "title": "Bienvenida",
+          "entityType": "businessapp",
+          "description": "Saludo personalizado del portal"
+        },
+        "payload": {
+          "visualizations": {
+            "sbz.wz.cards.bienvenida.app.viz": {
+              "vizType": "sap.card",
+              "vizConfig": {
+                "_version": "1.64.0",
+                "sap.app": {
+                  "id": "com.sabnez.cards.bienvenida",
+                  "type": "card",
+                  "i18n": "i18n/i18n.properties",
+                  "title": "Bienvenida",
+                  "subTitle": "Saludo personalizado del portal",
+                  "applicationVersion": {
+                    "version": "1.4.9"
+                  },
+                  "description": "Saludo personalizado del portal"
+                },
+                "sap.ui": {
+                  "technology": "UI5",
+                  "icons": {
+                    "icon": "sap-icon://home"
+                  }
+                },
+                "sap.card": {
+                  "type": "Object",
+                  "configuration": {
+                    "parameters": {
+                      "nombreUsuario": {
+                        "value": "{context>sap.workzone/currentUser/firstName}",
+                        "type": "string",
+                        "label": "Nombre del usuario conectado"
+                      }
+                    }
+                  },
+                  "header": {
+                    "title": "Hola, {parameters>/nombreUsuario/value}",
+                    "subtitle": "Bienvenido a Sabnez Enterprise Platform"
+                  },
+                  "content": {
+                    "groups": [
+                      {
+                        "items": [
+                          {
+                            "value": "{fechaActual}"
+                          },
+                          {
+                            "value": "Aquí tienes lo importante de hoy."
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "extension": "./Extension",
+                  "data": {
+                    "extension": {
+                      "method": "getData"
+                    }
+                  }
+                }
+              },
+              "vizResources": {
+                "artifactId": "com.sabnez.cards.bienvenida"
+              }
+            }
+          }
+        },
+        "texts": [
+          {
+            "locale": "",
+            "textDictionary": {}
+          },
+          {
+            "locale": "es",
+            "textDictionary": {}
+          },
+          {
+            "locale": "en",
+            "textDictionary": {}
+          }
+        ]
+      },
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "id": "sbz.wz.cards.vacacionesbienestar.app",
+          "title": "Mis vacaciones y bienestar",
+          "entityType": "businessapp",
+          "description": "Vacaciones y valera emocional"
+        },
+        "payload": {
+          "visualizations": {
+            "sbz.wz.cards.vacacionesbienestar.app.viz": {
+              "vizType": "sap.card",
+              "vizConfig": {
+                "_version": "1.64.0",
+                "sap.app": {
+                  "id": "com.sabnez.cards.vacacionesbienestar",
+                  "type": "card",
+                  "i18n": "i18n/i18n.properties",
+                  "title": "Mis vacaciones y bienestar",
+                  "subTitle": "Vacaciones y valera emocional",
+                  "applicationVersion": {
+                    "version": "1.4.9"
+                  },
+                  "description": "Resumen de vacaciones y valera emocional del empleado autenticado"
+                },
+                "sap.ui": {
+                  "technology": "UI5",
+                  "icons": {
+                    "icon": "sap-icon://calendar"
+                  }
+                },
+                "sap.card": {
+                  "type": "List",
+                  "extension": "./Extension",
+                  "configuration": {
+                    "destinations": {
+                      "sabnezApi": {
+                        "name": "CAP_APPS",
+                        "label": "Sabnez Apps API"
+                      }
+                    },
+                    "parameters": {
+                      "pathResumen": {
+                        "value": "/ausencias-empleado/obtenerMiResumen()",
+                        "type": "string",
+                        "label": "Ruta del resumen de ausencias"
+                      },
+                      "urlResumen": {
+                        "value": "",
+                        "type": "string",
+                        "label": "URL completa para pruebas"
+                      }
+                    }
+                  },
+                  "data": {
+                    "extension": {
+                      "method": "getData"
+                    }
+                  },
+                  "header": {
+                    "title": "Mis vacaciones y bienestar",
+                    "subtitle": "Tu tiempo disponible",
+                    "icon": {
+                      "src": "sap-icon://calendar"
+                    }
+                  },
+                  "content": {
+                    "data": {
+                      "path": "/items"
+                    },
+                    "item": {
+                      "title": "{titulo}",
+                      "description": "{descripcion}",
+                      "info": {
+                        "value": "{disponible}",
+                        "state": "{estado}"
+                      },
+                      "icon": {
+                        "src": "{icono}"
+                      }
+                    },
+                    "maxItems": 2
+                  },
+                  "footer": {
+                    "showSeparator": true,
+                    "actionsStrip": [
+                      {
+                        "text": "Ver y solicitar ausencias",
+                        "icon": "sap-icon://navigation-right-arrow",
+                        "buttonType": "Transparent",
+                        "overflowPriority": "High",
+                        "actions": [
+                          {
+                            "type": "Navigation",
+                            "parameters": {
+                              "ibnTarget": {
+                                "semanticObject": "Ausencias",
+                                "action": "display"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "vizResources": {
+                "artifactId": "com.sabnez.cards.vacacionesbienestar"
+              }
+            }
+          }
+        },
+        "texts": [
+          {
+            "locale": "",
+            "textDictionary": {}
+          },
+          {
+            "locale": "es",
+            "textDictionary": {}
+          },
+          {
+            "locale": "en",
+            "textDictionary": {}
+          }
+        ]
+      },
+      {
+        "_version": "3.2.0",
+        "identification": {
+          "id": "sbz.wz.cards.proyectosactuales.app",
+          "title": "Mis proyectos actuales",
+          "entityType": "businessapp",
+          "description": "Asignaciones vigentes"
+        },
+        "payload": {
+          "visualizations": {
+            "sbz.wz.cards.proyectosactuales.app.viz": {
+              "vizType": "sap.card",
+              "vizConfig": {
+                "_version": "1.64.0",
+                "sap.app": {
+                  "id": "com.sabnez.cards.proyectosactuales",
+                  "type": "card",
+                  "i18n": "i18n/i18n.properties",
+                  "title": "Mis proyectos actuales",
+                  "subTitle": "Asignaciones vigentes",
+                  "applicationVersion": {
+                    "version": "1.4.9"
+                  },
+                  "description": "Proyectos vigentes asignados al empleado autenticado"
+                },
+                "sap.ui": {
+                  "technology": "UI5",
+                  "icons": {
+                    "icon": "sap-icon://work-history"
+                  }
+                },
+                "sap.card": {
+                  "type": "List",
+                  "extension": "./Extension",
+                  "configuration": {
+                    "destinations": {
+                      "sabnezApi": {
+                        "name": "CAP_APPS",
+                        "label": "Sabnez Apps API"
+                      }
+                    },
+                    "parameters": {
+                      "pathProyectos": {
+                        "value": "/tiempos-empleado/obtenerMisProyectosActuales()",
+                        "type": "string",
+                        "label": "Ruta de proyectos actuales"
+                      },
+                      "urlProyectos": {
+                        "value": "",
+                        "type": "string",
+                        "label": "URL completa para pruebas"
+                      }
+                    }
+                  },
+                  "data": {
+                    "extension": {
+                      "method": "getData"
+                    }
+                  },
+                  "header": {
+                    "title": "Mis proyectos actuales",
+                    "subtitle": "Asignaciones activas",
+                    "icon": {
+                      "src": "sap-icon://work-history"
+                    }
+                  },
+                  "content": {
+                    "data": {
+                      "path": "/items"
+                    },
+                    "item": {
+                      "title": "{proyectoNombre}",
+                      "description": "{descripcion}",
+                      "info": {
+                        "value": "{info}",
+                        "state": "Information"
+                      },
+                      "icon": {
+                        "src": "sap-icon://business-objects-experience"
+                      }
+                    },
+                    "maxItems": 4
+                  }
+                }
+              },
+              "vizResources": {
+                "artifactId": "com.sabnez.cards.proyectosactuales"
+              }
+            }
+          }
+        },
+        "texts": [
+          {
+            "locale": "",
+            "textDictionary": {}
+          },
+          {
+            "locale": "es",
+            "textDictionary": {}
+          },
+          {
+            "locale": "en",
+            "textDictionary": {}
+          }
+        ]
+      }
+    ],
+    "version": "1.4.9"
+  }
+}

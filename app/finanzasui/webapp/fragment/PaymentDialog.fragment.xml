@@ -1,0 +1,31 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="Registrar recaudo" contentWidth="32rem"
+    resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Fecha del pago" required="true"/>
+        <DatePicker value="{view>/paymentForm/fecha}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+
+        <Label text="Monto" required="true"/>
+        <Input value="{view>/paymentForm/monto}" type="Number"
+          description="{view>/currentInvoice/currency}"/>
+
+        <Label text="TRM del día" visible="{= ${view>/currentInvoice/currency} !== 'COP' }"/>
+        <Input value="{view>/paymentForm/tasa}" type="Number"
+          visible="{= ${view>/currentInvoice/currency} !== 'COP' }"
+          placeholder="Se toma la registrada si lo dejas vacío"/>
+
+        <Label text="Referencia"/>
+        <Input value="{view>/paymentForm/referencia}" placeholder="Comprobante de consignación"/>
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        text="Registra lo que efectivamente entró a la cuenta, ya descontado lo que el cliente retuvo."/>
+      <MessageStrip class="dialogHint" showIcon="true" type="Warning"
+        visible="{= ${view>/currentInvoice/currency} !== 'COP' }"
+        text="Si la TRM de hoy es distinta a la de la emisión, la diferencia queda registrada como diferencia en cambio. Es un gasto financiero real, no un descuadre."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onPaymentCancel"/></beginButton>
+    <endButton><Button text="Registrar" type="Emphasized" press=".onPaymentSave"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>

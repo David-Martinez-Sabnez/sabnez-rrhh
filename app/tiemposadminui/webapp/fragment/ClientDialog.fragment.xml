@@ -1,0 +1,74 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="{= ${view>/clientForm/ID} ? 'Editar cliente' : 'Nuevo cliente' }"
+    contentWidth="32rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Razón social" required="true"/>
+        <Input value="{view>/clientForm/legalName}" maxLength="180"/>
+
+        <Label text="Nombre comercial"/>
+        <Input value="{view>/clientForm/tradeName}" maxLength="180" placeholder="Si se deja vacío se usa la razón social"/>
+
+        <Label text="Prefijo para proyectos" required="true"/>
+        <Input value="{view>/clientForm/projectCodePrefix}" maxLength="3"
+          placeholder="Ej. QCO" description="3 letras"
+          editable="{= !${view>/clientForm/projectCodePrefixLocked} }"/>
+
+        <Label text="Identificación tributaria" required="true"/>
+        <Input value="{view>/clientForm/taxIdentification}" maxLength="60"/>
+
+        <Label text="País"/>
+        <Select selectedKey="{view>/clientForm/countryCode}">
+          <core:Item key="CO" text="Colombia"/>
+          <core:Item key="US" text="Estados Unidos"/>
+          <core:Item key="MX" text="México"/>
+          <core:Item key="PE" text="Perú"/>
+          <core:Item key="CL" text="Chile"/>
+          <core:Item key="EC" text="Ecuador"/>
+          <core:Item key="PA" text="Panamá"/>
+          <core:Item key="CR" text="Costa Rica"/>
+          <core:Item key="ES" text="España"/>
+        </Select>
+
+        <Label text="Moneda"/>
+        <Select selectedKey="{view>/clientForm/defaultCurrency}">
+          <core:Item key="COP" text="COP · Peso colombiano"/>
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+          <core:Item key="MXN" text="MXN · Peso mexicano"/>
+          <core:Item key="PEN" text="PEN · Sol peruano"/>
+          <core:Item key="CLP" text="CLP · Peso chileno"/>
+        </Select>
+
+        <Label text="Zona horaria"/>
+        <Select selectedKey="{view>/clientForm/timeZone}">
+          <core:Item key="America/Bogota" text="Bogotá (UTC-5)"/>
+          <core:Item key="America/Lima" text="Lima (UTC-5)"/>
+          <core:Item key="America/Guayaquil" text="Quito (UTC-5)"/>
+          <core:Item key="America/Panama" text="Panamá (UTC-5)"/>
+          <core:Item key="America/Mexico_City" text="Ciudad de México"/>
+          <core:Item key="America/Santiago" text="Santiago"/>
+          <core:Item key="America/New_York" text="Nueva York"/>
+          <core:Item key="America/Chicago" text="Chicago"/>
+          <core:Item key="America/Denver" text="Denver"/>
+          <core:Item key="America/Los_Angeles" text="Los Ángeles"/>
+          <core:Item key="Europe/Madrid" text="Madrid"/>
+        </Select>
+
+        <Label text="Exento de IVA"/>
+        <CheckBox selected="{view>/clientForm/taxExempt}"/>
+
+        <Label text="Plazo de pago"/>
+        <Input value="{view>/clientForm/paymentTermDays}" type="Number" placeholder="30"
+          description="días desde la factura"/>
+
+      </f:SimpleForm>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onClientCancel"/></beginButton>
+    <endButton>
+      <Button text="{= ${view>/clientForm/ID} ? 'Guardar cambios' : 'Crear cliente' }"
+        type="Emphasized" press=".onClientSave"/>
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

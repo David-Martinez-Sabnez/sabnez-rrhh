@@ -1,0 +1,99 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:l="sap.ui.layout" xmlns:f="sap.ui.layout.form">
+  <Dialog title="{= ${view>/projectForm/ID} ? 'Editar proyecto' : 'Nuevo proyecto' }"
+    contentWidth="34rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="4" labelSpanM="4" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Cliente" required="true"/>
+        <ComboBox selectedKey="{view>/projectForm/clientID}" items="{view>/clients}"
+          selectionChange=".onDialogClientChange" placeholder="Elige el cliente"
+          enabled="{= !${view>/projectForm/ID} }">
+          <core:Item key="{view>ID}" text="{view>tradeName}"/>
+        </ComboBox>
+
+        <Label text="Contrato" visible="{= ${view>/projectForm/modality} !== 'INTERNAL' }"/>
+        <ComboBox selectedKey="{view>/projectForm/contractID}" items="{view>/contractsForProject}"
+          showClearIcon="true" placeholder="Sin contrato asociado"
+          visible="{= ${view>/projectForm/modality} !== 'INTERNAL' }">
+          <core:Item key="{view>ID}" text="{view>reference}"/>
+        </ComboBox>
+
+        <Label text="Código" required="true"/>
+        <Input value="{view>/projectForm/code}" editable="false"
+          placeholder="Se asigna al seleccionar el cliente"/>
+
+        <Label text="Nombre" required="true"/>
+        <Input value="{view>/projectForm/name}" maxLength="180"/>
+
+        <Label text="Descripción"/>
+        <TextArea value="{view>/projectForm/description}" rows="2" growing="true" maxLength="1000"/>
+
+        <Label text="Inicio" required="true"/>
+        <DatePicker value="{view>/projectForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+
+        <Label text="Modalidad"/>
+        <Select selectedKey="{view>/projectForm/modality}" id="modalitySelect"
+          change=".onDialogModalityChange">
+          <core:Item key="FULL_TIME" text="Tiempo completo"/>
+          <core:Item key="HOURLY" text="Por horas"/>
+          <core:Item key="MIXED" text="Mixto"/>
+          <core:Item key="INTERNAL" text="Interno"/>
+        </Select>
+
+        <Label text="Moneda de facturación" visible="{= ${view>/projectForm/modality} !== 'INTERNAL' }"/>
+        <Select selectedKey="{view>/projectForm/currency}"
+          visible="{= ${view>/projectForm/modality} !== 'INTERNAL' }">
+          <core:Item key="COP" text="COP · Peso colombiano"/>
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+          <core:Item key="MXN" text="MXN · Peso mexicano"/>
+          <core:Item key="PEN" text="PEN · Sol peruano"/>
+          <core:Item key="CLP" text="CLP · Peso chileno"/>
+        </Select>
+
+        <Label text="Calendario laboral" required="true"/>
+        <ComboBox selectedKey="{view>/projectForm/workCalendarID}" items="{view>/calendars}"
+          placeholder="Selecciona el calendario del proyecto">
+          <core:Item key="{view>ID}" text="{= ${view>name} + ' · ' + ${view>countryCode} }"/>
+        </ComboBox>
+
+        <core:Title text="Reglas de registro"/>
+        <Label text="Descripción obligatoria"/>
+        <CheckBox selected="{view>/projectForm/requiresDescription}" text="Cada registro explica qué se hizo"/>
+        <Label text="Soporte obligatorio"/>
+        <CheckBox selected="{view>/projectForm/requiresEvidence}" text="Se exige adjuntar evidencia"/>
+        <Label text="Aprobación del cliente" visible="{= ${view>/projectForm/modality} !== 'INTERNAL' }"/>
+        <CheckBox selected="{view>/projectForm/requiresClientApproval}" text="El cliente valida antes de facturar"
+          visible="{= ${view>/projectForm/modality} !== 'INTERNAL' }"/>
+
+        <Label text="Esquema"/>
+        <Select selectedKey="{view>/projectForm/approvalScheme}">
+          <core:Item key="LEADER_THEN_ADMIN" text="Líder y luego administración"/>
+          <core:Item key="LEADER_ONLY" text="Solo líder"/>
+          <core:Item key="ADMIN_ONLY" text="Solo administración"/>
+          <core:Item key="LEADER_OR_ADMIN" text="Líder o administración"/>
+        </Select>
+
+        <Label text="Horas facturables al mes"
+          visible="{= ${view>/projectForm/modality} === 'HOURLY' || ${view>/projectForm/modality} === 'MIXED' }"/>
+        <StepInput value="{view>/projectForm/monthlyBillableTarget}" min="0" step="8"
+          description="h/mes al equipo"
+          visible="{= ${view>/projectForm/modality} === 'HOURLY' || ${view>/projectForm/modality} === 'MIXED' }"/>
+
+        <Label text="Alerta diaria desde"/>
+        <StepInput value="{view>/projectForm/dailyWarningHours}" min="1" max="24" step="0.5"
+          displayValuePrecision="1" description="horas"/>
+
+        <Label text="Día de corte de tiempos" required="true"/>
+        <StepInput value="{view>/projectForm/timeEntryCutoffDay}" min="1" max="31" step="1"
+          description="día del mes" tooltip="Usa 31 para el último día de cada mes"/>
+
+      </f:SimpleForm>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onDialogCancel"/></beginButton>
+    <endButton>
+      <Button text="{= ${view>/projectForm/ID} ? 'Guardar cambios' : 'Crear proyecto' }"
+        type="Emphasized" press=".onDialogSave"/>
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

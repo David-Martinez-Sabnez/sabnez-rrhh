@@ -1,0 +1,23 @@
+{
+  "_version": "1.27.0",
+  "_generator": "sabnez-content-package",
+  "sap.artifact": {
+    "id": "com.sabnez.cards.proyectosactuales",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis proyectos actuales",
+    "subTitle": "Asignaciones vigentes",
+    "shortTitle": "Mis proyectos actuales",
+    "info": "Asignaciones vigentes",
+    "description": "Asignaciones vigentes",
+    "tags": {
+      "keywords": [
+        "Sabnez",
+        "Cards"
+      ]
+    },
+    "artifactVersion": {
+      "version": "1.4.9"
+    }
+  }
+}

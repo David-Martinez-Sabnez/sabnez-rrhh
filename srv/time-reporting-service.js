@@ -13,8 +13,39 @@ const {
   TextRun,
 } = require("docx");
 const { streamToBuffer } = require("./lib/stream-utils");
+const { calcularDiasHabilesColombia } = require("./lib/absence-rules");
+const { loadCalendars, isWorkingDay } = require("./lib/work-calendar");
+const {
+  billableRegisteredHours,
+  employeeBusinessDays,
+  employeeTarget,
+  isBillableResource,
+  worksInPeriod,
+} = require("./lib/billing-targets");
 
 const { SELECT } = cds.ql;
+
+function addISODate(value, amount) {
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
+function parseIDSelection(req, json, emptyMessage) {
+  let values;
+  try {
+    const parsed = JSON.parse(json || "[]");
+    values = Array.isArray(parsed) ? [...new Set(parsed.filter(Boolean))] : [];
+  } catch (error) {
+    return req.reject(400, "La selección tiene un formato inválido.");
+  }
+  if (!values.length) return req.reject(400, emptyMessage);
+  return values;
+}
+
+function roundHours(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
 
 module.exports = cds.service.impl(function () {
   const { TimeDetails } = this.entities;
@@ -27,6 +58,191 @@ module.exports = cds.service.impl(function () {
     TimeEntries,
   } = times;
   const Evidence = times["TimeEntries.evidence"];
+
+  // Objetivo del periodo para los empleados en pantalla. Usa la misma
+  // librería que la card de «Mis tiempos»: si el reparto cambia, cambia
+  // en los dos sitios a la vez.
+  this.on("obtenerObjetivosPeriodo", async (req) => {
+    const { dateFrom, dateTo, employeeIDsJson } = req.data;
+    if (!dateFrom || !dateTo) {
+      return { diasHabiles: 0, horasObjetivo: 0, horasUmbral: 0, porEmpleado: [] };
+    }
+
+    let empleados = [];
+    try {
+      const parsed = JSON.parse(employeeIDsJson || "[]");
+      empleados = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch (error) {
+      empleados = [];
+    }
+
+    // Sin filtro de empleados, el objetivo es el de quien tenga alguna
+    // asignación viva en el periodo, no el de toda la plantilla.
+    const vigentes = await SELECT.from(ProjectAssignments)
+      .columns("ID", "project_ID", "employee_ID", "commercialAllocation", "status", "validFrom", "validTo")
+      .where({ validFrom: { "<=": dateTo } });
+
+    const enPeriodo = vigentes.filter(
+      (a) => a.status !== "INACTIVE" && (!a.validTo || a.validTo >= dateFrom),
+    );
+
+    if (!empleados.length) {
+      empleados = [...new Set(enPeriodo.map((a) => a.employee_ID))];
+    }
+
+    const projectIDs = [...new Set(enPeriodo.map((a) => a.project_ID))];
+    const projects = projectIDs.length
+      ? await SELECT.from(Projects)
+          .columns("ID", "modality", "monthlyBillableTarget", "workCalendar_ID")
+          .where({ ID: { in: projectIDs } })
+      : [];
+
+    const calendars = await loadCalendars(projects.map((p) => p.workCalendar_ID));
+    const projectByID = new Map(projects.map((p) => [p.ID, p]));
+    const counterForEmployee = (employeeID) => (from, to) => {
+      let total = 0;
+      for (let date = from; date <= to; date = addISODate(date, 1)) {
+        const applicable = enPeriodo.filter((a) => a.employee_ID === employeeID && a.validFrom <= date && (!a.validTo || a.validTo >= date))
+          .map((a) => calendars.get(projectByID.get(a.project_ID)?.workCalendar_ID)).filter(Boolean);
+        if (applicable.length && applicable.some((calendar) => isWorkingDay(calendar, date))) total += 1;
+      }
+      return total;
+    };
+    const diasHabiles = empleados.length ? Math.max(...empleados.map((id) => counterForEmployee(id)(dateFrom, dateTo))) : 0;
+    const fichas = await SELECT.from(cds.entities("sabnez.rrhh").Empleados)
+      .columns("ID", "fechaIngreso", "fechaRetiro")
+      .where({ ID: { in: empleados } });
+    const porPersona = new Map(fichas.map((f) => [f.ID, f]));
+
+    const porEmpleado = empleados
+      .map((empleadoID) => {
+        const contarDias = counterForEmployee(empleadoID);
+        const dias = employeeBusinessDays({
+          employee: porPersona.get(empleadoID) || {},
+          dateFrom,
+          dateTo,
+          businessDaysBetween: contarDias,
+        });
+        return {
+          employeeID: empleadoID,
+          ...employeeTarget({
+            employeeID: empleadoID,
+            assignments: enPeriodo,
+            projects,
+            businessDays: dias,
+            periodBusinessDays: contarDias(dateFrom, dateTo),
+          }),
+        };
+      })
+      .map((row) => ({
+      empleadoID: row.employeeID,
+      horasObjetivo: row.horasObjetivo,
+      horasUmbral: row.horasUmbral,
+      horasCalendario: row.horasCalendario,
+      tieneUmbral: row.tieneUmbral,
+    }));
+
+    const suma = (campo) =>
+      Math.round(porEmpleado.reduce((acc, r) => acc + Number(r[campo] || 0), 0) * 100) / 100;
+
+    return {
+      diasHabiles,
+      horasObjetivo: suma("horasObjetivo"),
+      horasUmbral: suma("horasUmbral"),
+      porEmpleado,
+    };
+  });
+
+  // Capacidad vendible: cuántos recursos colocables hay y cuánto de su
+  // mes está efectivamente facturándose. El trabajo interno es costo y
+  // no entra en el numerador; la banca sí entra en el denominador,
+  // porque es justo lo que este indicador existe para enseñar.
+  this.on("obtenerObjetivoEmpresa", async (req) => {
+    const { dateFrom, dateTo } = req.data;
+    const vacio = {
+      diasHabiles: 0, recursos: 0, horasPorRecurso: 0, horasObjetivo: 0,
+      horasFacturables: 0, horasInternas: 0, porcentaje: 0, capacidadSinVender: 0,
+    };
+    if (!dateFrom || !dateTo) return vacio;
+
+    const rrhh = cds.entities("sabnez.rrhh");
+    const [empleados, cargos] = await Promise.all([
+      // Sin filtrar por estado: es una foto del presente y el informe
+      // mira periodos cualesquiera. Quien cuenta y cuánto lo deciden
+      // las fechas de ingreso y retiro.
+      SELECT.from(rrhh.Empleados)
+        .columns("ID", "cargo_ID", "facturable", "fechaIngreso", "fechaRetiro"),
+      SELECT.from(rrhh.Cargos).columns("ID", "facturablePorDefecto"),
+    ]);
+
+    const assignments = await SELECT.from(ProjectAssignments)
+      .columns("employee_ID", "project_ID", "validFrom", "validTo", "status")
+      .where({ validFrom: { "<=": dateTo } });
+    const activeAssignments = assignments.filter((a) => a.status !== "INACTIVE" && (!a.validTo || a.validTo >= dateFrom));
+    const assignedProjectIDs = [...new Set(activeAssignments.map((a) => a.project_ID))];
+    const calendarProjects = assignedProjectIDs.length
+      ? await SELECT.from(Projects).columns("ID", "workCalendar_ID").where({ ID: { in: assignedProjectIDs } })
+      : [];
+    const calendarByProject = new Map(calendarProjects.map((p) => [p.ID, p.workCalendar_ID]));
+    const calendars = await loadCalendars(calendarProjects.map((p) => p.workCalendar_ID));
+    const cargoByID = new Map(cargos.map((c) => [c.ID, c]));
+    const eligible = empleados.filter((e) =>
+      worksInPeriod(e, dateFrom, dateTo) && isBillableResource(e, cargoByID.get(e.cargo_ID)));
+    let objectiveHours = 0;
+    let maxBusinessDays = 0;
+    for (const employee of eligible) {
+      const own = activeAssignments.filter((a) => a.employee_ID === employee.ID);
+      const counter = (from, to) => {
+        if (!own.length) return calcularDiasHabilesColombia(from, to);
+        let total = 0;
+        for (let date = from; date <= to; date = addISODate(date, 1)) {
+          const applicable = own.filter((a) => a.validFrom <= date && (!a.validTo || a.validTo >= date))
+            .map((a) => calendars.get(calendarByProject.get(a.project_ID))).filter(Boolean);
+          if (applicable.some((calendar) => isWorkingDay(calendar, date))) total += 1;
+        }
+        return total;
+      };
+      const days = employeeBusinessDays({ employee, dateFrom, dateTo, businessDaysBetween: counter });
+      maxBusinessDays = Math.max(maxBusinessDays, days);
+      objectiveHours += days * 8;
+    }
+    const objetivo = {
+      recursos: eligible.length,
+      horasPorRecurso: eligible.length ? Math.round((objectiveHours / eligible.length) * 100) / 100 : 0,
+      horasObjetivo: Math.round(objectiveHours * 100) / 100,
+    };
+    const diasHabiles = maxBusinessDays;
+
+    // TimeEntries llega al proyecto a través de la asignación; la vista
+    // de reporting ya lo trae aplanado.
+    const registros = await SELECT.from(TimeDetails)
+      .columns("project_ID", "registeredHours")
+      .where({ workDate: { between: dateFrom, and: dateTo } });
+
+    const projectIDs = [...new Set(registros.map((r) => r.project_ID).filter(Boolean))];
+    const projects = projectIDs.length
+      ? await SELECT.from(Projects).columns("ID", "modality").where({ ID: { in: projectIDs } })
+      : [];
+
+    const horasFacturables = billableRegisteredHours({ entries: registros, projects });
+    const total = registros.reduce((acc, r) => acc + Number(r.registeredHours || 0), 0);
+    const horasInternas = Math.round((total - horasFacturables) * 100) / 100;
+
+    return {
+      diasHabiles,
+      recursos: objetivo.recursos,
+      horasPorRecurso: objetivo.horasPorRecurso,
+      horasObjetivo: objetivo.horasObjetivo,
+      horasFacturables,
+      horasInternas,
+      porcentaje: objetivo.horasObjetivo > 0
+        ? Math.round((horasFacturables / objetivo.horasObjetivo) * 10000) / 100
+        : 0,
+      capacidadSinVender: Math.round(
+        Math.max(0, objetivo.horasObjetivo - horasFacturables) * 100,
+      ) / 100,
+    };
+  });
 
   this.on("getDashboardSummary", async (req) => {
     const {
@@ -396,10 +612,82 @@ module.exports = cds.service.impl(function () {
     };
   });
 
-  this.before("generateDeliverable", (req) => {
+  this.before(["previewDeliverableConcepts", "generateDeliverable"], (req) => {
     if (!req.user.is("TimeDeliverables")) {
       return req.reject(403, "No tiene permisos para generar entregables.");
     }
+  });
+
+  this.on("previewDeliverableConcepts", async (req) => {
+    const { dateFrom, dateTo, clientID, projectIDsJson } = req.data || {};
+    if (!dateFrom || !dateTo) return req.reject(400, "El periodo desde y hasta es obligatorio.");
+    if (dateFrom > dateTo) return req.reject(400, "La fecha inicial no puede ser posterior a la fecha final.");
+    if (!clientID) return req.reject(400, "Seleccione el cliente del entregable.");
+
+    const projectIDs = parseIDSelection(req, projectIDsJson, "Seleccione al menos un proyecto.");
+    const projects = await SELECT.from(Projects)
+      .columns("ID", "code", "name", "client_ID")
+      .where({ ID: { in: projectIDs } });
+    if (projects.length !== projectIDs.length) return req.reject(404, "Uno o más proyectos seleccionados no existen.");
+    if (projects.some((project) => project.client_ID !== clientID)) {
+      return req.reject(400, "Todos los proyectos deben pertenecer al cliente seleccionado.");
+    }
+
+    const assignments = await SELECT.from(ProjectAssignments)
+      .columns(
+        "ID", "project_ID", "role", "employee_ID",
+        "employee.nombreCompleto as employeeName",
+        "project.code as projectCode", "project.name as projectName",
+      )
+      .where({ project_ID: { in: projectIDs } });
+    const assignmentIDs = assignments.map((row) => row.ID);
+    if (!assignmentIDs.length) return req.reject(404, "Los proyectos seleccionados no tienen asignaciones configuradas.");
+
+    const entries = await SELECT.from(TimeEntries)
+      .columns("ID", "assignment_ID", "workDate", "durationHours", "billableHours", "status")
+      .where`workDate >= ${dateFrom} and workDate <= ${dateTo}`
+      .and({ assignment_ID: { in: assignmentIDs } });
+    const validEntries = entries.filter((entry) => entry.status !== "VOIDED");
+    if (!validEntries.length) {
+      return req.reject(404, "No existen registros de tiempo para el periodo y los proyectos seleccionados.");
+    }
+
+    const assignmentByID = new Map(assignments.map((row) => [row.ID, row]));
+    const grouped = new Map();
+    for (const entry of validEntries) {
+      const group = grouped.get(entry.assignment_ID) || {
+        conceptID: entry.assignment_ID,
+        entryCount: 0,
+        registeredHours: 0,
+        billableHours: 0,
+        firstDate: entry.workDate,
+        lastDate: entry.workDate,
+        statuses: new Set(),
+      };
+      group.entryCount += 1;
+      group.registeredHours += Number(entry.durationHours || 0);
+      group.billableHours += Number(entry.billableHours || 0);
+      if (entry.workDate < group.firstDate) group.firstDate = entry.workDate;
+      if (entry.workDate > group.lastDate) group.lastDate = entry.workDate;
+      if (entry.status) group.statuses.add(entry.status);
+      grouped.set(entry.assignment_ID, group);
+    }
+
+    const concepts = [...grouped.values()].map((group) => {
+      const assignment = assignmentByID.get(group.conceptID) || {};
+      return {
+        ...group,
+        statuses: [...group.statuses].sort().join(", "),
+        employeeName: assignment.employeeName || "Sin recurso",
+        projectCode: assignment.projectCode || "",
+        projectName: assignment.projectName || "Sin proyecto",
+        role: assignment.role || "Servicio",
+        registeredHours: roundHours(group.registeredHours),
+        billableHours: roundHours(group.billableHours),
+      };
+    }).sort((a, b) => String(a.projectName).localeCompare(String(b.projectName), "es") || String(a.employeeName).localeCompare(String(b.employeeName), "es"));
+
+    return { dataJson: JSON.stringify(concepts) };
   });
 
   this.on("generateDeliverable", async (req) => {
@@ -408,6 +696,7 @@ module.exports = cds.service.impl(function () {
       dateTo,
       clientID,
       projectIDsJson,
+      selectedConceptIDsJson,
       formatType,
       includeEvidence,
     } = req.data || {};
@@ -440,6 +729,12 @@ module.exports = cds.service.impl(function () {
     if (!projectIDs.length) {
       return req.reject(400, "Seleccione al menos un proyecto.");
     }
+
+    const selectedConceptIDs = parseIDSelection(
+      req,
+      selectedConceptIDsJson,
+      "Seleccione al menos un concepto en la vista previa.",
+    );
 
     const normalizedType = String(formatType || "").toUpperCase();
     if (!new Set(["SUMMARY", "DETAILED"]).has(normalizedType)) {
@@ -491,6 +786,10 @@ module.exports = cds.service.impl(function () {
         "Los proyectos seleccionados no tienen asignaciones configuradas.",
       );
     }
+    const availableAssignmentIDs = new Set(selectedAssignmentIDs);
+    if (selectedConceptIDs.some((ID) => !availableAssignmentIDs.has(ID))) {
+      return req.reject(400, "La selección contiene conceptos que no pertenecen a los proyectos consultados.");
+    }
 
     let entriesQuery = SELECT.from(TimeEntries).columns(
       "ID",
@@ -514,7 +813,7 @@ module.exports = cds.service.impl(function () {
       "assignment.project.name as projectName",
     ).where`workDate >= ${dateFrom} and workDate <= ${dateTo}`;
     entriesQuery = entriesQuery.and({
-      assignment_ID: { in: selectedAssignmentIDs },
+      assignment_ID: { in: selectedConceptIDs },
     });
     const entries = await entriesQuery;
 
@@ -528,6 +827,9 @@ module.exports = cds.service.impl(function () {
         "No existen registros de tiempo para el periodo y los proyectos seleccionados.",
       );
     }
+
+    const includedProjectIDs = new Set(filteredEntries.map((entry) => entry.project_ID));
+    const reportProjects = projects.filter((project) => includedProjectIDs.has(project.ID));
 
     let workbookBuffer;
     let fileName;
@@ -562,6 +864,7 @@ module.exports = cds.service.impl(function () {
                 "validFrom",
                 "validTo",
                 "currency",
+                "saleCurrency",
                 "monthlySaleRate",
                 "regularSaleHourlyRate",
                 "overtimeSaleHourlyRate",
@@ -572,7 +875,7 @@ module.exports = cds.service.impl(function () {
 
       workbookBuffer = await buildSummaryWorkbook({
         client,
-        projects,
+        projects: reportProjects,
         entries: filteredEntries,
         assignments,
         rates,
@@ -585,7 +888,7 @@ module.exports = cds.service.impl(function () {
     } else {
       workbookBuffer = await buildDetailedWorkbook({
         client,
-        projects,
+        projects: reportProjects,
         entries: filteredEntries,
         dateFrom,
         dateTo,
@@ -624,7 +927,7 @@ module.exports = cds.service.impl(function () {
 
         const evidenceDocx = await buildEvidenceDocument({
           client,
-          projects,
+          projects: reportProjects,
           entries: filteredEntries,
           evidenceFiles,
           dateFrom,
@@ -966,9 +1269,14 @@ async function buildDetailedWorkbook({ client, entries, dateFrom, dateTo }) {
       ];
       row.getCell(2).numFmt = "dd/mm/yyyy";
       row.getCell(6).numFmt = "0.00";
-      row.eachCell((cell) => {
-        cell.border = excelBorder();
-        cell.alignment = { vertical: "top", wrapText: true };
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        if (colNumber <= 6) {
+          cell.border = {
+            left: { style: "thin", color: { argb: "FFD9E2EC" } },
+            right: { style: "thin", color: { argb: "FFD9E2EC" } },
+          };
+          cell.alignment = { vertical: "top", wrapText: true };
+        }
       });
     });
 
@@ -1023,7 +1331,6 @@ async function buildSummaryWorkbook({
   const workbook = new ExcelJS.Workbook();
   applyWorkbookMetadata(workbook, "Reporte resumen de tiempos");
   const sheet = workbook.addWorksheet("Resumen", {
-    views: [{ state: "frozen", ySplit: 7 }],
     pageSetup: {
       orientation: "landscape",
       fitToPage: true,
@@ -1109,7 +1416,7 @@ async function buildSummaryWorkbook({
       return {
         ...group,
         projectCode: project.code || "",
-        currency: rate.currency || project.currency || "COP",
+        currency: rate.saleCurrency || rate.currency || project.currency || "COP",
         value,
         rateType,
         assignmentFrom: assignment.validFrom,
@@ -1498,4 +1805,3 @@ function readImageDimensions(buffer) {
   }
   return null;
 }
-

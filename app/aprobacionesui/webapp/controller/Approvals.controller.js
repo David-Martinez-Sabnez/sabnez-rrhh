@@ -41,6 +41,7 @@ sap.ui.define(
           this._reasonDialog,
           this._forwardDialog,
           this._delegationDialog,
+          this._reassignDialog,
         ]
           .filter(Boolean)
           .forEach(function (oDialog) {
@@ -85,6 +86,18 @@ sap.ui.define(
         MessageToast.show(this._text("dataUpdated"));
       },
 
+      onShowBackupInfo: function () {
+        MessageBox.information(this._text("backupCardDetail"), {
+          title: this._text("asBackup"),
+        });
+      },
+
+      onShowDelegatedInfo: function () {
+        MessageBox.information(this._text("delegatedCardDetail"), {
+          title: this._text("delegatedByMe"),
+        });
+      },
+
       onDismissError: function () {
         this.getView().getModel("view").setProperty("/error", "");
       },
@@ -95,6 +108,10 @@ sap.ui.define(
         oModel.setProperty("/selectedTab", sKey);
         if (sKey !== "HISTORY") {
           oModel.setProperty("/filters/status", "");
+        }
+        if (sKey === "REASSIGN") {
+          this._loadReassignmentIssues();
+          return;
         }
         this._applyFilters();
       },
@@ -405,6 +422,190 @@ sap.ui.define(
         await this._openReasonDialog("REVOKE", oDelegation);
       },
 
+      _loadReassignmentPermissions: async function () {
+        try {
+          var oResponse = await this._timeGet("obtenerPermisosReasignacion()");
+          var oPermissions = oResponse.value || oResponse || {};
+          this.getView()
+            .getModel("view")
+            .setProperty(
+              "/auth/canReassignTimeApprovals",
+              oPermissions.puedeReasignar === true,
+            );
+          return oPermissions.puedeReasignar === true;
+        } catch (oError) {
+          this.getView()
+            .getModel("view")
+            .setProperty("/auth/canReassignTimeApprovals", false);
+          return false;
+        }
+      },
+
+      _loadReassignmentIssues: async function () {
+        var oModel = this.getView().getModel("view");
+        if (!oModel.getProperty("/auth/canReassignTimeApprovals")) {
+          oModel.setProperty("/reassignment/items", []);
+          oModel.setProperty("/reassignment/count", 0);
+          return;
+        }
+        oModel.setProperty("/actionBusy", true);
+        try {
+          var oResponse = await this._timeGet("obtenerIncidenciasReasignacion()");
+          var aItems = (oResponse.value || oResponse || []).map(
+            function (oItem) {
+              return Object.assign({}, oItem, {
+                weekText: [oItem.semanaInicio, oItem.semanaFin]
+                  .filter(Boolean)
+                  .join(" — "),
+                aprobadorActualNombre:
+                  oItem.aprobadorActualNombre || this._text("noApprover"),
+                aprobadorSugeridoNombre:
+                  oItem.aprobadorSugeridoNombre ||
+                  this._text("configurationRequired"),
+              });
+            }.bind(this),
+          );
+          oModel.setProperty("/reassignment/items", aItems);
+          oModel.setProperty("/reassignment/count", aItems.length);
+          oModel.setProperty("/reassignment/selectedCount", 0);
+          this.byId("reassignmentTable")?.removeSelections(true);
+        } catch (oError) {
+          MessageBox.error(this._extractErrorMessage(oError));
+        } finally {
+          oModel.setProperty("/actionBusy", false);
+        }
+      },
+
+      onReassignmentSelectionChange: function (oEvent) {
+        var oTable = oEvent.getSource();
+        this.getView()
+          .getModel("view")
+          .setProperty(
+            "/reassignment/selectedCount",
+            oTable.getSelectedItems().length,
+          );
+      },
+
+      _selectedReassignmentIssues: function () {
+        return (this.byId("reassignmentTable")?.getSelectedItems() || [])
+          .map(function (oItem) {
+            return oItem.getBindingContext("view")?.getObject();
+          })
+          .filter(Boolean);
+      },
+
+      onReprocessSelectedApprovals: async function () {
+        var aIssues = this._selectedReassignmentIssues();
+        if (!aIssues.length) {
+          MessageBox.warning(this._text("selectReassignmentIssue"));
+          return;
+        }
+        var aResolvable = aIssues.filter(function (oIssue) {
+          return oIssue.resolubleAutomaticamente === true;
+        });
+        if (!aResolvable.length) {
+          MessageBox.warning(this._text("noAutoResolvableIssues"));
+          return;
+        }
+        var bConfirmed = await this._confirm(
+          this._text("confirmReprocess", [aResolvable.length]),
+          this._text("reprocessSelected"),
+        );
+        if (!bConfirmed) return;
+
+        var oModel = this.getView().getModel("view");
+        oModel.setProperty("/actionBusy", true);
+        try {
+          var iSuccess = 0;
+          var aErrors = [];
+          for (const oIssue of aResolvable) {
+            try {
+              await this._timePost("reprocesarAprobacion", {
+                hojaID: oIssue.ID,
+                comentario: "Reprocesamiento desde el Centro de aprobaciones.",
+              });
+              iSuccess += 1;
+            } catch (oError) {
+              aErrors.push(this._extractErrorMessage(oError));
+            }
+          }
+          if (iSuccess) {
+            MessageToast.show(this._text("reprocessedCount", [iSuccess]));
+          }
+          if (aErrors.length) {
+            MessageBox.warning(aErrors.join("\\n"));
+          }
+          await this._loadReassignmentIssues();
+          await this._loadData(true);
+        } finally {
+          oModel.setProperty("/actionBusy", false);
+        }
+      },
+
+      onOpenReassignApprovals: async function () {
+        var aIssues = this._selectedReassignmentIssues();
+        if (!aIssues.length) {
+          MessageBox.warning(this._text("selectReassignmentIssue"));
+          return;
+        }
+        this.getView().getModel("view").setProperty("/reassignmentForm", {
+          approverID: "",
+          reason: "",
+          selectedCount: aIssues.length,
+        });
+        if (!this._reassignDialog) {
+          this._reassignDialog = await Fragment.load({
+            id: this.getView().getId(),
+            name: "sabnez.com.aprobacionesui.fragment.ReassignTimeDialog",
+            controller: this,
+          });
+          this.getView().addDependent(this._reassignDialog);
+        }
+        this._reassignDialog.open();
+      },
+
+      onCloseReassignDialog: function () {
+        this._reassignDialog?.close();
+      },
+
+      onConfirmReassignApprovals: async function () {
+        var oModel = this.getView().getModel("view");
+        var oForm = oModel.getProperty("/reassignmentForm") || {};
+        var aIssues = this._selectedReassignmentIssues();
+        if (!oForm.approverID || !String(oForm.reason || "").trim()) {
+          MessageBox.warning(this._text("reassignmentRequired"));
+          return;
+        }
+        oModel.setProperty("/actionBusy", true);
+        try {
+          var iSuccess = 0;
+          var aErrors = [];
+          for (const oIssue of aIssues) {
+            try {
+              await this._timePost("reasignarAprobacion", {
+                hojaID: oIssue.ID,
+                aprobadorID: oForm.approverID,
+                comentario: String(oForm.reason).trim(),
+              });
+              iSuccess += 1;
+            } catch (oError) {
+              aErrors.push(this._extractErrorMessage(oError));
+            }
+          }
+          this._reassignDialog?.close();
+          if (iSuccess) {
+            MessageToast.show(this._text("reassignedCount", [iSuccess]));
+          }
+          if (aErrors.length) {
+            MessageBox.warning(aErrors.join("\\n"));
+          }
+          await this._loadReassignmentIssues();
+          await this._loadData(true);
+        } finally {
+          oModel.setProperty("/actionBusy", false);
+        }
+      },
+
       _loadData: async function (bForce) {
         if (this._loadPromise && !bForce) {
           return this._loadPromise;
@@ -422,6 +623,7 @@ sap.ui.define(
               this._callOperation(ServiceContract.operations.getDelegations),
               this._loadEligibleEmployees(),
               this._loadTimeTasks(),
+              this._loadReassignmentPermissions(),
             ]);
 
             var aApprovalTasks = this._unwrapArray(aResults[1], "tareas").map(
@@ -463,6 +665,9 @@ sap.ui.define(
             oModel.setProperty("/typeFilters", this._buildTypeFilters(aTasks));
             oModel.setProperty("/tabCounts", this._tabCounts(aTasks));
             this._applyFilters();
+            if (aResults[5] === true) {
+              await this._loadReassignmentIssues();
+            }
             this._loaded = true;
           } catch (oError) {
             oModel.setProperty("/error", this._extractErrorMessage(oError));
@@ -492,6 +697,26 @@ sap.ui.define(
               oTimeFile.contenidoBase64,
               oTimeFile.mimeType,
               oTimeFile.nombre || oFact.value,
+            );
+          } catch (oError) {
+            MessageBox.error(this._extractErrorMessage(oError));
+          }
+          return;
+        }
+
+        // Expediente de una cuenta de cobro: el enlace trae la cuenta y el
+        // tipo de documento en el esquema cuenta-cobro://<ID>/<TIPO>.
+        var oCuenta = this._collectionAccountFromLink(oFact.link);
+        if (oCuenta) {
+          try {
+            var oDocumento = await this._callOperation(
+              ServiceContract.operations.downloadCollectionAccountDocument,
+              { cuentaID: oCuenta.cuentaID, tipo: oCuenta.tipo },
+            );
+            this._downloadBase64File(
+              oDocumento.contenidoBase64,
+              oDocumento.mimeType,
+              oDocumento.filename || oFact.value,
             );
           } catch (oError) {
             MessageBox.error(this._extractErrorMessage(oError));
@@ -663,7 +888,7 @@ sap.ui.define(
           roleText:
             oRaw.siguienteAccion === "Aprobación administrativa"
               ? "Aprobación administrativa"
-              : this._text("directManagerRole"),
+              : "Aprobador del proyecto",
           roleState: "Information",
           isBackup: false,
           scope: "PENDING",
@@ -1048,7 +1273,10 @@ sap.ui.define(
           return "Semana enviada";
         }
         if (sKey === "TIME_LEADER_APPROVED") {
-          return "Aprobada por jefe inmediato";
+          return "Aprobada por líder";
+        }
+        if (sKey === "TIME_PROJECT_APPROVED") {
+          return "Etapa del proyecto aprobada";
         }
         if (sKey === "TIME_ADMIN_APPROVED") {
           return "Aprobada administrativamente";
@@ -1543,6 +1771,17 @@ sap.ui.define(
           eligibleEmployees: [],
           selectedTab: "PENDING",
           tabCounts: { pending: 0, backup: 0, history: 0 },
+          auth: { canReassignTimeApprovals: false },
+          reassignment: {
+            items: [],
+            count: 0,
+            selectedCount: 0,
+          },
+          reassignmentForm: {
+            approverID: "",
+            reason: "",
+            selectedCount: 0,
+          },
           filters: {
             search: "",
             type: "",
@@ -1817,6 +2056,14 @@ sap.ui.define(
         window.setTimeout(function () {
           URL.revokeObjectURL(sUrl);
         }, 1000);
+      },
+
+      _collectionAccountFromLink: function (sLink) {
+        var aMatch = /^cuenta-cobro:\/\/([^/]+)\/(ACCOUNT|SUPPORT)$/.exec(String(sLink || ""));
+        if (!aMatch) {
+          return null;
+        }
+        return { cuentaID: decodeURIComponent(aMatch[1]), tipo: aMatch[2] };
       },
 
       _absenceRequestIdFromLink: function (sLink) {

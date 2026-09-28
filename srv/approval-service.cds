@@ -175,6 +175,11 @@ service ApprovalService @(
   action   descargarSoporteAusencia(solicitudID: UUID,
                                     soporteID: UUID) returns ArchivoSoporte;
 
+  // Expediente de una cuenta de cobro, para revisarlo antes de decidir la
+  // tarea. tipo: ACCOUNT (PDF firmado) o SUPPORT (seguridad social).
+  action   descargarDocumentoCuentaCobro(cuentaID: UUID,
+                                         tipo: String(10))  returns ArchivoSoporte;
+
   // Se procesa mediante la cola transaccional; el adaptador de correo se
   // conectará posteriormente sin cambiar el flujo de aprobación.
   event ApprovalNotificationRequested : EventoNotificacion;

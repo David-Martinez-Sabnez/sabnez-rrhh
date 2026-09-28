@@ -5,72 +5,153 @@ body,
   height: 100%;
 }
 
-.sapMPageBgStandard { background: #f5f7fa; }
-.commercialAdminDynamicPage .sapFDynamicPageContent { height: auto !important; }
-.commercialAdminContent { box-sizing: border-box; width: 100%; }
-.commercialSummaryStrip { gap: .75rem; width: 100%; }
-.commercialSummaryCard {
+/* ---------------------------------------------------------------
+   Shell: el título lo dibuja el DynamicPageTitle con el estilo del
+   tema, igual que en el resto de programas. Aquí sólo se reparte el
+   alto entre las pestañas y el FlexibleColumnLayout.
+
+   OJO: no poner height en .sapFFCL. El FCL calcula el alto de sus
+   columnas con height:100% contra el suyo; con un height explícito
+   (auto incluido) las columnas colapsan a cero y el detalle se
+   renderiza invisible. Que lo resuelva flex y nada más.
+   --------------------------------------------------------------- */
+.shellPage .sapFDynamicPageContentWrapper,
+.shellPage .sapFDynamicPageContent {
+  height: 100%;
+  min-height: 0;
+}
+.shellContent {
+  height: 100%;
+  min-height: 0;
+}
+.shellContent > .sapMITH {
+  flex: 0 0 auto;
+}
+.shellContent > .sapFFCL {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.areaTabs {
+  background: var(--sapObjectHeader_Background, var(--sapBackgroundColor));
+  box-shadow: inset 0 -1px 0 var(--sapGroup_ContentBorderColor);
+  padding-left: 2rem;
+}
+
+/* ---------------------------------------------------------------
+   Barra de filtros: etiqueta encima de cada campo y reflow por ancho,
+   en vez de una Toolbar con anchos fijos en rem.
+   --------------------------------------------------------------- */
+.filterBar {
+  gap: 0.75rem 1rem;
+  width: 100%;
   box-sizing: border-box;
+  padding-bottom: 0.25rem;
+}
+.filterField {
   flex: 1 1 13rem;
-  min-width: 12rem;
-  min-height: 6.5rem;
-  padding: .9rem 1rem;
-  border: 1px solid var(--sapGroup_ContentBorderColor);
-  border-left: .25rem solid var(--sapInformativeColor);
-  border-radius: .75rem;
-  background: var(--sapGroup_ContentBackground);
-  box-shadow: var(--sapContent_Shadow0);
+  min-width: 11rem;
+  max-width: 20rem;
+  gap: 0.125rem;
 }
-.commercialSummaryCard .sapMLabel { color: var(--sapContent_LabelColor); }
-.commercialSummaryCard .sapMText { color: var(--sapContent_LabelColor); font-size: .78rem; }
-.commercialSummaryPrimary { border-left-color: var(--sapSelectedColor); }
-.commercialSummarySuccess { border-left-color: var(--sapPositiveColor); }
-.adminAppHeader { min-height: 4.5rem; padding: .55rem 1rem; background: #fff; border: 1px solid #dce3e8; border-radius: .5rem; box-shadow: 0 1px 4px rgba(34,53,72,.08); }
-.adminAppHeader .sapMTitle { font-size: 1.35rem; }
-.adminAppHeader .sapMText { color: #556b7d; }
-.adminSection {
-  margin: .8rem 0 0;
-  padding: 0;
-  background: #fff;
-  border: 1px solid #e1e7ed;
-  border-radius: .8rem;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(34,53,72,.05);
+.filterField .sapMLabel {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.75rem;
 }
-.adminSectionTitle { padding: .8rem 1rem .55rem; border-bottom: 1px solid #e1e7ed; }
-.commercialTabs {
-  border: 1px solid #e1e7ed;
-  border-radius: .8rem;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(34,53,72,.05);
+.filterActions {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: none;
+  justify-content: flex-end;
 }
-.commercialTabs .sapMITBContainerContent,
-.commercialTabs .sapMITBContent { border: 0; }
-.commercialTabs .sapMITBContent { border-radius: 0 0 .75rem .75rem; }
-.sapUiFormResGrid { background: #fff; }
-.commercialForm {
+
+.pageContent {
+  width: 100%;
+  box-sizing: border-box;
+}
+.tableToolbar {
+  padding-left: 0;
+  padding-right: 0;
+}
+.resultCount {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.8125rem;
+  margin-left: 0.5rem;
+}
+
+/* Las cifras se leen en columna: alineadas por dígito */
+.numeric {
+  font-variant-numeric: tabular-nums;
+  display: block;
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------
+   Cabecera del objeto: los datos que se consultan de un vistazo
+   --------------------------------------------------------------- */
+.objectEyebrow {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.objectFacts {
+  gap: 0.75rem 2rem;
   width: 100%;
 }
-
-.commercialForm .sapMInputBase,
-.commercialForm .sapMSlt,
-.commercialForm .sapUiFup {
-  width: 100% !important;
-  max-width: 42rem !important;
+/* En la columna de detalle el ancho es la mitad: las cotas se compactan
+   para que quepan por fila en vez de partirse de una en una. */
+.fact {
+  gap: 0.125rem;
+  min-width: 6.5rem;
+  max-width: 14rem;
+}
+.fact .sapMLabel {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.75rem;
 }
 
-.commercialForm .sapMStepInput {
-  max-width: 14rem;
+/* ---------------------------------------------------------------
+   Configuración del proyecto: pares etiqueta / valor legibles
+   --------------------------------------------------------------- */
+.configBlock {
+  gap: 1rem;
+  width: 100%;
+}
+.configRow {
+  padding: 0.5rem 0;
+  gap: 1rem;
+  width: 100%;
+}
+.configText {
+  flex: 1 1 auto;
+  gap: 0.125rem;
+}
+.configHint {
+  color: var(--sapContent_LabelColor);
+  font-size: 0.8125rem;
+}
+
+/* ---------------------------------------------------------------
+   Diálogos de alta y edición
+   --------------------------------------------------------------- */
+.formDialog .sapMDialogScrollCont {
+  padding-bottom: 0;
+}
+.dialogForm .sapUiFormResGrid {
+  padding-top: 0.25rem;
+}
+.dialogHint {
+  margin: 0 1rem 1rem;
 }
 
 @media (max-width: 600px) {
-  .commercialSummaryStrip { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: .35rem; }
-  .commercialSummaryCard { flex: 0 0 13rem; min-width: 13rem; }
-  .commercialForm .sapMInputBase,
-  .commercialForm .sapMSlt,
-  .commercialForm .sapUiFup {
-    max-width: none !important;
+  .areaTabs { padding-left: 0.25rem; }
+  .filterField {
+    flex: 1 1 100%;
+    max-width: none;
   }
-  .adminSection { margin: .4rem 0; }
+  .objectFacts {
+    gap: 0.5rem 1.25rem;
+  }
 }

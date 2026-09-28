@@ -26,6 +26,7 @@ async function main() {
     ID: IDS.client,
     legalName: "Sabnez Consulting SAS",
     tradeName: "Sabnez Consulting",
+    projectCodePrefix: "SBZ",
     taxIdentification: "DEMO-INTERNO",
     countryCode: "CO",
     defaultCurrency: "COP",

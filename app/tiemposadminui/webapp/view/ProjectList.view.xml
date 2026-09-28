@@ -1,0 +1,133 @@
+<mvc:View
+  controllerName="sabnez.com.tiemposadminui.controller.ProjectList"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <f:DynamicPage id="projectListPage" class="listPage" toggleHeaderOnTitleClick="false" busy="{view>/busy}" busyIndicatorDelay="300" fitContent="false">
+
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading><Title text="Proyectos" level="H2"/></f:heading>
+        <f:actions>
+          <Button text="Completar clasificación" icon="sap-icon://process"
+            visible="{view>/canSeeRates}" enabled="{= !${view>/busy} }"
+            tooltip="Crea reglas faltantes y reclasifica registros comerciales pendientes"
+            press=".onCompleteCommercialClassification"/>
+          <Button text="Nuevo proyecto" type="Emphasized" icon="sap-icon://add" press=".onCreate"/>
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:header>
+      <f:DynamicPageHeader pinnable="true">
+        <f:content>
+          <VBox>
+            <HBox wrap="Wrap" alignItems="End" class="filterBar">
+              <VBox class="filterField">
+                <Label text="Buscar"/>
+                <SearchField value="{view>/filters/projects/search}" placeholder="Código, nombre o cliente"
+                  liveChange=".onFilter" search=".onFilter"/>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Cliente"/>
+                <ComboBox selectedKey="{view>/filters/projects/clientID}" items="{view>/clients}"
+                  showClearIcon="true" placeholder="Todos los clientes"
+                  selectionChange=".onFilter" change=".onFilter">
+                  <core:Item key="{view>ID}" text="{view>tradeName}"/>
+                </ComboBox>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Modalidad"/>
+                <Select selectedKey="{view>/filters/projects/modality}" change=".onFilter">
+                  <core:Item key="" text="Todas las modalidades"/>
+                  <core:Item key="FULL_TIME" text="Tiempo completo"/>
+                  <core:Item key="HOURLY" text="Por horas"/>
+                  <core:Item key="MIXED" text="Mixto"/>
+                  <core:Item key="INTERNAL" text="Interno"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField">
+                <Label text="Estado"/>
+                <Select selectedKey="{view>/filters/projects/status}" change=".onFilter">
+                  <core:Item key="" text="Todos los estados"/>
+                  <core:Item key="DRAFT" text="Borrador"/>
+                  <core:Item key="ACTIVE" text="Activo"/>
+                  <core:Item key="INACTIVE" text="Inactivo"/>
+                  <core:Item key="CLOSED" text="Cerrado"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField" visible="{view>/canSeeRates}">
+                <Label text="Tarifas"/>
+                <Select selectedKey="{view>/filters/projects/rateIssue}" change=".onFilter">
+                  <core:Item key="" text="Todas"/>
+                  <core:Item key="MISSING" text="Con horas devengando cero"/>
+                </Select>
+              </VBox>
+              <VBox class="filterField filterActions">
+                <Button text="Limpiar" icon="sap-icon://clear-filter" type="Transparent" press=".onClearFilters"/>
+              </VBox>
+            </HBox>
+          </VBox>
+        </f:content>
+      </f:DynamicPageHeader>
+    </f:header>
+
+    <f:content>
+      <VBox class="pageContent">
+        <MessageStrip text="{view>/error}" type="Error" showIcon="true" showCloseButton="true"
+          visible="{= !!${view>/error} }" close=".onDismissError" class="sapUiSmallMarginBottom"/>
+
+        <Table id="projectsTable"
+          items="{view>/filteredProjects}"
+          mode="SingleSelectMaster"
+          itemPress=".onOpen"
+          growing="true" growingThreshold="30"
+          sticky="ColumnHeaders"
+          noDataText="Ningún proyecto coincide con los filtros. Prueba a limpiarlos o crea uno nuevo.">
+          <headerToolbar>
+            <Toolbar class="tableToolbar">
+              <Title text="Resultados" level="H4"/>
+              <Text class="resultCount" text="{= ${view>/filteredProjects/length} === ${view>/projects/length} ? ${view>/projects/length} + ' proyectos' : ${view>/filteredProjects/length} + ' de ' + ${view>/projects/length} + ' proyectos' }"/>
+              <ToolbarSpacer/>
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="Proyecto"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Cliente"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Modalidad"/></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+            <Column hAlign="End" width="6rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Equipo"/></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Aprobación"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline" visible="{view>/canSeeRates}"><Text text="Tarifa"/></Column>
+            <Column width="7rem"><Text text="Estado"/></Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Navigation">
+              <cells>
+                <ObjectIdentifier title="{view>name}" text="{view>code}"/>
+                <ObjectIdentifier title="{view>clientName}" text="{= ${view>modality} === 'INTERNAL' ? 'Sin facturación' : (${view>contractReference} || 'Sin contrato') }"/>
+                <Text text="{path: 'view>modality', formatter: '.formatter.modalidad'}"/>
+                <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                <ObjectNumber number="{view>teamSize}" emphasized="false"/>
+                <ObjectStatus
+                  text="{view>approvalGap}"
+                  state="{= ${view>approvalComplete} ? 'Success' : 'Warning' }"
+                  icon="{= ${view>approvalComplete} ? 'sap-icon://sys-enter-2' : 'sap-icon://alert' }"/>
+                <ObjectStatus
+                  visible="{view>/canSeeRates}"
+                  text="{= ${view>modality} === 'INTERNAL' ? 'No aplica' : (${view>missingRateCount} ? ${view>missingRateCount} + ' asignación(es) · ' + ${view>missingRateHours} + ' h en cero' : 'Sin incidencias') }"
+                  state="{= ${view>modality} === 'INTERNAL' ? 'None' : (${view>missingRateCount} ? 'Warning' : 'Success') }"
+                  icon="{= ${view>modality} === 'INTERNAL' ? 'sap-icon://decline' : (${view>missingRateCount} ? 'sap-icon://alert' : 'sap-icon://sys-enter-2') }"/>
+                <ObjectStatus
+                  text="{path: 'view>status', formatter: '.formatter.estado'}"
+                  state="{path: 'view>status', formatter: '.formatter.estadoState'}"/>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>

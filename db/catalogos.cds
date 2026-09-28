@@ -14,6 +14,10 @@ entity Cargos : cuid, managed {
   nombre      : String(80) @mandatory;
   descripcion : String(200);
   activo      : Boolean default true;
+  // Si el puesto genera ingreso facturable. Es sólo el valor de partida
+  // al dar de alta a alguien: la marca que manda está en el empleado,
+  // porque el mismo cargo puede facturarse en una cuenta y no en otra.
+  facturablePorDefecto : Boolean default true;
 }
 
 @assert.unique: {nombre: [nombre]}
@@ -81,6 +85,39 @@ entity TiposContrato {
   key codigo           : String(30) @mandatory;
       descripcion      : String(80) @mandatory;
       causaVacaciones  : Boolean default false;
+}
+
+entity TiposDocumentoEmpleado {
+  key codigo      : String(30) @mandatory;
+      descripcion : String(100) @mandatory;
+      categoria   : String(30) @mandatory;
+      requiereVigencia : Boolean default false;
+      activo      : Boolean default true;
+}
+
+entity TratamientosRetencionCuentaCobro {
+  key codigo      : String(30) @mandatory;
+      descripcion : String(120) @mandatory;
+      explicacion : String(500) @mandatory;
+      activo      : Boolean default true;
+}
+
+entity EntidadesFinancieras {
+  key codigo      : String(30) @mandatory;
+      nombre      : String(120) @mandatory;
+      activo      : Boolean default true;
+}
+
+entity TiposCuentaBancaria {
+  key codigo      : String(20) @mandatory;
+      descripcion : String(80) @mandatory;
+      activo      : Boolean default true;
+}
+
+entity Monedas {
+  key codigo      : String(3) @mandatory;
+      descripcion : String(80) @mandatory;
+      activa      : Boolean default true;
 }
 
 entity TiposAusencia {

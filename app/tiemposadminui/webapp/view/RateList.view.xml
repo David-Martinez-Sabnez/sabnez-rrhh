@@ -1,0 +1,98 @@
+<mvc:View
+  controllerName="sabnez.com.tiemposadminui.controller.RateList"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <f:DynamicPage id="rateListPage" class="listPage" toggleHeaderOnTitleClick="false" busy="{view>/busy}" busyIndicatorDelay="300">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading><Title text="Tarifas" level="H2"/></f:heading>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:header>
+      <f:DynamicPageHeader pinnable="true">
+        <f:content>
+          <HBox wrap="Wrap" alignItems="End" class="filterBar">
+            <VBox class="filterField">
+              <Label text="Proyecto"/>
+              <ComboBox selectedKey="{view>/filters/rates/projectID}" items="{view>/projects}"
+                showClearIcon="true" placeholder="Todos los proyectos"
+                selectionChange=".onFilter" change=".onFilter">
+                <core:Item key="{view>ID}" text="{view>name}"/>
+              </ComboBox>
+            </VBox>
+            <VBox class="filterField">
+              <Label text="Persona"/>
+              <ComboBox selectedKey="{view>/filters/rates/employeeID}" items="{view>/employees}"
+                showClearIcon="true" placeholder="Todas las personas"
+                selectionChange=".onFilter" change=".onFilter">
+                <core:Item key="{view>ID}" text="{view>nombreCompleto}"/>
+              </ComboBox>
+            </VBox>
+            <VBox class="filterField">
+              <Label text="Moneda"/>
+              <Select selectedKey="{view>/filters/rates/currency}" change=".onFilter">
+                <core:Item key="" text="Todas las monedas"/>
+                <core:Item key="COP" text="COP"/>
+                <core:Item key="USD" text="USD"/>
+                <core:Item key="EUR" text="EUR"/>
+                <core:Item key="MXN" text="MXN"/>
+                <core:Item key="PEN" text="PEN"/>
+                <core:Item key="CLP" text="CLP"/>
+              </Select>
+            </VBox>
+            <VBox class="filterField filterActions">
+              <Button text="Limpiar" icon="sap-icon://clear-filter" type="Transparent" press=".onClearFilters"/>
+            </VBox>
+          </HBox>
+        </f:content>
+      </f:DynamicPageHeader>
+    </f:header>
+
+    <f:content>
+      <VBox class="pageContent">
+        <MessageStrip class="sapUiSmallMarginBottom" showIcon="true" type="Information"
+          text="Las tarifas se crean y se editan dentro de cada proyecto, en su sección de Tarifas. Esta vista es para consultarlas todas juntas."/>
+        <Table items="{view>/filteredRates}" growing="true" growingThreshold="50" sticky="ColumnHeaders"
+          noDataText="Ninguna tarifa coincide con los filtros.">
+          <headerToolbar>
+            <Toolbar class="tableToolbar">
+              <Title text="Resultados" level="H4"/>
+              <Text class="resultCount" text="{= ${view>/filteredRates/length} === ${view>/rates/length} ? ${view>/rates/length} + ' tarifas' : ${view>/filteredRates/length} + ' de ' + ${view>/rates/length} + ' tarifas' }"/>
+              <ToolbarSpacer/>
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="Persona"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Proyecto"/></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+            <Column hAlign="End" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Venta mensual"/></Column>
+            <Column hAlign="End"><Text text="Venta por hora"/></Column>
+            <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Venta hora extra"/></Column>
+            <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Costo mensual"/></Column>
+            <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Costo por hora"/></Column>
+            <Column hAlign="End" width="5rem"><Text text=""/></Column>
+          </columns>
+          <items>
+            <ColumnListItem>
+              <cells>
+                <Text text="{view>employeeName}"/>
+                <Link text="{view>projectName}" press=".onOpenProject"/>
+                <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                <Text class="numeric" text="{parts: ['view>monthlySaleRate', 'view>saleCurrency'], formatter: '.formatter.importe'}"/>
+                <Text class="numeric" text="{parts: ['view>regularSaleHourlyRate', 'view>saleCurrency'], formatter: '.formatter.importe'}"/>
+                <Text class="numeric" text="{parts: ['view>overtimeSaleHourlyRate', 'view>saleCurrency'], formatter: '.formatter.importe'}"/>
+                <Text class="numeric" text="{parts: ['view>internalMonthlyCost', 'view>costCurrency'], formatter: '.formatter.importe'}"/>
+                <Text class="numeric" text="{parts: ['view>internalHourlyCost', 'view>costCurrency'], formatter: '.formatter.importe'}"/>
+                <Button icon="sap-icon://arrow-right" type="Transparent" tooltip="Ir al proyecto" press=".onOpenProject"/>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>

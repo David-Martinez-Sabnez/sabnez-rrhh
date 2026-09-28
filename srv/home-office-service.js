@@ -12,6 +12,7 @@ module.exports = cds.service.impl(function () {
   const {
     Empleados,
     ConfiguracionHomeOffice,
+    PoliticasHomeOffice,
     DiasHomeOffice,
     SeleccionesHomeOffice,
   } = cds.entities("sabnez.rrhh");
@@ -21,7 +22,7 @@ module.exports = cds.service.impl(function () {
   // ==========================================================
 
   this.on("obtenerMiSemana", async (req) => {
-    const configuracion = await obtenerConfiguracion(
+    let configuracion = await obtenerConfiguracion(
       req,
       ConfiguracionHomeOffice,
     );
@@ -40,13 +41,15 @@ module.exports = cds.service.impl(function () {
     const ahora = new Date();
 
     const ciclo = calcularCicloSeleccion(ahora, configuracion);
+    const semanaObjetivoFin = sumarDias(ciclo.semanaObjetivoInicio, 4);
 
     const semanaAnteriorInicio = sumarDias(ciclo.semanaObjetivoInicio, -7);
+
     const semanaConFeriado = tieneFeriadoEnSemana(ciclo.semanaObjetivoInicio);
 
-    const reiniciaReglaSemanaAnterior =
-      obtenerMesISO(semanaAnteriorInicio) !==
-      obtenerMesISO(ciclo.semanaObjetivoInicio);
+    const reiniciaReglaSemanaAnterior = debeReiniciarReglaPorCambioMes(
+      ciclo.semanaObjetivoInicio,
+    );
 
     /*
      * Consultamos:
@@ -54,7 +57,12 @@ module.exports = cds.service.impl(function () {
      * 2. Todas las selecciones de la semana objetivo.
      * 3. Días confirmados por el empleado la semana anterior.
      */
-    const [diasConfigurados, seleccionesSemana, seleccionesSemanaAnterior] =
+    const [
+      diasConfigurados,
+      seleccionesSemana,
+      seleccionesSemanaAnterior,
+      politicasVigentes,
+    ] =
       await Promise.all([
         SELECT.from(DiasHomeOffice).where({
           semanaInicio: ciclo.semanaObjetivoInicio,
@@ -69,6 +77,10 @@ module.exports = cds.service.impl(function () {
           semanaInicio: semanaAnteriorInicio,
           estado: "CONFIRMADA",
         }),
+
+        SELECT.from(PoliticasHomeOffice)
+          .where`vigenteDesde <= ${semanaObjetivoFin} and activa = true`
+          .orderBy("vigenteDesde asc"),
       ]);
 
     const seleccionesActivas = seleccionesSemana.filter((seleccion) =>
@@ -86,7 +98,9 @@ module.exports = cds.service.impl(function () {
     const ocupacionPorFecha = contarOcupacionPorFecha(seleccionesActivas);
 
     const capacidadPorFecha = new Map(
-      diasConfigurados.map((dia) => [dia.fecha, Number(dia.capacidad)]),
+      diasConfigurados
+        .filter((dia) => Boolean(dia.motivo))
+        .map((dia) => [dia.fecha, Number(dia.capacidad)]),
     );
 
     const omitirReglaSemanaAnterior =
@@ -100,10 +114,6 @@ module.exports = cds.service.impl(function () {
           ),
         );
 
-    const maxDiasPermitidos = Number(configuracion.maxDiasPorSemana);
-
-    const cuposPredeterminados = Number(configuracion.cuposPorDia);
-
     const resultado = [];
 
     const misDiasSeleccionados = new Set(
@@ -114,6 +124,16 @@ module.exports = cds.service.impl(function () {
       const diaSemana = indice + 1;
 
       const fecha = sumarDias(ciclo.semanaObjetivoInicio, indice);
+      const configuracionDia = aplicarPoliticaDesdeRegistros(
+        configuracion,
+        fecha,
+        politicasVigentes,
+      );
+      const maxDiasPermitidos = Number(configuracionDia.maxDiasPorSemana);
+      const cuposPredeterminados = obtenerCapacidadConfigurada(
+        configuracionDia,
+        fecha,
+      );
 
       const esFeriado = esFeriadoColombia(fecha);
 
@@ -208,7 +228,7 @@ module.exports = cds.service.impl(function () {
       );
     }
 
-    const configuracion = await obtenerConfiguracion(
+    let configuracion = await obtenerConfiguracion(
       req,
       ConfiguracionHomeOffice,
     );
@@ -227,6 +247,11 @@ module.exports = cds.service.impl(function () {
     const ahora = new Date();
 
     const ciclo = calcularCicloSeleccion(ahora, configuracion);
+    configuracion = await aplicarPoliticaVigente(
+      configuracion,
+      fecha,
+      PoliticasHomeOffice,
+    );
 
     if (!ciclo.ventanaAbierta) {
       return req.reject(409, "La ventana semanal de selección está cerrada.");
@@ -293,7 +318,7 @@ module.exports = cds.service.impl(function () {
         fecha,
         semanaInicio: ciclo.semanaObjetivoInicio,
         diaSemana,
-        capacidad: Number(configuracion.cuposPorDia),
+        capacidad: obtenerCapacidadConfigurada(configuracion, fecha),
       });
     }
 
@@ -326,9 +351,9 @@ module.exports = cds.service.impl(function () {
      */
     const semanaAnteriorInicio = sumarDias(ciclo.semanaObjetivoInicio, -7);
 
-    const reiniciaReglaSemanaAnterior =
-      obtenerMesISO(semanaAnteriorInicio) !==
-      obtenerMesISO(ciclo.semanaObjetivoInicio);
+    const reiniciaReglaSemanaAnterior = debeReiniciarReglaPorCambioMes(
+      ciclo.semanaObjetivoInicio,
+    );
 
     const semanaConFeriado = tieneFeriadoEnSemana(ciclo.semanaObjetivoInicio);
 
@@ -376,7 +401,7 @@ module.exports = cds.service.impl(function () {
      * Esto hace la operación idempotente frente a doble clic.
      */
     if (seleccionExistente && esSeleccionActiva(seleccionExistente, ahora)) {
-      const capacidad = Number(diaControl.capacidad);
+      const capacidad = obtenerCapacidadDia(diaControl, configuracion, fecha);
 
       const seleccionesDelDia = await SELECT.from(SeleccionesHomeOffice).where({
         fecha,
@@ -456,7 +481,7 @@ module.exports = cds.service.impl(function () {
       esSeleccionActiva(seleccion, ahora),
     );
 
-    const capacidad = Number(diaControl.capacidad);
+    const capacidad = obtenerCapacidadDia(diaControl, configuracion, fecha);
 
     if (seleccionesActivasDelDia.length >= capacidad) {
       return req.reject(409, "No hay cupos disponibles para este día.");
@@ -528,7 +553,7 @@ module.exports = cds.service.impl(function () {
       return req.reject(400, "Debes enviar un token de reserva válido.");
     }
 
-    const configuracion = await obtenerConfiguracion(
+    let configuracion = await obtenerConfiguracion(
       req,
       ConfiguracionHomeOffice,
     );
@@ -568,6 +593,12 @@ module.exports = cds.service.impl(function () {
         "No se encontró una reserva activa asociada a este usuario.",
       );
     }
+
+    configuracion = await aplicarPoliticaVigente(
+      configuracion,
+      seleccion.fecha,
+      PoliticasHomeOffice,
+    );
 
     if (seleccion.estado !== "RESERVADA") {
       return req.reject(
@@ -612,7 +643,7 @@ module.exports = cds.service.impl(function () {
     });
 
     const capacidad = Number(
-      diaControl?.capacidad ?? configuracion.cuposPorDia,
+      obtenerCapacidadDia(diaControl, configuracion, seleccion.fecha),
     );
 
     /*
@@ -653,7 +684,7 @@ module.exports = cds.service.impl(function () {
   // ==========================================================
 
   this.on("confirmarSemana", async (req) => {
-    const configuracion = await obtenerConfiguracion(
+    let configuracion = await obtenerConfiguracion(
       req,
       ConfiguracionHomeOffice,
     );
@@ -672,6 +703,11 @@ module.exports = cds.service.impl(function () {
     const ahora = new Date();
 
     const ciclo = calcularCicloSeleccion(ahora, configuracion);
+    configuracion = await aplicarPoliticaVigente(
+      configuracion,
+      sumarDias(ciclo.semanaObjetivoInicio, 4),
+      PoliticasHomeOffice,
+    );
 
     if (!ciclo.ventanaAbierta) {
       return req.reject(409, "La ventana semanal de selección está cerrada.");
@@ -812,7 +848,7 @@ module.exports = cds.service.impl(function () {
       );
     }
 
-    const configuracion = await obtenerConfiguracion(
+    let configuracion = await obtenerConfiguracion(
       req,
       ConfiguracionHomeOffice,
     );
@@ -831,6 +867,11 @@ module.exports = cds.service.impl(function () {
     const ahora = new Date();
 
     const ciclo = calcularCicloSeleccion(ahora, configuracion);
+    configuracion = await aplicarPoliticaVigente(
+      configuracion,
+      fecha,
+      PoliticasHomeOffice,
+    );
 
     if (!ciclo.ventanaAbierta) {
       return req.reject(409, "La ventana semanal de selección está cerrada.");
@@ -916,7 +957,7 @@ module.exports = cds.service.impl(function () {
         semanaInicio: ciclo.semanaObjetivoInicio,
         fecha,
         ahora,
-        capacidad: Number(diaControl?.capacidad ?? configuracion.cuposPorDia),
+        capacidad: obtenerCapacidadDia(diaControl, configuracion, fecha),
         maxDiasPermitidos: Number(configuracion.maxDiasPorSemana),
       });
 
@@ -958,7 +999,7 @@ module.exports = cds.service.impl(function () {
       semanaInicio: ciclo.semanaObjetivoInicio,
       fecha,
       ahora,
-      capacidad: Number(diaControl?.capacidad ?? configuracion.cuposPorDia),
+      capacidad: obtenerCapacidadDia(diaControl, configuracion, fecha),
       maxDiasPermitidos: Number(configuracion.maxDiasPorSemana),
     });
 
@@ -995,6 +1036,74 @@ async function obtenerConfiguracion(req, ConfiguracionHomeOffice) {
   }
 
   return configuracion;
+}
+
+async function aplicarPoliticaVigente(
+  configuracionBase,
+  fecha,
+  PoliticasHomeOffice,
+) {
+  const especial = await SELECT.one
+    .from(PoliticasHomeOffice)
+    .where`vigenteDesde <= ${fecha} and activa = true`
+    .orderBy("vigenteDesde desc");
+
+  return especial
+    ? {
+        ...configuracionBase,
+        maxDiasPorSemana: especial.maxDiasPorSemana,
+        cuposPorDia: especial.cuposPorDia,
+        cuposLunes: especial.cuposLunes,
+        cuposMartes: especial.cuposMartes,
+        cuposMiercoles: especial.cuposMiercoles,
+        cuposJueves: especial.cuposJueves,
+        cuposViernes: especial.cuposViernes,
+      }
+    : configuracionBase;
+}
+
+function aplicarPoliticaDesdeRegistros(configuracionBase, fecha, politicas) {
+  const aplicables = politicas.filter(
+    (politica) => String(politica.vigenteDesde).slice(0, 10) <= fecha,
+  );
+  const vigente = aplicables[aplicables.length - 1];
+  return vigente
+    ? {
+        ...configuracionBase,
+        maxDiasPorSemana: vigente.maxDiasPorSemana,
+        cuposPorDia: vigente.cuposPorDia,
+        cuposLunes: vigente.cuposLunes,
+        cuposMartes: vigente.cuposMartes,
+        cuposMiercoles: vigente.cuposMiercoles,
+        cuposJueves: vigente.cuposJueves,
+        cuposViernes: vigente.cuposViernes,
+      }
+    : configuracionBase;
+}
+
+function obtenerCapacidadDia(diaControl, configuracion, fecha) {
+  return Number(
+    diaControl?.motivo
+      ? diaControl.capacidad
+      : obtenerCapacidadConfigurada(
+          configuracion,
+          diaControl?.diaSemana || fecha,
+        ),
+  );
+}
+
+function obtenerCapacidadConfigurada(configuracion, diaOFecha) {
+  const diaSemana = typeof diaOFecha === "number"
+    ? diaOFecha
+    : obtenerDiaSemanaISO(String(diaOFecha).slice(0, 10));
+  const campos = {
+    1: "cuposLunes",
+    2: "cuposMartes",
+    3: "cuposMiercoles",
+    4: "cuposJueves",
+    5: "cuposViernes",
+  };
+  return Number(configuracion?.[campos[diaSemana]] ?? configuracion?.cuposPorDia);
 }
 
 // ============================================================
@@ -1442,4 +1551,32 @@ async function calcularResultadoDespuesCancelacion({
     diasSeleccionados,
     maxDiasPermitidos,
   };
+}
+
+function debeReiniciarReglaPorCambioMes(semanaInicio) {
+  /*
+   * semanaInicio siempre corresponde al lunes.
+   *
+   * Caso 1:
+   * El mes cambia dentro de la propia semana.
+   * Ej: lunes 31 agosto -> viernes 4 septiembre.
+   */
+  const semanaFin = sumarDias(semanaInicio, 4);
+
+  const cambiaDentroDeSemana =
+    obtenerMesISO(semanaInicio) !== obtenerMesISO(semanaFin);
+
+  /*
+   * Caso 2:
+   * El mes cambió entre la semana anterior y esta.
+   * Ej:
+   * viernes anterior = 31 julio
+   * lunes actual     = 3 agosto
+   */
+  const viernesSemanaAnterior = sumarDias(semanaInicio, -3);
+
+  const cambiaEntreSemanas =
+    obtenerMesISO(viernesSemanaAnterior) !== obtenerMesISO(semanaInicio);
+
+  return cambiaDentroDeSemana || cambiaEntreSemanas;
 }

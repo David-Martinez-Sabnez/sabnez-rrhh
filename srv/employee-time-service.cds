@@ -1,4 +1,4 @@
-using { sabnez.times as times } from '../db/time-management';
+using {sabnez.times as times} from '../db/time-management';
 
 service EmployeeTimeService @(
   path    : '/tiempos-empleado',
@@ -10,6 +10,7 @@ service EmployeeTimeService @(
     proyectoCodigo      : String(40);
     proyectoNombre      : String(180);
     clienteNombre       : String(180);
+    rol                 : String(120);
     modalidad           : String(15);
     fechaInicio         : Date;
     fechaFin            : Date;
@@ -17,29 +18,33 @@ service EmployeeTimeService @(
     requiereSoporte     : Boolean;
     zonaHoraria         : String(80);
     umbralAlertaDiaria  : Decimal(5, 2);
+    carga               : Decimal(7, 2);
+    fechaCorte          : Date;
+    diasParaCorte       : Integer;
+    estadoCorte         : String(15);
   }
 
   type RegistroTiempo {
-    ID                    : UUID;
-    hojaSemanalID         : UUID;
-    asignacionID          : UUID;
-    proyectoNombre        : String(180);
-    fecha                 : Date;
-    duracionHoras         : Decimal(7, 2);
-    tipoSolicitado        : String(20);
-    descripcion           : String(2000);
-    requiereSoporte       : Boolean;
-    horaInicioAproximada  : Time;
-    horaFinAproximada     : Time;
-    zonaHoraria           : String(80);
-    autorizacionPrevia    : Boolean;
-    motivoExcepcional     : String(1000);
-    estado                : String(25);
-    alertaHorasDiarias    : Boolean;
-    cantidadSoportes      : Integer;
-    puedeEditar           : Boolean;
-    version               : Integer;
-    umbralAlertaDiaria    : Decimal(5, 2);
+    ID                   : UUID;
+    hojaSemanalID        : UUID;
+    asignacionID         : UUID;
+    proyectoNombre       : String(180);
+    fecha                : Date;
+    duracionHoras        : Decimal(7, 2);
+    tipoSolicitado       : String(20);
+    descripcion          : String(2000);
+    requiereSoporte      : Boolean;
+    horaInicioAproximada : Time;
+    horaFinAproximada    : Time;
+    zonaHoraria          : String(80);
+    autorizacionPrevia   : Boolean;
+    motivoExcepcional    : String(1000);
+    estado               : String(25);
+    alertaHorasDiarias   : Boolean;
+    cantidadSoportes     : Integer;
+    puedeEditar          : Boolean;
+    version              : Integer;
+    umbralAlertaDiaria   : Decimal(5, 2);
   }
 
   type ResultadoRegistro {
@@ -59,6 +64,15 @@ service EmployeeTimeService @(
     totalHoras     : Decimal(9, 2);
   }
 
+  type ResultadoRecordatoriosCorte {
+    exito                 : Boolean;
+    fecha                 : Date;
+    proyectosEvaluados    : Integer;
+    colaboradoresPendientes: Integer;
+    notificacionesCreadas : Integer;
+    mensaje               : String(500);
+  }
+
   type ResultadoSoporte {
     exito     : Boolean;
     mensaje   : String(500);
@@ -76,73 +90,118 @@ service EmployeeTimeService @(
     mensaje   : String(500);
   }
 
+  type EstadoSemanaEmpleado {
+    estado          : String(25);
+    etiqueta        : String(80);
+    editable        : Boolean;
+    puedeRetirar    : Boolean;
+    mensajeBloqueo  : String(500);
+  }
+
   type ContextoEmpleado {
     empleadoID : UUID;
   }
 
-  type RegistroID { ID: UUID; }
+  type ResumenMensual {
+    mesInicio         : Date;
+    mesFin            : Date;
+    mesEtiqueta       : String(40);
+    horasRegistradas  : Decimal(9, 2);
+    horasObjetivo     : Decimal(9, 2);
+    porcentaje        : Decimal(7, 2);
+    diasHabiles       : Integer;
+    totalRegistros    : Integer;
+    // Desglose del objetivo: qué parte viene de umbrales de proyectos
+    // por horas y qué parte de calendario.
+    horasUmbral       : Decimal(9, 2);
+    horasCalendario   : Decimal(9, 2);
+    tieneUmbral       : Boolean;
+  }
 
-  type FechaCopia { fecha: Date; }
+  type RegistroID {
+    ID : UUID;
+  }
+
+  type FechaCopia {
+    fecha : Date;
+  }
 
   type OperacionCopia {
-    ID             : UUID;
-    alcance        : String(15);
-    estado         : String(15);
-    fechaOrigen    : Date;
-    solicitados    : Integer;
-    creados        : Integer;
-    omitidos       : Integer;
-    resumen        : String(500);
-    creadoEn       : Timestamp;
-    deshechoEn     : Timestamp;
-    puedeDeshacer  : Boolean;
+    ID            : UUID;
+    alcance       : String(15);
+    estado        : String(15);
+    fechaOrigen   : Date;
+    solicitados   : Integer;
+    creados       : Integer;
+    omitidos      : Integer;
+    resumen       : String(500);
+    creadoEn      : Timestamp;
+    deshechoEn    : Timestamp;
+    puedeDeshacer : Boolean;
   }
 
   type ResultadoCopia {
-    exito          : Boolean;
-    mensaje        : String(500);
-    operacion      : OperacionCopia;
+    exito     : Boolean;
+    mensaje   : String(500);
+    operacion : OperacionCopia;
   }
 
-  function obtenerMisAsignaciones(fecha: Date) returns many AsignacionDisponible;
-  function obtenerMisRegistros(semanaInicio: Date) returns many RegistroTiempo;
-  function obtenerMisRegistrosMes(mesInicio: Date) returns many RegistroTiempo;
-  function obtenerDiasNoHabiles(desde: Date, hasta: Date) returns many DiaNoHabil;
-  function obtenerEstadoEnvioSemana() returns EstadoEnvioSemana;
-  function obtenerMiContexto() returns ContextoEmpleado;
+  type SoporteTiempo {
+    ID            : UUID;
+    nombreArchivo : String(255);
+    mimeType      : String(100);
+    estado        : String(30);
+  }
 
-  action guardarBorrador(
-    ID: UUID,
-    asignacionID: UUID,
-    fecha: Date,
-    duracionHoras: Decimal(7, 2),
-    tipoSolicitado: String(20),
-    descripcion: String(2000),
-    horaInicioAproximada: Time,
-    horaFinAproximada: Time,
-    zonaHoraria: String(80),
-    autorizacionPrevia: Boolean,
-    motivoExcepcional: String(1000)
-  ) returns ResultadoRegistro;
+  function obtenerMisAsignaciones(fecha: Date)              returns many AsignacionDisponible;
+  function obtenerMisProyectosActuales()                    returns many AsignacionDisponible;
+  function obtenerMisRegistros(semanaInicio: Date)          returns many RegistroTiempo;
+  function obtenerMisRegistrosMes(mesInicio: Date)          returns many RegistroTiempo;
+  function obtenerDiasNoHabiles(desde: Date, hasta: Date)   returns many DiaNoHabil;
+  function obtenerEstadoEnvioSemana()                       returns EstadoEnvioSemana;
+  function obtenerEstadoSemana(semanaInicio: Date)          returns EstadoSemanaEmpleado;
+  function obtenerMiContexto()                              returns ContextoEmpleado;
+  function obtenerMiResumenMes()                            returns ResumenMensual;
 
-  action cargarSoporte(
-    registroID: UUID,
-    nombreArchivo: String(255),
-    mimeType: String(100),
-    contenido: LargeBinary
-  ) returns ResultadoSoporte;
+  @requires: 'TimeCutoffReminderJob'
+  action enviarRecordatoriosCorte(fecha: Date) returns ResultadoRecordatoriosCorte;
 
-  action eliminarRegistros(registros: many RegistroID) returns Integer;
+  action   guardarBorrador(ID: UUID,
+                           asignacionID: UUID,
+                           fecha: Date,
+                           duracionHoras: Decimal(7, 2),
+                           tipoSolicitado: String(20),
+                           descripcion: String(2000),
+                           horaInicioAproximada: Time,
+                           horaFinAproximada: Time,
+                           zonaHoraria: String(80),
+                           autorizacionPrevia: Boolean,
+                           motivoExcepcional: String(1000),
+                           confirmarExcesoRegular: Boolean) returns ResultadoRegistro;
 
-  function obtenerMisCopias() returns many OperacionCopia;
-  action ejecutarCopiaMasiva(
-    registroOrigenID: UUID,
-    fechas: many FechaCopia,
-    alcance: String(15)
-  ) returns ResultadoCopia;
-  action deshacerCopiaMasiva(operacionID: UUID) returns ResultadoCopia;
+  action   cargarSoporte(registroID: UUID,
+                         nombreArchivo: String(255),
+                         mimeType: String(100),
+                         contenido: LargeBinary)            returns ResultadoSoporte;
 
-  action enviarSemana(semanaInicio: Date) returns ResultadoEnvioSemanal;
+  action   eliminarRegistros(registros: many RegistroID)    returns Integer;
+
+  function obtenerMisCopias()                               returns many OperacionCopia;
+
+  action   ejecutarCopiaMasiva(registroOrigenID: UUID,
+                               fechas: many FechaCopia,
+                               alcance: String(15))         returns ResultadoCopia;
+
+  action   deshacerCopiaMasiva(operacionID: UUID)           returns ResultadoCopia;
+
+  action   enviarSemana(semanaInicio: Date)                 returns ResultadoEnvioSemanal;
+
+  action   retirarSemana(semanaInicio: Date)                returns ResultadoEnvioSemanal;
+
+  function obtenerSoportes(registroID: UUID)                returns many SoporteTiempo;
+
+  action   eliminarSoporte(registroID: UUID,
+                           soporteID: UUID)                 returns ResultadoSoporte;
 }
 
 annotate EmployeeTimeService with @cds.server.body_parser.limit: '15mb';

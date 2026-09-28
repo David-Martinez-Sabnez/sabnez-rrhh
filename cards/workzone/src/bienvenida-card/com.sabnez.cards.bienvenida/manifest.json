@@ -1,0 +1,56 @@
+{
+  "_version": "1.64.0",
+  "sap.app": {
+    "id": "com.sabnez.cards.bienvenida",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Bienvenida",
+    "subTitle": "Saludo personalizado del portal",
+    "applicationVersion": {
+      "version": "1.4.9"
+    },
+    "description": "Saludo personalizado del portal"
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "sap-icon://home"
+    }
+  },
+  "sap.card": {
+    "type": "Object",
+    "configuration": {
+      "parameters": {
+        "nombreUsuario": {
+          "value": "{context>sap.workzone/currentUser/firstName}",
+          "type": "string",
+          "label": "Nombre del usuario conectado"
+        }
+      }
+    },
+    "header": {
+      "title": "Hola, {parameters>/nombreUsuario/value}",
+      "subtitle": "Bienvenido a Sabnez Enterprise Platform"
+    },
+    "content": {
+      "groups": [
+        {
+          "items": [
+            {
+              "value": "{fechaActual}"
+            },
+            {
+              "value": "Aquí tienes lo importante de hoy."
+            }
+          ]
+        }
+      ]
+    },
+    "extension": "./Extension",
+    "data": {
+      "extension": {
+        "method": "getData"
+      }
+    }
+  }
+}

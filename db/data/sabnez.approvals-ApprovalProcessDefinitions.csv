@@ -1,2 +1,4 @@
 ID;codigo;version;dominio;descripcion;activo;horasVencimiento;rutaOrigen
 a1100000-0000-4000-8000-000000000001;ABSENCE;1;RRHH;Aprobación de solicitudes de ausencia;true;72;Ausencias-display
+a1100000-0000-4000-8000-000000000002;COLLECTION_ACCOUNT;1;RRHH;Aprobación de cuentas de cobro de prestadores de servicios;true;72;CuentasCobro-display
+a1100000-0000-4000-8000-000000000003;COLLECTION_ACCOUNT_CORRECTION;1;RRHH;Solicitudes de corrección de cuentas de cobro;true;48;CuentasCobro-display

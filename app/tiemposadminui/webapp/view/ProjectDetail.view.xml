@@ -1,0 +1,412 @@
+<mvc:View
+  controllerName="sabnez.com.tiemposadminui.controller.ProjectDetail"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:uxap="sap.uxap"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <uxap:ObjectPageLayout id="projectPage"
+    showTitleInHeaderContent="false"
+    upperCaseAnchorBar="false"
+    useIconTabBar="false"
+    preserveHeaderStateOnScroll="false"
+    toggleHeaderOnTitleClick="false"
+    busy="{view>/busy}" busyIndicatorDelay="300">
+
+    <uxap:headerTitle>
+      <uxap:ObjectPageDynamicHeaderTitle>
+        <uxap:expandedHeading>
+          <VBox>
+            <Text text="{= 'Proyecto · ' + (${view>/current/code} || '') }" class="objectEyebrow"/>
+            <Title text="{view>/current/name}" level="H1" wrapping="true"/>
+          </VBox>
+        </uxap:expandedHeading>
+        <uxap:snappedHeading>
+          <Title text="{view>/current/name}" level="H2"/>
+        </uxap:snappedHeading>
+        <uxap:actions>
+          <Button text="Editar" icon="sap-icon://edit" press=".onEdit"
+            visible="{= ${view>/current/status} !== 'CLOSED' }"/>
+          <Button text="Cerrar proyecto" icon="sap-icon://locked" press=".onClose"
+            visible="{= ${view>/current/status} !== 'CLOSED' }"/>
+          <Button text="Reabrir" icon="sap-icon://unlocked" press=".onReopen"
+            visible="{= ${view>/current/status} === 'CLOSED' }"/>
+          <Button icon="sap-icon://decline" tooltip="Cerrar detalle" type="Transparent" press=".onCloseDetail"/>
+        </uxap:actions>
+      </uxap:ObjectPageDynamicHeaderTitle>
+    </uxap:headerTitle>
+
+    <uxap:headerContent>
+      <FlexBox wrap="Wrap" class="objectFacts" alignItems="Start">
+        <VBox class="fact">
+          <Label text="Cliente"/>
+          <Link text="{view>/current/clientName}" press=".onOpenClient"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Modalidad"/>
+          <Text text="{path: 'view>/current/modality', formatter: '.formatter.modalidad'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Calendario"/>
+          <Text text="{= ${view>/current/workCalendar/name} || 'Sin configurar' }"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Vigencia"/>
+          <Text text="{parts: ['view>/current/validFrom', 'view>/current/validTo'], formatter: '.formatter.vigencia'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Equipo"/>
+          <Text text="{= ${view>/currentAssignments/length} + ' persona(s)' }"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Aprobación"/>
+          <ObjectStatus text="{view>/current/approvalGap}"
+            state="{= ${view>/current/approvalComplete} ? 'Success' : 'Warning' }"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Alerta diaria"/>
+          <Text text="{= ${view>/current/dailyWarningHours} + ' h' }"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Corte de tiempos"/>
+          <Text text="{= 'Día ' + (${view>/current/timeEntryCutoffDay} || 31) }"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Estado"/>
+          <ObjectStatus text="{path: 'view>/current/status', formatter: '.formatter.estado'}"
+            state="{path: 'view>/current/status', formatter: '.formatter.estadoState'}"/>
+        </VBox>
+      </FlexBox>
+    </uxap:headerContent>
+
+    <uxap:sections>
+
+      <!-- ============ EQUIPO ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Equipo">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <VBox>
+                <Table id="assignmentsTable" items="{view>/currentAssignments}" sticky="ColumnHeaders"
+                  noDataText="Nadie asignado todavía. Añade a la primera persona para que pueda registrar tiempo.">
+                  <headerToolbar>
+                    <Toolbar class="tableToolbar">
+                      <Title text="Personas asignadas" level="H4"/>
+                      <Text class="resultCount" text="{= ${view>/currentAssignments/length} + ' asignación(es)' }"/>
+                      <ToolbarSpacer/>
+                      <Button text="Asignar persona" icon="sap-icon://add-employee" press=".onAddAssignment"
+                        enabled="{= ${view>/current/status} !== 'CLOSED' }"/>
+                    </Toolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><Text text="Persona"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Rol"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"
+                      visible="{= ${view>/current/modality} !== 'INTERNAL' }"><Text text="Ciclo de facturación"/></Column>
+                    <Column hAlign="End" width="7rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Dedicación"/></Column>
+                    <Column hAlign="End" width="8rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"
+                      visible="{= !!${view>/current/monthlyBillableTarget} }"><Text text="Objetivo mes"/></Column>
+                    <Column width="6rem"><Text text="Estado"/></Column>
+                    <Column hAlign="End" width="8rem"><Text text="Acciones"/></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <ObjectIdentifier title="{view>employeeName}" text="{view>employeeEmail}"/>
+                        <Text text="{= ${view>role} || '—' }"/>
+                        <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                        <Text text="{= ${view>reportingCycleName} || 'Sin definir' }"
+                          visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+                        <Text text="{= (${view>commercialAllocation} || 0) + ' %' }"/>
+                        <Text class="numeric" text="{= typeof ${view>targetHours} === 'number' ? ${view>targetHours} + ' h' : '—' }"/>
+                        <ObjectStatus text="{path: 'view>status', formatter: '.formatter.estado'}"
+                          state="{path: 'view>status', formatter: '.formatter.estadoState'}"/>
+                        <HBox justifyContent="End">
+                          <Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditAssignment"
+                            visible="{= ${view>status} === 'ACTIVE' &amp;&amp; ${view>/current/status} !== 'CLOSED' }"/>
+                          <Button icon="sap-icon://journey-arrive" type="Transparent" tooltip="Finalizar asignación"
+                            press=".onFinishAssignment" visible="{= ${view>status} === 'ACTIVE' &amp;&amp; ${view>/current/status} !== 'CLOSED' }"/>
+                          <Button icon="sap-icon://restart" type="Transparent" tooltip="Reactivar asignación"
+                            press=".onReactivateAssignment"
+                            visible="{= ${view>status} === 'INACTIVE' &amp;&amp; ${view>/current/status} !== 'CLOSED' &amp;&amp; ${view>/canReactivateAssignments} }"/>
+                        </HBox>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- ============ APROBACIÓN ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Aprobación">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <VBox>
+                <MessageStrip class="sapUiSmallMarginBottom" showIcon="true"
+                  visible="{= !${view>/current/approvalComplete} }"
+                  type="Warning"
+                  text="{= ${view>/current/approvalGap} + '. Configura únicamente los aprobadores exigidos por el esquema seleccionado para este proyecto.' }"/>
+                <Table id="approversTable" items="{view>/currentApprovers}" sticky="ColumnHeaders"
+                  noDataText="Sin aprobadores. Nadie podrá revisar el tiempo de este proyecto.">
+                  <headerToolbar>
+                    <Toolbar class="tableToolbar">
+                      <Title text="Responsables" level="H4"/>
+                      <ToolbarSpacer/>
+                      <Button text="Añadir aprobador" icon="sap-icon://add" press=".onAddApprover"
+                        enabled="{= ${view>/current/status} !== 'CLOSED' }"/>
+                    </Toolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><Text text="Responsable"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Tipo"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+                    <Column width="6rem"><Text text="Estado"/></Column>
+                    <Column hAlign="End" width="8rem"><Text text="Acciones"/></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <ObjectIdentifier title="{view>employeeName}" text="{view>employeeEmail}"/>
+                        <Text text="{path: 'view>approverType', formatter: '.formatter.tipoAprobador'}"/>
+                        <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                        <ObjectStatus text="{path: 'view>active', formatter: '.formatter.activo'}"
+                          state="{path: 'view>active', formatter: '.formatter.activoState'}"/>
+                        <HBox justifyContent="End">
+                          <Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditApprover"
+                            visible="{= !!${view>active} &amp;&amp; ${view>/current/status} !== 'CLOSED' }"/>
+                          <Button icon="sap-icon://journey-arrive" type="Transparent" tooltip="Cerrar aprobador" press=".onFinishApprover"
+                            visible="{= !!${view>active} &amp;&amp; ${view>/current/status} !== 'CLOSED' }"/>
+                        </HBox>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- ============ TARIFAS ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false"
+        title="{= ${view>/current/modality} === 'INTERNAL' ? 'Costos internos' : 'Tarifas' }"
+        visible="{view>/canSeeRates}">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <VBox>
+                <MessageStrip type="Warning" showIcon="true" class="sapUiSmallMarginBottom"
+                  visible="{= ${view>/current/modality} !== 'INTERNAL' &amp;&amp; ${view>/currentMissingRates/length} > 0 }"
+                  text="Hay asignaciones con horas facturables devengando cero. Carga una tarifa que cubra el periodo indicado."/>
+                <Table items="{view>/currentMissingRates}" class="sapUiSmallMarginBottom"
+                  visible="{= ${view>/current/modality} !== 'INTERNAL' &amp;&amp; ${view>/currentMissingRates/length} > 0 }"
+                  noDataText="No hay horas facturables sin tarifa.">
+                  <headerToolbar>
+                    <Toolbar><Title text="Horas sin tarifa de venta" level="H5"/></Toolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><Text text="Persona"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Periodo afectado"/></Column>
+                    <Column hAlign="End"><Text text="Horas en cero"/></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem highlight="Warning">
+                      <cells>
+                        <Text text="{view>employeeName}"/>
+                        <Text text="{parts: ['view>desde', 'view>hasta'], formatter: '.formatter.vigencia'}"/>
+                        <ObjectNumber number="{view>horas}" unit="h" state="Warning"/>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+                <Table id="ratesTable" items="{view>/currentRates}" sticky="ColumnHeaders"
+                  noDataText="Sin tarifas configuradas. Sin ellas no se puede valorar lo trabajado.">
+                  <headerToolbar>
+                    <Toolbar class="tableToolbar">
+                      <Title text="{= ${view>/current/modality} === 'INTERNAL' ? 'Costos del recurso' : 'Condiciones económicas' }" level="H4"/>
+                      <ToolbarSpacer/>
+                      <Button text="Nueva tarifa" icon="sap-icon://add" press=".onAddRate"
+                        enabled="{= ${view>/current/status} !== 'CLOSED' }"/>
+                    </Toolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><Text text="Persona"/></Column>
+                    <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+                    <Column hAlign="End" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"
+                      visible="{= ${view>/current/modality} !== 'INTERNAL' }"><Text text="Venta mensual"/></Column>
+                    <Column hAlign="End" visible="{= ${view>/current/modality} !== 'INTERNAL' }"><Text text="Venta por hora"/></Column>
+                    <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"
+                      visible="{= ${view>/current/modality} !== 'INTERNAL' }"><Text text="Venta hora extra"/></Column>
+                    <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Costo mensual"/></Column>
+                    <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Costo por hora"/></Column>
+                    <Column hAlign="End" width="6rem"><Text text="Acciones"/></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <ObjectIdentifier title="{view>employeeName}" text="{view>assignmentLabel}"/>
+                        <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                        <Text class="numeric" text="{parts: ['view>monthlySaleRate', 'view>saleCurrency'], formatter: '.formatter.importe'}"
+                          visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+                        <Text class="numeric" text="{parts: ['view>regularSaleHourlyRate', 'view>saleCurrency'], formatter: '.formatter.importe'}"
+                          visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+                        <Text class="numeric" text="{parts: ['view>overtimeSaleHourlyRate', 'view>saleCurrency'], formatter: '.formatter.importe'}"
+                          visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+                        <Text class="numeric" text="{parts: ['view>internalMonthlyCost', 'view>costCurrency'], formatter: '.formatter.importe'}"/>
+                        <Text class="numeric" text="{parts: ['view>internalHourlyCost', 'view>costCurrency'], formatter: '.formatter.importe'}"/>
+                        <HBox justifyContent="End">
+                          <Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditRate"
+                            visible="{= !${view>validTo} &amp;&amp; ${view>/current/status} !== 'CLOSED' }"/>
+                          <Button icon="sap-icon://journey-arrive" type="Transparent" tooltip="Cerrar tarifa" press=".onFinishRate"
+                            visible="{= !${view>validTo} &amp;&amp; ${view>/current/status} !== 'CLOSED' }"/>
+                        </HBox>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- ============ FACTURABILIDAD ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Facturabilidad"
+        visible="{= ${view>/current/modality} !== 'INTERNAL' }">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <VBox>
+                <Table id="billingRulesTable" items="{view>/currentBillingRules}" sticky="ColumnHeaders"
+                  noDataText="Sin reglas propias. Mientras tanto se aplican las de la modalidad del proyecto.">
+                  <headerToolbar>
+                    <Toolbar class="tableToolbar">
+                      <Title text="Qué se le puede cobrar al cliente" level="H4"/>
+                      <Text class="resultCount" text="{= ${view>/currentBillingRules/length} + ' tipo(s) de tiempo' }"/>
+                      <ToolbarSpacer/>
+                      <Button text="Completar por modalidad" icon="sap-icon://process"
+                        press=".onSeedRules"
+                        enabled="{= ${view>/current/status} !== 'CLOSED' }"
+                        tooltip="Crea las reglas que falten según la modalidad del proyecto. No modifica las que ya configuraste."/>
+                    </Toolbar>
+                  </headerToolbar>
+                  <columns>
+                    <Column><Text text="Tipo de tiempo"/></Column>
+                    <Column><Text text="Tratamiento"/></Column>
+                    <Column hAlign="End" width="6rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Factor"/></Column>
+                    <Column width="10rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Se le reconoce"/></Column>
+                    <Column hAlign="End" width="6rem"><Text text="Acciones"/></Column>
+                  </columns>
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <ObjectIdentifier
+                          title="{path: 'view>requestedType', formatter: '.formatter.tipoTiempo'}"
+                          text="{= ${view>notes} || '' }"/>
+                        <ObjectStatus
+                          text="{path: 'view>treatment', formatter: '.formatter.tratamiento'}"
+                          state="{path: 'view>treatment', formatter: '.formatter.tratamientoState'}"/>
+                        <Text class="numeric" text="{path: 'view>billableFactor', formatter: '.formatter.factor'}"/>
+                        <ObjectStatus text="{= ${view>payableToEmployee} === false ? 'No se le paga' : 'Sí' }"
+                          state="{= ${view>payableToEmployee} === false ? 'Warning' : 'None' }"/>
+                        <HBox justifyContent="End">
+                          <Button icon="sap-icon://edit" type="Transparent" tooltip="Editar regla" press=".onEditRule"
+                            visible="{= ${view>/current/status} !== 'CLOSED' }"/>
+                        </HBox>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+                <VBox class="configRow">
+                  <Text class="configHint"
+                    text="Esta matriz es lo que decide si una hora registrada se factura. Se aplica cada vez que alguien guarda un registro de tiempo, y una corrección manual sobre un registro concreto siempre le gana."/>
+                </VBox>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <!-- ============ CONFIGURACIÓN ============ -->
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Configuración">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <VBox class="configBlock">
+                <Panel headerText="Reglas de registro" expandable="false" backgroundDesign="Transparent">
+                  <List showSeparators="Inner" backgroundDesign="Transparent">
+                    <CustomListItem>
+                      <HBox class="configRow" alignItems="Center">
+                        <VBox class="configText">
+                          <Text text="Descripción obligatoria"/>
+                          <Text class="configHint" text="Cada registro de tiempo debe explicar qué se hizo"/>
+                        </VBox>
+                        <ObjectStatus text="{= ${view>/current/requiresDescription} ? 'Sí' : 'No' }"
+                          state="{= ${view>/current/requiresDescription} ? 'Success' : 'None' }"/>
+                      </HBox>
+                    </CustomListItem>
+                    <CustomListItem>
+                      <HBox class="configRow" alignItems="Center">
+                        <VBox class="configText">
+                          <Text text="Soporte obligatorio"/>
+                          <Text class="configHint" text="Se exige adjuntar evidencia del trabajo"/>
+                        </VBox>
+                        <ObjectStatus text="{= ${view>/current/requiresEvidence} ? 'Sí' : 'No' }"
+                          state="{= ${view>/current/requiresEvidence} ? 'Success' : 'None' }"/>
+                      </HBox>
+                    </CustomListItem>
+                    <CustomListItem visible="{= ${view>/current/modality} !== 'INTERNAL' }">
+                      <HBox class="configRow" alignItems="Center">
+                        <VBox class="configText">
+                          <Text text="Aprobación del cliente"/>
+                          <Text class="configHint" text="El cliente valida el tiempo antes de facturarlo"/>
+                        </VBox>
+                        <ObjectStatus text="{= ${view>/current/requiresClientApproval} ? 'Sí' : 'No' }"
+                          state="{= ${view>/current/requiresClientApproval} ? 'Success' : 'None' }"/>
+                      </HBox>
+                    </CustomListItem>
+                    <CustomListItem
+                      visible="{= ${view>/current/modality} === 'HOURLY' || ${view>/current/modality} === 'MIXED' }">
+                      <HBox class="configRow" alignItems="Center">
+                        <VBox class="configText">
+                          <Text text="Horas facturables al mes"/>
+                          <Text class="configHint" text="Umbral del proyecto, repartido entre el equipo según su dedicación. Se configura en Editar."/>
+                        </VBox>
+                        <ObjectNumber number="{= ${view>/current/monthlyBillableTarget} || 'Sin umbral' }"
+                          unit="{= ${view>/current/monthlyBillableTarget} ? 'h' : '' }"
+                          state="{= ${view>/current/monthlyBillableTarget} ? 'Success' : 'None' }"/>
+                      </HBox>
+                    </CustomListItem>
+                    <CustomListItem>
+                      <HBox class="configRow" alignItems="Center">
+                        <VBox class="configText">
+                          <Text text="Esquema de aprobación"/>
+                          <Text class="configHint" text="Quién revisa y en qué orden"/>
+                        </VBox>
+                        <Text text="{path: 'view>/current/approvalScheme', formatter: '.formatter.esquemaAprobacion'}"/>
+                      </HBox>
+                    </CustomListItem>
+                  </List>
+                </Panel>
+                <Panel headerText="Contrato" expandable="false" backgroundDesign="Transparent"
+                  visible="{= ${view>/current/modality} !== 'INTERNAL' }">
+                  <VBox class="configRow">
+                    <Text text="{= ${view>/current/contractReference} || 'Este proyecto no tiene contrato asociado.' }"/>
+                    <Text class="configHint" text="{= ${view>/current/contractReference} ? 'El contrato se gestiona desde la ficha del cliente.' : 'Puedes asociarlo desde Editar, si el cliente tiene contratos registrados.' }"/>
+                  </VBox>
+                </Panel>
+              </VBox>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+    </uxap:sections>
+  </uxap:ObjectPageLayout>
+</mvc:View>

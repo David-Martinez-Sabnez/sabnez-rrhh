@@ -119,6 +119,18 @@
               "variantManagement": "Page",
               "controlConfiguration": {
                 "@com.sap.vocabularies.UI.v1.LineItem": {
+                  "actions": {
+                    "configurarCupos": {
+                      "press": "sabnez.com.homeofficeadminui.ext.controller.QuotaActions.onConfigurarCupos",
+                      "text": "Configurar cupos",
+                      "requiresSelection": false
+                    },
+                    "verHistorialCupos": {
+                      "press": "sabnez.com.homeofficeadminui.ext.controller.QuotaActions.onVerHistorial",
+                      "text": "Ver historial",
+                      "requiresSelection": false
+                    }
+                  },
                   "tableSettings": {
                     "type": "ResponsiveTable"
                   }

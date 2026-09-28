@@ -1,0 +1,22 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="Emitir factura" contentWidth="32rem"
+    resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Número en Siigo" required="true"/>
+        <Input value="{view>/issueForm/numero}" placeholder="FV-1042"/>
+
+        <Label text="Fecha de emisión" required="true"/>
+        <DatePicker value="{view>/issueForm/fecha}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+
+        <Label text="Referencia"/>
+        <Input value="{view>/issueForm/referencia}" placeholder="CUFE u otro identificador"/>
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        text="La factura electrónica se emite en Siigo, que es quien la reporta a la DIAN. Acá se guarda su número para poder cruzar la proyección con la factura real, y se congela el plazo de pago."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onIssueCancel"/></beginButton>
+    <endButton><Button text="Emitir" type="Emphasized" press=".onIssueSave"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>

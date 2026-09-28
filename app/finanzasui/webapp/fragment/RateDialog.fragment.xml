@@ -1,0 +1,23 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="Registrar TRM a mano" contentWidth="30rem"
+    resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Fecha" required="true"/>
+        <DatePicker value="{view>/rateForm/fecha}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+        <Label text="Moneda"/>
+        <Select selectedKey="{view>/rateForm/moneda}">
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+        </Select>
+        <Label text="Pesos por unidad" required="true"/>
+        <Input value="{view>/rateForm/valor}" type="Number" placeholder="4020,50"/>
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Warning"
+        text="Queda marcada como digitada, no como oficial. Si ya existe una para ese día, se corrige."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onRateCancel"/></beginButton>
+    <endButton><Button text="Guardar" type="Emphasized" press=".onRateSave"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>

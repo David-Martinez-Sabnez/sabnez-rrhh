@@ -1,0 +1,23 @@
+.accountKpiRow { gap: .75rem; margin-top: .75rem; }
+.accountKpi { min-width: 13rem; padding: .8rem 1rem; border: 1px solid #d5dadd; border-left: .3rem solid #0a6ed1; border-radius: .75rem; background: #fff; box-shadow: 0 .1rem .25rem rgba(34,53,72,.12); }
+/* El acumulado cobrado se distingue en verde: es plata ya autorizada. */
+.accountKpiTotal { border-left-color: #176b41; }
+.accountKpiHint { font-size: .75rem; color: #6a6d70; margin-top: .15rem; }
+
+.accountDetailHeader { padding: 1rem; border-radius: .75rem; background: #f5f8fa; }
+.accountDetailGrid { gap: 1rem; }
+.accountDetailBlock { min-width: 15rem; padding: .5rem; }
+.signatureConsent.sapMCb { height: auto; min-height: 2.75rem; align-items: flex-start; }
+.signatureConsent .sapMCbBg { margin-top: .25rem; }
+.signatureConsent .sapMCbLabel {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35rem;
+  padding-top: .15rem;
+  padding-bottom: .35rem;
+}
+@media (max-width: 600px) {
+  .accountKpiRow { flex-wrap: nowrap !important; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .5rem; }
+  .accountKpi { min-width: 78vw; scroll-snap-align: start; }
+}

@@ -2,6 +2,10 @@
 
 const cds = require("@sap/cds");
 
+const { LOGO_CID } = require("./mail-template");
+const { notificationContent } = require("./mail-content");
+const { SABNEZ_LOGO_DATA_URI } = require("./sabnez-logo");
+
 const LOG = cds.log("approval-mailer");
 
 const TOKEN_SAFETY_WINDOW_MS = 60_000;
@@ -31,6 +35,9 @@ function graphConfig() {
     timeEmployeeAppUrl:
       process.env.TIME_EMPLOYEE_APP_URL ||
       "http://localhost:4004/tiemposempleadoui/webapp/index.html",
+    collectionAccountAppUrl:
+      process.env.COLLECTION_ACCOUNT_APP_URL ||
+      "http://localhost:4004/cuentascobroui/webapp/index.html",
   };
 }
 
@@ -179,15 +186,6 @@ async function graphSendMail(config, payload, retryOnUnauthorized = true) {
   };
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function approvalUrl(taskID) {
   const baseUrl = graphConfig().approvalAppUrl.replace(/\/$/, "");
   const routeSeparator = baseUrl.includes("?") ? "&" : "#";
@@ -195,370 +193,30 @@ function approvalUrl(taskID) {
   return `${baseUrl}${routeSeparator}/task/${encodeURIComponent(taskID)}`;
 }
 
-function timeApprovalUrl(sheetID) {
-  return approvalUrl(sheetID);
-}
+// Enlaces que la plantilla usa para el botón de acción. Las notificaciones de
+// Tiempos apuntan a la hoja, que en el Centro de Aprobaciones es la tarea.
+function resolveUrls(data) {
+  const config = graphConfig();
+  const taskID = data.tareaID || data.hojaID;
 
-function detailRows(facts = []) {
-  if (!facts.length) {
-    return "";
-  }
-
-  return facts
-    .sort((a, b) => Number(a.orden || 0) - Number(b.orden || 0))
-    .map(
-      (fact) => `
-        <tr>
-          <td style="
-            width:38%;
-            padding:10px 12px;
-            border-bottom:1px solid #e5e5e5;
-            color:#556b82;
-            font-size:14px;
-            vertical-align:top;
-          ">
-            ${escapeHtml(fact.etiqueta || fact.clave)}
-          </td>
-
-          <td style="
-            padding:10px 12px;
-            border-bottom:1px solid #e5e5e5;
-            color:#1d2d3e;
-            font-size:14px;
-            font-weight:600;
-            vertical-align:top;
-          ">
-            ${escapeHtml(fact.valor || "—")}
-          </td>
-        </tr>
-      `,
-    )
-    .join("");
-}
-
-function buildHtml({
-  title,
-  greeting,
-  introduction,
-  summary,
-  facts,
-  status,
-  buttonText,
-  buttonUrl,
-}) {
-  return `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-  <title>${escapeHtml(title)}</title>
-</head>
-
-<body style="
-  margin:0;
-  padding:0;
-  background:#f5f6f7;
-  font-family:'72',Arial,Helvetica,sans-serif;
-  color:#1d2d3e;
-">
-  <table
-    role="presentation"
-    width="100%"
-    cellspacing="0"
-    cellpadding="0"
-    border="0"
-    style="background:#f5f6f7"
-  >
-    <tr>
-      <td align="center" style="padding:32px 16px">
-        <table
-          role="presentation"
-          width="600"
-          cellspacing="0"
-          cellpadding="0"
-          border="0"
-          style="
-            width:100%;
-            max-width:600px;
-            background:#ffffff;
-            border-radius:12px;
-            overflow:hidden;
-            box-shadow:0 2px 8px rgba(34,53,72,.16);
-          "
-        >
-          <tr>
-            <td style="
-              padding:26px 32px;
-              background:#0a6ed1;
-              color:#ffffff;
-            ">
-              <div style="
-                font-size:23px;
-                line-height:30px;
-                font-weight:700;
-              ">
-                ${escapeHtml(title)}
-              </div>
-
-              <div style="
-                margin-top:6px;
-                font-size:14px;
-                opacity:.9;
-              ">
-                Centro de Aprobaciones · Sabnez Consulting
-              </div>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:30px 32px">
-              <p style="
-                margin:0 0 16px;
-                font-size:16px;
-                line-height:24px;
-              ">
-                ${escapeHtml(greeting)}
-              </p>
-
-              <p style="
-                margin:0 0 16px;
-                font-size:15px;
-                line-height:23px;
-                color:#354a5f;
-              ">
-                ${escapeHtml(introduction)}
-              </p>
-
-              ${
-                summary
-                  ? `
-                    <div style="
-                      margin:0 0 22px;
-                      padding:14px 16px;
-                      background:#eef5fc;
-                      border-left:4px solid #0a6ed1;
-                      border-radius:4px;
-                      color:#354a5f;
-                      font-size:14px;
-                      line-height:21px;
-                    ">
-                      ${escapeHtml(summary)}
-                    </div>
-                  `
-                  : ""
-              }
-
-              ${
-                status
-                  ? `
-                    <div style="
-                      margin:0 0 20px;
-                      font-size:14px;
-                      color:#354a5f;
-                    ">
-                      <strong>Estado:</strong>
-                      ${escapeHtml(status)}
-                    </div>
-                  `
-                  : ""
-              }
-
-              ${
-                facts?.length
-                  ? `
-                    <table
-                      role="presentation"
-                      width="100%"
-                      cellspacing="0"
-                      cellpadding="0"
-                      border="0"
-                      style="
-                        background:#f7f8f9;
-                        border:1px solid #e5e5e5;
-                        border-radius:8px;
-                        overflow:hidden;
-                      "
-                    >
-                      ${detailRows(facts)}
-                    </table>
-                  `
-                  : ""
-              }
-
-              ${
-                buttonUrl
-                  ? `
-                    <div
-                      style="
-                        text-align:center;
-                        margin:30px 0 12px;
-                      "
-                    >
-                      <a
-                        href="${escapeHtml(buttonUrl)}"
-                        style="
-                          display:inline-block;
-                          padding:12px 25px;
-                          background:#0a6ed1;
-                          color:#ffffff;
-                          text-decoration:none;
-                          border-radius:6px;
-                          font-size:15px;
-                          font-weight:700;
-                        "
-                      >
-                        ${escapeHtml(buttonText)}
-                      </a>
-                    </div>
-                  `
-                  : ""
-              }
-
-              <p style="
-                margin:24px 0 0;
-                font-size:12px;
-                line-height:18px;
-                color:#6a6d70;
-              ">
-                Este es un mensaje automático. Las decisiones
-                deben registrarse desde el Centro de Aprobaciones.
-              </p>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="
-              padding:16px 32px;
-              background:#eef2f5;
-              color:#556b82;
-              font-size:12px;
-            ">
-              Sabnez Consulting SAS · Gestión de Recursos Humanos
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-}
-
-function notificationContent(data) {
-  const recipientName = data.recipientName || data.destinatarioID || "usuario";
-
-  switch (data.tipo) {
-    case "TIME_SUBMITTED":
-      return {
-        subject: `Tiempos pendientes: ${data.solicitanteNombre} · ${data.titulo}`,
-        html: buildHtml({
-          title: "Nueva hoja de tiempos",
-          greeting: `Hola, ${recipientName}.`,
-          introduction: `${data.solicitanteNombre} envió una hoja semanal que requiere revisión.`,
-          summary: data.resumen,
-          facts: data.facts,
-          status: "Pendiente de aprobación",
-          buttonText: "Revisar tiempos",
-          buttonUrl: timeApprovalUrl(data.hojaID),
-        }),
-      };
-    case "TIME_DECIDED":
-      return {
-        subject: `Resultado de tiempos: ${data.titulo}`,
-        html: buildHtml({
-          title: "Resultado de revisión de tiempos",
-          greeting: `Hola, ${recipientName}.`,
-          introduction: data.resumen,
-          summary: data.comentario || "Consulta el detalle en la aplicación.",
-          facts: data.facts,
-          status: data.estadoInstancia,
-          buttonText: "Abrir Mis tiempos",
-          buttonUrl: graphConfig().timeEmployeeAppUrl,
-        }),
-      };
-    case "APPROVAL_ASSIGNED":
-      return {
-        subject: `Nueva solicitud para aprobar: ${data.titulo}`,
-        html: buildHtml({
-          title: "Nueva solicitud de ausencia",
-          greeting: `Hola, ${recipientName}.`,
-          introduction:
-            `${data.solicitanteNombre} ha enviado una solicitud ` +
-            "que requiere tu aprobación.",
-          summary: data.resumen,
-          facts: data.facts,
-          status: "Pendiente de aprobación",
-          buttonText: "Revisar solicitud",
-          buttonUrl: approvalUrl(data.tareaID),
-        }),
-      };
-
-    case "APPROVAL_FORWARDED":
-      return {
-        subject: `Solicitud reasignada: ${data.titulo}`,
-        html: buildHtml({
-          title: "Solicitud de ausencia reasignada",
-          greeting: `Hola, ${recipientName}.`,
-          introduction:
-            "Se te ha reasignado una solicitud presentada por " +
-            `${data.solicitanteNombre}.`,
-          summary: data.resumen,
-          facts: data.facts,
-          status: "Pendiente de aprobación",
-          buttonText: "Revisar solicitud",
-          buttonUrl: approvalUrl(data.tareaID),
-        }),
-      };
-
-    case "APPROVAL_DECIDED":
-      return {
-        subject: `Resultado de tu solicitud: ${data.titulo}`,
-        html: buildHtml({
-          title: "Resultado de solicitud de ausencia",
-          greeting: `Hola, ${recipientName}.`,
-          introduction: "Tu solicitud de ausencia ya fue revisada.",
-          summary: data.resumen,
-          facts: data.facts,
-          status: translateStatus(data.estadoInstancia),
-          buttonText: "Consultar mis solicitudes",
-          buttonUrl: graphConfig().absenceAppUrl,
-        }),
-      };
-
-    default:
-      return {
-        subject: `Actualización de aprobación: ${data.titulo}`,
-        html: buildHtml({
-          title: "Actualización de una solicitud",
-          greeting: `Hola, ${recipientName}.`,
-          introduction:
-            "Se registró una actualización en una solicitud " +
-            "relacionada contigo.",
-          summary: data.resumen,
-          facts: data.facts,
-          status: translateStatus(data.estadoInstancia),
-          buttonText: "Abrir Centro de Aprobaciones",
-          buttonUrl: approvalUrl(data.tareaID),
-        }),
-      };
-  }
-}
-
-function translateStatus(status) {
-  const statuses = {
-    PENDING_ASSIGNMENT: "Pendiente de asignación",
-    RUNNING: "En aprobación",
-    APPROVED: "Aprobada",
-    REJECTED: "Rechazada",
-    CANCELLED: "Cancelada",
-    ERROR: "Error",
+  return {
+    tarea: taskID ? approvalUrl(taskID) : config.approvalAppUrl,
+    tiempos: config.timeEmployeeAppUrl,
+    ausencias: config.absenceAppUrl,
+    cuentas: config.collectionAccountAppUrl,
   };
+}
 
-  return statuses[status] || status || "Actualizada";
+// Adjunto en línea con el logotipo: los clientes de correo bloquean data URI.
+function logoAttachment() {
+  return {
+    "@odata.type": "#microsoft.graph.fileAttachment",
+    name: "sabnez-logo.png",
+    contentType: "image/png",
+    contentId: LOGO_CID,
+    isInline: true,
+    contentBytes: SABNEZ_LOGO_DATA_URI.split(",")[1],
+  };
 }
 
 async function sendApprovalEmail(data) {
@@ -570,7 +228,7 @@ async function sendApprovalEmail(data) {
     throw new Error("La notificación no contiene destinatarioID.");
   }
 
-  const content = notificationContent(data);
+  const content = notificationContent(data, resolveUrls(data));
 
   LOG.info("Enviando correo de aprobación mediante Microsoft Graph", {
     eventID: data.eventID,
@@ -603,9 +261,61 @@ async function sendApprovalEmail(data) {
     saveToSentItems: false,
   };
 
+  payload.message.attachments = [logoAttachment()];
+
   return graphSendMail(config, payload);
+}
+
+/**
+ * Envío genérico por Microsoft Graph, para correos que no nacen de la outbox
+ * de aprobaciones: por ejemplo el paquete de cuentas de cobro que RR. HH. le
+ * manda a contabilidad.
+ *
+ * @param {object} input
+ * @param {string|string[]} input.to destinatario(s)
+ * @param {string} input.subject
+ * @param {string} input.html cuerpo ya renderizado
+ * @param {Array<{name:string,contentType:string,content:Buffer}>} [input.attachments]
+ * @param {boolean} [input.includeLogo] adjunta el logotipo en línea del pie
+ */
+async function sendMail({ to, subject, html, attachments = [], includeLogo = true }) {
+  const config = graphConfig();
+  validateGraphConfig(config);
+
+  const destinatarios = (Array.isArray(to) ? to : [to])
+    .map((correo) => String(correo || "").trim())
+    .filter(Boolean);
+  if (!destinatarios.length) throw new Error("El correo no tiene destinatarios.");
+
+  const adjuntos = attachments.map((archivo) => ({
+    "@odata.type": "#microsoft.graph.fileAttachment",
+    name: archivo.name,
+    contentType: archivo.contentType || "application/octet-stream",
+    contentBytes: Buffer.isBuffer(archivo.content)
+      ? archivo.content.toString("base64")
+      : String(archivo.content),
+  }));
+  if (includeLogo) adjuntos.push(logoAttachment());
+
+  LOG.info("Enviando correo por Microsoft Graph", {
+    destinatarios: destinatarios.length,
+    adjuntos: adjuntos.length,
+    mailbox: config.mailbox,
+  });
+
+  return graphSendMail(config, {
+    message: {
+      subject,
+      body: { contentType: "HTML", content: html },
+      from: { emailAddress: { name: config.fromName, address: config.mailbox } },
+      toRecipients: destinatarios.map((address) => ({ emailAddress: { address } })),
+      attachments: adjuntos,
+    },
+    saveToSentItems: true,
+  });
 }
 
 module.exports = {
   sendApprovalEmail,
+  sendMail,
 };

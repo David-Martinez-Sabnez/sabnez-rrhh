@@ -1025,10 +1025,35 @@
 .sabnezDeliverablesPreviewRow { box-sizing: border-box; padding: .85rem 0; border-bottom: .0625rem solid #edf1f6; }
 .sabnezDeliverablesPreviewIcon { width: 2.5rem; min-width: 2.5rem; margin-right: .75rem; color: var(--sabnez-blue); font-size: 1.4rem; }
 .sabnezDeliverablesPreviewTitle { color: var(--sabnez-navy); font-weight: 600; }
+.sabnezDeliverablesConceptCard { width: 100%; }
+.sabnezDeliverablesConceptHeader { padding: .35rem 1rem; background: #fff; border-bottom: .0625rem solid #e7edf5; }
+.sabnezDeliverablesSelectionInfo { margin: .75rem 1rem; border-radius: .65rem; }
+.sabnezDeliverablesConceptCard .sapMListTbl { border-top: .0625rem solid #edf1f6; }
 
 @media (max-width: 1000px) {
   .sabnezDeliverablesLayout { flex-wrap: wrap; }
   .sabnezDeliverablesFormCard, .sabnezDeliverablesPreviewCard {
     flex: 1 1 100%; min-width: 0; width: 100%;
+  }
+}
+
+/* Mobile: permite recorrer horizontalmente todas las opciones del selector de reportes. */
+@media (max-width: 900px) {
+  .sabnezSectionTabs .sapMITBHeadContainer {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .sabnezSectionTabs .sapMITBScrollContainer,
+  .sabnezSectionTabs .sapMITBHead {
+    width: max-content !important;
+    min-width: max-content !important;
+    overflow: visible !important;
+  }
+
+  .sabnezSectionTabs .sapMITBFilter {
+    flex: 0 0 auto !important;
   }
 }

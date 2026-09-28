@@ -1,0 +1,3 @@
+clave;grupo;nombre;descripcion;tipo;valor;sistema
+CONTABILIDAD_EMAIL;Cuentas de cobro;Correo de contabilidad;Buzón al que RR. HH. envía los expedientes de cuentas de cobro aprobadas.;EMAIL;contabilidad@sabnez.com;true
+CUENTAS_COBRO_DESDE;Cuentas de cobro;Cuentas de cobro desde;Fecha desde la cual la plataforma gobierna las cuentas de cobro. Los periodos que cierran antes no se ofrecen, porque se cobraron por fuera de la aplicacion. Para arrancar antes en un caso puntual se usa la fecha de corte del contrato.;DATE;2026-09-01;true

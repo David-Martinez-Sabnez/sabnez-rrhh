@@ -1,12 +1,20 @@
 <mvc:View controllerName="sabnez.com.tiemposempleadoui.controller.Main"
-  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form" xmlns:fdp="sap.f" xmlns:u="sap.ui.unified" displayBlock="true">
-  <fdp:DynamicPage id="employeeTimesPage" class="employeeTimesDynamicPage" preserveHeaderStateOnScroll="true" toggleHeaderOnTitleClick="true">
+  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form"
+  xmlns:fdp="sap.f" xmlns:u="sap.ui.unified" displayBlock="true">
+  <fdp:DynamicPage id="employeeTimesPage" class="employeeTimesDynamicPage"
+    preserveHeaderStateOnScroll="true" toggleHeaderOnTitleClick="true">
     <fdp:title>
       <fdp:DynamicPageTitle>
-        <fdp:heading><Title text="Mis tiempos" level="H1"/></fdp:heading>
-        <fdp:expandedContent><Text text="Registra, revisa y envía tus horas de trabajo"/></fdp:expandedContent>
-        <fdp:snappedContent><Text text="{view>/weekLabel}"/><ObjectNumber number="{view>/totalHours}" unit="horas" class="sapUiSmallMarginBegin"/></fdp:snappedContent>
-        <fdp:actions><Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/></fdp:actions>
+        <fdp:heading>
+          <Title text="Mis tiempos" level="H1" />
+        </fdp:heading>
+        <fdp:snappedContent>
+          <Text text="{view>/weekLabel}" />
+          <ObjectNumber number="{view>/totalHours}" unit="horas" class="sapUiSmallMarginBegin" />
+        </fdp:snappedContent>
+        <fdp:actions>
+          <Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh" />
+        </fdp:actions>
       </fdp:DynamicPageTitle>
     </fdp:title>
     <fdp:header>
@@ -14,30 +22,51 @@
         <fdp:content>
           <VBox width="100%" class="weekHero" visible="{view>/weeklyVisible}">
             <Toolbar design="Transparent">
-              <Button icon="sap-icon://navigation-left-arrow" tooltip="Semana anterior" press=".onPreviousWeek"/>
-              <Button text="Esta semana" press=".onCurrentWeek"/>
-              <Button icon="sap-icon://navigation-right-arrow" tooltip="Semana siguiente" press=".onNextWeek"/>
-              <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin"/>
-              <ToolbarSpacer/>
-              <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal desktopWeekAction"/>
-              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 &amp;&amp; ${view>/canSubmitWeek} }" tooltip="{view>/submitBlockedMessage}" class="desktopWeekAction"/>
+              <Button icon="sap-icon://navigation-left-arrow" tooltip="Semana anterior"
+                press=".onPreviousWeek" />
+              <Button text="Esta semana" press=".onCurrentWeek" />
+              <Button icon="sap-icon://navigation-right-arrow" tooltip="Semana siguiente"
+                press=".onNextWeek" />
+              <Title text="{view>/weekLabel}" level="H2" class="sapUiSmallMarginBegin" />
+              <ToolbarSpacer />
+              <ObjectNumber number="{view>/totalHours}" unit="horas"
+                class="weekTotal desktopWeekAction" />
+              <ObjectStatus text="{view>/weekStatusLabel}" state="{view>/weekStatusState}"
+                class="desktopWeekAction sapUiTinyMarginEnd" />
+              <Button text="Retirar envío" icon="sap-icon://undo" type="Attention"
+                press=".onWithdrawWeek" visible="{view>/canWithdrawWeek}"
+                class="desktopWeekAction" />
+              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized"
+                press=".onSubmitWeek"
+                enabled="{= ${view>/weekEditable} &amp;&amp; ${view>/entries/length} > 0 &amp;&amp; ${view>/canSubmitWeek} }"
+                tooltip="{view>/submitBlockedMessage}" class="desktopWeekAction" />
             </Toolbar>
             <Toolbar design="Transparent" class="mobileWeekActions">
-              <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal"/>
-              <ToolbarSpacer/>
-              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized" press=".onSubmitWeek" enabled="{= ${view>/entries/length} > 0 &amp;&amp; ${view>/canSubmitWeek} }" tooltip="{view>/submitBlockedMessage}"/>
+              <ObjectNumber number="{view>/totalHours}" unit="horas" class="weekTotal" />
+              <ObjectStatus text="{view>/weekStatusLabel}" state="{view>/weekStatusState}" />
+              <ToolbarSpacer />
+              <Button text="Retirar envío" icon="sap-icon://undo" type="Attention"
+                press=".onWithdrawWeek" visible="{view>/canWithdrawWeek}" />
+              <Button text="Enviar semana" icon="sap-icon://paper-plane" type="Emphasized"
+                press=".onSubmitWeek"
+                enabled="{= ${view>/weekEditable} &amp;&amp; ${view>/entries/length} > 0 &amp;&amp; ${view>/canSubmitWeek} }"
+                tooltip="{view>/submitBlockedMessage}" />
             </Toolbar>
             <ScrollContainer horizontal="true" vertical="false" width="100%" class="weekDaysScroll">
               <HBox items="{view>/weekDays}" class="weekDayStrip" renderType="Bare">
                 <CustomTile press=".onDaySelect" class="weekDayTile">
-                  <customData><core:CustomData key="day-state" value="{view>state}" writeToDom="true"/><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/></customData>
+                  <customData>
+                    <core:CustomData key="day-state" value="{view>state}" writeToDom="true" />
+                    <core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true" />
+                  </customData>
                   <VBox alignItems="Center" justifyContent="Center" class="weekDayContent">
-                    <Text text="{view>weekdayLabel}" class="weekDayName"/>
-                    <Title text="{view>dayNumber}" level="H3" class="weekDayNumber"/>
-                    <Text text="{view>monthLabel}" class="weekDayMonth"/>
-                    <ObjectNumber number="{view>hours}" unit="h" class="weekDayHours"/>
-                    <Text text="{view>entryLabel}" class="weekDayEntries"/>
-                    <ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }" class="weekDayNonWorking"/>
+                    <Text text="{view>weekdayLabel}" class="weekDayName" />
+                    <Title text="{view>dayNumber}" level="H3" class="weekDayNumber" />
+                    <Text text="{view>monthLabel}" class="weekDayMonth" />
+                    <ObjectNumber number="{view>hours}" unit="h" class="weekDayHours" />
+                    <Text text="{view>entryLabel}" class="weekDayEntries" />
+                    <ObjectStatus text="{view>nonWorkingShortLabel}" tooltip="{view>nonWorkingLabel}" state="Warning"
+                      visible="{= !!${view>nonWorkingLabel} }" class="weekDayNonWorking" />
                   </VBox>
                 </CustomTile>
               </HBox>
@@ -48,79 +77,346 @@
     </fdp:header>
     <fdp:content>
       <VBox class="sapUiResponsiveContentPadding employeeTimesContent">
-      <MessageStrip text="{view>/error}" type="Error" showIcon="true" visible="{= !!${view>/error} }" class="sapUiSmallMarginBottom"/>
-      <MessageStrip text="{view>/success}" type="Success" showIcon="true" visible="{= !!${view>/success} }" class="sapUiSmallMarginBottom"/>
-      <MessageStrip text="{view>/submitBlockedMessage}" type="Warning" showIcon="true" visible="{= !!${view>/submitBlockedMessage} }" class="sapUiSmallMarginBottom"/>
-      <MessageStrip text="{view>/draftRestoredMessage}" type="Information" showIcon="true" showCloseButton="true" close=".onDismissDraftMessage" visible="{= !!${view>/draftRestoredMessage} }" class="sapUiSmallMarginBottom"/>
+        <MessageStrip text="{view>/error}" type="Error" showIcon="true"
+          visible="{= !!${view>/error} }" class="sapUiSmallMarginBottom" />
+        <MessageStrip text="{view>/success}" type="Success" showIcon="true"
+          visible="{= !!${view>/success} }" class="sapUiSmallMarginBottom" />
+        <MessageStrip text="{view>/submitBlockedMessage}" type="Warning" showIcon="true"
+          visible="{= !!${view>/submitBlockedMessage} }" class="sapUiSmallMarginBottom" />
+        <MessageStrip text="{view>/draftRestoredMessage}" type="Information" showIcon="true"
+          showCloseButton="true" close=".onDismissDraftMessage"
+          visible="{= !!${view>/draftRestoredMessage} }" class="sapUiSmallMarginBottom" />
 
-      <Panel id="monthlyPanel" expandable="true" expanded="false" expand=".onMonthlyToggle" class="entryForm timeSectionGap">
-        <headerToolbar><Toolbar><Title text="Vista mensual" level="H3" class="desktopMonthHeader"/><Text text="{view>/monthLabel}" class="mobileMonthHeader monthHeaderLabel"/><ToolbarSpacer/><ObjectNumber number="{view>/monthTotalHours}" unit="horas" class="monthTotal"/><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth" class="desktopMonthHeader"/><Button text="{view>/monthLabel}" press=".onCurrentMonth" class="desktopMonthHeader"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth" class="desktopMonthHeader"/></Toolbar></headerToolbar>
-        <content>
-          <OverflowToolbar class="mobileMonthActions"><Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior" press=".onPreviousMonth"/><Button text="{view>/monthLabel}" press=".onCurrentMonth"/><Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente" press=".onNextMonth"/></OverflowToolbar>
-          <VBox class="desktopMonthlyCalendar">
-            <HBox class="monthWeekHeaders"><Text text="Lun"/><Text text="Mar"/><Text text="Mié"/><Text text="Jue"/><Text text="Vie"/><Text text="Sáb"/><Text text="Dom"/></HBox>
-            <VBox items="{view>/monthDays}" class="monthGrid"><CustomTile press=".onMonthDaySelect" class="monthDayTile"><customData><core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true"/><core:CustomData key="blank" value="{view>blankDom}" writeToDom="true"/></customData><VBox class="monthDayContent"><HBox width="100%" justifyContent="SpaceBetween"><Title text="{view>dayNumber}" level="H4"/><ObjectStatus text="{view>statusText}" icon="{view>statusIcon}" state="{view>statusState}" visible="{= !!${view>statusIcon} }"/></HBox><ObjectNumber number="{view>hours}" unit="h" visible="{= !${view>isBlank} }" state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }"/><Text text="{view>summary}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox></CustomTile></VBox>
-          </VBox>
-          <VBox class="mobileMonthlyList sapUiSmallMargin">
-            <SegmentedButton selectedKey="{view>/monthFilter}" selectionChange=".onMonthFilterChange" width="100%" class="sapUiSmallMarginBottom"><items><SegmentedButtonItem key="ALL" text="Todos"/><SegmentedButtonItem key="PENDING" text="Sin registro"/><SegmentedButtonItem key="REVIEW" text="Revisar"/></items></SegmentedButton>
-            <List items="{view>/filteredMonthDays}" noDataText="No hay días que coincidan con este filtro" showSeparators="Inner"><CustomListItem type="Active" press=".onMonthDaySelect"><HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="monthMobileRow"><VBox><ObjectIdentifier title="{= ${view>weekdayLabel} + ' ' + ${view>dayNumber} }" text="{view>dateLabel}"/><ObjectStatus text="{view>nonWorkingLabel}" state="Warning" visible="{= !!${view>nonWorkingLabel} }"/></VBox><VBox alignItems="End"><ObjectNumber number="{view>hours}" unit="h" state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }"/><ObjectStatus text="{view>statusText}" icon="{view>statusIcon}" state="{view>statusState}"/></VBox></HBox></CustomListItem></List>
-          </VBox>
-        </content>
-      </Panel>
-
-      <Panel headerText="Historial de copias" expandable="true" expanded="false" class="entryForm timeSectionGap">
-        <content>
-          <List items="{view>/copyHistory}" noDataText="Todavía no hay copias masivas registradas" showSeparators="Inner">
-            <CustomListItem>
-              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween">
-                <VBox class="sapUiSmallMargin"><ObjectIdentifier title="{view>scopeLabel}" text="{view>createdLabel}"/><Text text="{view>resumen}"/><ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/></VBox>
-                <Button text="Deshacer" icon="sap-icon://undo" press=".onUndoBulkCopy" visible="{view>puedeDeshacer}"/>
+        <Panel id="monthlyPanel" expandable="true" expanded="false" expand=".onMonthlyToggle"
+          class="entryForm timeSectionGap">
+          <headerToolbar>
+            <Toolbar>
+              <Title text="Vista mensual" level="H3" class="desktopMonthHeader" />
+              <Text text="{view>/monthLabel}" class="mobileMonthHeader monthHeaderLabel" />
+              <ToolbarSpacer />
+              <ObjectNumber number="{view>/monthTotalHours}" unit="horas" class="monthTotal" />
+              <Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior"
+                press=".onPreviousMonth" class="desktopMonthHeader" />
+              <Button text="{view>/monthLabel}" press=".onCurrentMonth" class="desktopMonthHeader" />
+              <Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente"
+                press=".onNextMonth" class="desktopMonthHeader" />
+            </Toolbar>
+          </headerToolbar>
+          <content>
+            <OverflowToolbar class="mobileMonthActions">
+              <Button icon="sap-icon://navigation-left-arrow" tooltip="Mes anterior"
+                press=".onPreviousMonth" />
+              <Button text="{view>/monthLabel}" press=".onCurrentMonth" />
+              <Button icon="sap-icon://navigation-right-arrow" tooltip="Mes siguiente"
+                press=".onNextMonth" />
+            </OverflowToolbar>
+            <VBox class="desktopMonthlyCalendar">
+              <HBox class="monthWeekHeaders">
+                <Text text="Lun" />
+                <Text text="Mar" />
+                <Text text="Mié" />
+                <Text text="Jue" />
+                <Text text="Vie" />
+                <Text text="Sáb" />
+                <Text text="Dom" />
               </HBox>
-            </CustomListItem>
-          </List>
-        </content>
-      </Panel>
+              <VBox items="{view>/monthDays}" class="monthGrid">
+                <CustomTile press=".onMonthDaySelect" class="monthDayTile">
+                  <customData>
+                    <core:CustomData key="day-kind" value="{view>dayKind}" writeToDom="true" />
+                    <core:CustomData key="blank" value="{view>blankDom}" writeToDom="true" />
+                  </customData>
+                  <VBox class="monthDayContent">
+                    <HBox width="100%" justifyContent="SpaceBetween">
+                      <Title text="{view>dayNumber}" level="H4" />
+                      <ObjectStatus text="{view>statusText}" icon="{view>statusIcon}"
+                        state="{view>statusState}" visible="{= !!${view>statusIcon} }" />
+                    </HBox>
+                    <ObjectNumber number="{view>hours}" unit="h" visible="{= !${view>isBlank} }"
+                      state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }" />
+                    <Text text="{view>summary}" />
+                    <ObjectStatus text="{view>nonWorkingShortLabel}" tooltip="{view>nonWorkingLabel}" state="Warning"
+                      visible="{= !!${view>nonWorkingLabel} }" class="monthDayNonWorking" />
+                  </VBox>
+                </CustomTile>
+              </VBox>
+            </VBox>
+            <VBox class="mobileMonthlyList sapUiSmallMargin">
+              <SegmentedButton selectedKey="{view>/monthFilter}"
+                selectionChange=".onMonthFilterChange" width="100%" class="sapUiSmallMarginBottom">
+                <items>
+                  <SegmentedButtonItem key="ALL" text="Todos" />
+                  <SegmentedButtonItem key="PENDING" text="Sin registro" />
+                  <SegmentedButtonItem key="REVIEW" text="Revisar" />
+                </items>
+              </SegmentedButton>
+              <List items="{view>/filteredMonthDays}"
+                noDataText="No hay días que coincidan con este filtro" showSeparators="Inner">
+                <CustomListItem type="Active" press=".onMonthDaySelect">
+                  <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween"
+                    class="monthMobileRow">
+                    <VBox>
+                      <ObjectIdentifier title="{= ${view>weekdayLabel} + ' ' + ${view>dayNumber} }"
+                        text="{view>dateLabel}" />
+                      <ObjectStatus text="{view>nonWorkingShortLabel}" tooltip="{view>nonWorkingLabel}" state="Warning"
+                        visible="{= !!${view>nonWorkingLabel} }" />
+                    </VBox>
+                    <VBox alignItems="End">
+                      <ObjectNumber number="{view>hours}" unit="h"
+                        state="{= ${view>statusState} === 'Warning' ? 'Warning' : 'None' }" />
+                      <ObjectStatus text="{view>statusText}" icon="{view>statusIcon}"
+                        state="{view>statusState}" />
+                    </VBox>
+                  </HBox>
+                </CustomListItem>
+              </List>
+            </VBox>
+          </content>
+        </Panel>
 
-      <Panel headerText="Registrar tiempo" expandable="true" expanded="true" class="entryForm timeSectionGap">
-        <content>
-          <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="2" columnsL="2" columnsM="1" class="timeEntryFields">
-            <Label text="Día seleccionado" required="true"/><ObjectIdentifier title="{view>/form/dayFullLabel}"/>
-            <Label text="Proyecto" required="true"/><Select selectedKey="{view>/form/asignacionID}" items="{view>/assignments}" change=".onAssignmentChange" class="standardEntryField"><core:Item key="{view>ID}" text="{= ${view>proyectoNombre} + ' · ' + ${view>clienteNombre} }"/></Select>
-            <Label text="Horas" required="true"/><StepInput value="{view>/form/duracionHoras}" min="0.5" max="24" step="0.5" displayValuePrecision="1" width="9rem" class="compactHoursInput"/>
-            <Label text="Tipo" required="true"/><Select selectedKey="{view>/form/tipoSolicitado}" change=".onTypeChange" width="9rem" class="compactTypeSelect"><core:Item key="REGULAR" text="Regular"/><core:Item key="OVERTIME" text="Extra"/></Select>
-            <Label text="Hora aproximada de inicio" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaInicioAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
-            <Label text="Hora aproximada de fin" visible="{view>/form/isSpecial}"/><TimePicker value="{view>/form/horaFinAproximada}" valueFormat="HH:mm:ss" displayFormat="HH:mm" visible="{view>/form/isSpecial}"/>
-            <Label text="Autorización previa" visible="{view>/form/isSpecial}"/><Switch state="{view>/form/autorizacionPrevia}" visible="{view>/form/isSpecial}"/>
-            <Label text="Motivo excepcional" required="{view>/form/isSpecial}" visible="{view>/form/isSpecial}"/><Input value="{view>/form/motivoExcepcional}" valueLiveUpdate="true" visible="{view>/form/isSpecial}"/>
-            <Label text="Descripción" required="{view>/form/descriptionRequired}"/><TextArea value="{view>/form/descripcion}" valueLiveUpdate="true" rows="3" growing="true" placeholder="Describe brevemente la actividad realizada" class="standardEntryField"/>
-            <Label text="Soporte" required="{view>/form/supportRequired}"/><u:FileUploader id="supportUploader" change=".onFileSelected" sameFilenameAllowed="true" buttonText="Seleccionar archivo" placeholder="PDF, imagen u Office · máximo 10 MB" class="standardEntryField"/>
-          </f:SimpleForm>
-          <MessageStrip text="{view>/form/rulesText}" type="Information" showIcon="true" visible="{= !!${view>/form/rulesText} }" class="sapUiSmallMargin"/>
-          <Toolbar design="Transparent"><Button text="Limpiar" press=".onClearForm"/><ToolbarSpacer/><Button text="Guardar borrador" icon="sap-icon://save" type="Emphasized" press=".onSave"/></Toolbar>
-        </content>
-      </Panel>
+        <Panel headerText="Historial de copias" expandable="true" expanded="false"
+          class="entryForm timeSectionGap">
+          <content>
+            <List items="{view>/copyHistory}" noDataText="Todavía no hay copias masivas registradas"
+              showSeparators="Inner">
+              <CustomListItem>
+                <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween">
+                  <VBox class="sapUiSmallMargin">
+                    <ObjectIdentifier title="{view>scopeLabel}" text="{view>createdLabel}" />
+                    <Text text="{view>resumen}" />
+                    <ObjectStatus text="{view>statusLabel}" state="{view>statusState}" />
+                  </VBox>
+                  <Button text="Deshacer" icon="sap-icon://undo" press=".onUndoBulkCopy"
+                    visible="{view>puedeDeshacer}"
+                    enabled="{= ${view>puedeDeshacer} &amp;&amp; ${view>/weekEditable} }" />
+                </HBox>
+              </CustomListItem>
+            </List>
+          </content>
+        </Panel>
 
-      <Panel class="entryForm">
-        <headerToolbar><Toolbar><Title text="Registros de la semana" level="H3"/><ToolbarSpacer/><Text text="{= ${view>/selectedCount} + ' seleccionado(s)' }" visible="{= ${view>/selectedCount} > 0 }"/><Button text="Eliminar seleccionados" icon="sap-icon://delete" type="Negative" press=".onDeleteSelected" enabled="{= ${view>/selectedCount} > 0 }"/></Toolbar></headerToolbar>
-        <content>
-          <Table id="entriesTable" items="{path:'view>/entries', sorter:[{path:'projectGroupLabel', group:true},{path:'fecha'},{path:'tipoSolicitado'}]}" noDataText="Aún no has registrado horas para esta semana" growing="true" mode="MultiSelect" includeItemInSelection="true" selectionChange=".onEntrySelectionChange">
-            <columns>
-              <Column><Text text="Día"/></Column><Column><Text text="Proyecto"/></Column><Column hAlign="End"><Text text="Horas"/></Column><Column><Text text="Tipo"/></Column><Column><Text text="Detalle y soporte"/></Column><Column><Text text="Estado"/></Column><Column hAlign="End"><Text text="Acciones"/></Column>
-            </columns>
-            <items><ColumnListItem vAlign="Middle">
-              <cells>
-                <ObjectIdentifier title="{view>dateLabel}" text="{view>fecha}"/>
-                <Text text="{view>proyectoNombre}"/>
-                <ObjectNumber number="{view>duracionHoras}" unit="h" state="{= ${view>alertaHorasDiarias} ? 'Warning' : 'None' }" tooltip="{view>alertaHorasTexto}"/>
-                <ObjectStatus text="{view>typeLabel}" state="{= ${view>tipoSolicitado} === 'REGULAR' ? 'None' : 'Warning' }"/>
-                <VBox><Text text="{view>descripcion}" maxLines="2"/><ObjectStatus text="Posible duplicado" icon="sap-icon://warning2" state="Warning" visible="{view>posibleDuplicado}"/><ObjectStatus text="{view>alertaHorasTexto}" icon="sap-icon://time-entry-request" state="Warning" visible="{view>alertaHorasDiarias}"/><ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }" icon="sap-icon://attachment" state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }"/></VBox>
-                <ObjectStatus text="{view>statusLabel}" state="{view>statusState}"/>
-                <HBox justifyContent="End"><Button icon="sap-icon://edit" tooltip="Editar" type="Transparent" press=".onEdit" enabled="{view>puedeEditar}"/><Button icon="sap-icon://duplicate" tooltip="Copiar a varios días de la semana" type="Transparent" press=".onOpenCopy" enabled="{view>puedeEditar}"/><Button icon="sap-icon://calendar" tooltip="Copiar este registro a un mes" type="Transparent" press=".onOpenCopyMonth" enabled="{view>puedeEditar}"/><Button icon="sap-icon://delete" tooltip="Eliminar registro" type="Transparent" press=".onDeleteEntry" enabled="{view>puedeEditar}"/></HBox>
-              </cells>
-            </ColumnListItem></items>
-          </Table>
-        </content>
-      </Panel>
+        <Panel headerText="Registrar tiempo" expandable="true" expanded="true"
+          class="entryForm timeSectionGap">
+          <content>
+            <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsXL="2" columnsL="2"
+              columnsM="1" class="timeEntryFields">
+              <Label text="Día seleccionado" required="true" />
+              <ObjectIdentifier title="{view>/form/dayFullLabel}" />
+              <Label text="Tipo de proyectos" />
+              <CheckBox text="Listar proyectos internos"
+                selected="{view>/listInternalProjects}"
+                select=".onInternalProjectsToggle"
+                enabled="{view>/weekEditable}" />
+              <Label text="Proyecto" required="true" />
+              <Select selectedKey="{view>/form/asignacionID}" items="{view>/assignments}"
+                change=".onAssignmentChange" class="standardEntryField"
+                enabled="{view>/weekEditable}">
+                <core:Item key="{view>ID}"
+                  text="{= ${view>proyectoNombre} + ' · ' + ${view>clienteNombre} }" />
+              </Select>
+              <Label text="Horas" required="true" />
+              <HBox width="9rem" alignItems="Center" class="compactHoursInput hoursEditor">
+                <Button icon="sap-icon://less" type="Transparent" press=".onHoursDecrease" tooltip="Restar 0.5 h"
+                  enabled="{view>/weekEditable}" />
+                <Input value="{view>/form/duracionHoras}" type="Text" textAlign="Center"
+                  change=".onHoursInputChange" width="4.5rem" enabled="{view>/weekEditable}" />
+                <Button icon="sap-icon://add" type="Transparent" press=".onHoursIncrease" tooltip="Sumar 0.5 h"
+                  enabled="{view>/weekEditable}" />
+              </HBox>
+              <Label text="Tipo" required="true" />
+              <Select selectedKey="{view>/form/tipoSolicitado}" change=".onTypeChange" width="9rem"
+                class="compactTypeSelect" enabled="{view>/weekEditable}">
+                <core:Item key="REGULAR" text="Regular" />
+                <core:Item key="OVERTIME" text="Extra" />
+              </Select>
+              <Label text="Hora aproximada de inicio" visible="{view>/form/isSpecial}" />
+              <TimePicker value="{view>/form/horaInicioAproximada}" valueFormat="HH:mm:ss"
+                displayFormat="HH:mm" visible="{view>/form/isSpecial}" enabled="{view>/weekEditable}" />
+              <Label text="Hora aproximada de fin" visible="{view>/form/isSpecial}" />
+              <TimePicker value="{view>/form/horaFinAproximada}" valueFormat="HH:mm:ss"
+                displayFormat="HH:mm" visible="{view>/form/isSpecial}" enabled="{view>/weekEditable}" />
+              <Label text="Autorización previa" visible="{view>/form/isSpecial}" />
+              <Switch state="{view>/form/autorizacionPrevia}" visible="{view>/form/isSpecial}"
+                enabled="{view>/weekEditable}" />
+              <Label text="Motivo excepcional" required="{view>/form/isSpecial}"
+                visible="{view>/form/isSpecial}" />
+              <Input value="{view>/form/motivoExcepcional}" valueLiveUpdate="true"
+                visible="{view>/form/isSpecial}" enabled="{view>/weekEditable}" />
+              <Label text="Descripción" required="{view>/form/descriptionRequired}" />
+              <TextArea value="{view>/form/descripcion}" valueLiveUpdate="true" rows="3"
+                growing="true" placeholder="Describe brevemente la actividad realizada"
+                class="standardEntryField" enabled="{view>/weekEditable}" />
+              <Label
+                text="Soporte"
+                required="{view>/form/supportRequired}" />
+
+              <VBox class="standardEntryField">
+
+                <List
+                  items="{view>/supports}"
+                  visible="{= ${view>/supports/length} > 0 }"
+                  noDataText="Sin soportes"
+                  showSeparators="Inner"
+                  class="sapUiTinyMarginBottom">
+
+                  <CustomListItem>
+                    <HBox
+                      width="100%"
+                      alignItems="Center"
+                      justifyContent="SpaceBetween">
+
+                      <HBox
+                        alignItems="Center">
+
+                        <core:Icon
+                          src="sap-icon://attachment"
+                          class="sapUiTinyMarginEnd" />
+
+                        <VBox>
+                          <Text
+                            text="{view>nombreArchivo}"
+                            wrapping="true" />
+
+                          <ObjectStatus
+                            text="{view>estado}"
+                            state="{= ${view>estado} === 'Clean' ? 'Success' : 'Warning' }" />
+                        </VBox>
+
+                      </HBox>
+
+                      <Button
+                        icon="sap-icon://delete"
+                        type="Transparent"
+                        tooltip="Eliminar soporte"
+                        press=".onDeleteSupport"
+                        enabled="{view>/weekEditable}" />
+
+                    </HBox>
+                  </CustomListItem>
+
+                </List>
+
+                <u:FileUploader
+                  id="supportUploader"
+                  change=".onFileSelected"
+                  sameFilenameAllowed="true"
+                  enabled="{view>/weekEditable}"
+                  buttonText="Seleccionar archivo"
+                  placeholder="PDF, imagen u Office · máximo 10 MB" />
+
+              </VBox>
+            </f:SimpleForm>
+            <MessageStrip text="{view>/form/rulesText}" type="Information" showIcon="true"
+              visible="{= !!${view>/form/rulesText} }" class="sapUiSmallMargin" />
+            <Toolbar design="Transparent">
+              <Button text="Limpiar" press=".onClearForm" enabled="{view>/weekEditable}" />
+              <ToolbarSpacer />
+              <Button text="Guardar borrador" icon="sap-icon://save" type="Emphasized"
+                press=".onSave" enabled="{view>/weekEditable}" />
+            </Toolbar>
+          </content>
+        </Panel>
+
+        <Panel class="entryForm">
+          <headerToolbar>
+            <Toolbar>
+              <Title text="Registros de la semana" level="H3" />
+              <ToolbarSpacer />
+              <Text text="{= ${view>/selectedCount} + ' seleccionado(s)' }"
+                visible="{= ${view>/selectedCount} > 0 }" />
+              <Button text="Eliminar seleccionados" icon="sap-icon://delete" type="Negative"
+                press=".onDeleteSelected"
+                enabled="{= ${view>/weekEditable} &amp;&amp; ${view>/selectedCount} > 0 }" />
+            </Toolbar>
+          </headerToolbar>
+          <content>
+            <Table id="entriesTable"
+              items="{path:'view>/entries', sorter:[{path:'projectGroupLabel', group:true},{path:'fecha'},{path:'tipoSolicitado'}]}"
+              noDataText="Aún no has registrado horas para esta semana" growing="true"
+              mode="{= ${view>/weekEditable} ? 'MultiSelect' : 'None' }" includeItemInSelection="false"
+              selectionChange=".onEntrySelectionChange">
+              <columns>
+                <Column>
+                  <Text text="Día" />
+                </Column>
+                <Column>
+                  <Text text="Proyecto" />
+                </Column>
+                <Column hAlign="End">
+                  <Text text="Horas" />
+                </Column>
+                <Column>
+                  <Text text="Tipo" />
+                </Column>
+                <Column>
+                  <Text text="Detalle y soporte" />
+                </Column>
+                <Column>
+                  <Text text="Estado" />
+                </Column>
+                <Column hAlign="End">
+                  <Text text="Acciones" />
+                </Column>
+              </columns>
+              <items>
+                <ColumnListItem vAlign="Top" type="Active" press=".onToggleEntryDetail"
+                  tooltip="Pulsa para ver u ocultar la descripción completa">
+                  <cells>
+                    <ObjectIdentifier title="{view>dateLabel}" text="{view>fecha}" />
+                    <Text text="{view>proyectoNombre}" />
+                    <ObjectNumber number="{view>duracionHoras}" unit="h"
+                      state="{= ${view>alertaHorasDiarias} ? 'Warning' : 'None' }"
+                      tooltip="{view>alertaHorasTexto}" />
+                    <ObjectStatus text="{view>typeLabel}"
+                      state="{= ${view>tipoSolicitado} === 'REGULAR' ? 'None' : 'Warning' }" />
+                    <VBox>
+                      <HBox alignItems="Start" justifyContent="SpaceBetween" width="100%">
+                        <Text text="{= ${view>descripcion} || 'Sin descripción' }" maxLines="2"
+                          visible="{= !${view>expanded} }" class="entryDescriptionPreview" />
+                        <Button icon="{= ${view>expanded} ? 'sap-icon://slim-arrow-up' : 'sap-icon://slim-arrow-down' }"
+                          tooltip="{= ${view>expanded} ? 'Ocultar detalle' : 'Ver descripción completa' }"
+                          type="Transparent" press=".onToggleEntryDetail" class="entryExpandButton" />
+                      </HBox>
+                      <VBox visible="{= !!${view>expanded} }" class="entryExpandedDetail">
+                        <Label text="Descripción completa" design="Bold" />
+                        <Text text="{= ${view>descripcion} || 'Sin descripción registrada' }"
+                          wrapping="true" renderWhitespace="true" class="entryDescriptionFull" />
+                        <HBox wrap="Wrap" class="entryExpandedFacts">
+                          <ObjectStatus text="{= 'Proyecto: ' + ${view>proyectoNombre} }"
+                            icon="sap-icon://business-objects-experience" />
+                          <ObjectStatus text="{= 'Tipo: ' + ${view>typeLabel} }"
+                            icon="sap-icon://time-entry-request" />
+                          <ObjectStatus text="{= 'Estado: ' + ${view>statusLabel} }"
+                            state="{view>statusState}" />
+                        </HBox>
+                      </VBox>
+                      <ObjectStatus text="Posible duplicado" icon="sap-icon://warning2"
+                        state="Warning" visible="{view>posibleDuplicado}" />
+                      <ObjectStatus text="{view>alertaHorasTexto}"
+                        icon="sap-icon://time-entry-request" state="Warning"
+                        visible="{view>alertaHorasDiarias}" />
+                      <ObjectStatus text="{= ${view>cantidadSoportes} + ' soporte(s)' }"
+                        icon="sap-icon://attachment"
+                        state="{= ${view>requiereSoporte} &amp;&amp; ${view>cantidadSoportes} === 0 ? 'Error' : 'Success' }" />
+                    </VBox>
+                    <ObjectStatus text="{view>statusLabel}" state="{view>statusState}" />
+                    <HBox justifyContent="End">
+                      <Button icon="sap-icon://edit" tooltip="Editar" type="Transparent"
+                        press=".onEdit" enabled="{view>puedeEditar}" />
+                      <Button icon="sap-icon://duplicate"
+                        tooltip="Copiar a varios días de la semana" type="Transparent"
+                        press=".onOpenCopy" enabled="{view>puedeEditar}" />
+                      <Button icon="sap-icon://calendar" tooltip="Copiar este registro a un mes"
+                        type="Transparent" press=".onOpenCopyMonth" enabled="{view>puedeEditar}" />
+                      <Button icon="sap-icon://delete" tooltip="Eliminar registro"
+                        type="Transparent" press=".onDeleteEntry" enabled="{view>puedeEditar}" />
+                    </HBox>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </content>
+        </Panel>
       </VBox>
     </fdp:content>
   </fdp:DynamicPage>

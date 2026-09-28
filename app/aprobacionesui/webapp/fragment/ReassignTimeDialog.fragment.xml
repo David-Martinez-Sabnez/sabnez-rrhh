@@ -1,0 +1,47 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <Dialog
+    id="reassignTimeDialog"
+    title="{i18n>reassignApproval}"
+    contentWidth="34rem"
+    draggable="true"
+    resizable="true"
+    afterClose=".onCloseReassignDialog">
+    <content>
+      <VBox class="sapUiMediumMargin">
+        <MessageStrip
+          text="{= ${view>/reassignmentForm/selectedCount} + ' ' + ${i18n>selectedIncidents} }"
+          type="Information"
+          showIcon="true"
+          class="sapUiSmallMarginBottom" />
+        <Label text="{i18n>newApprover}" required="true" labelFor="reassignApproverSelect" />
+        <Select
+          id="reassignApproverSelect"
+          width="100%"
+          selectedKey="{view>/reassignmentForm/approverID}"
+          items="{view>/eligibleEmployees}"
+          class="sapUiTinyMarginBottom">
+          <core:Item key="{view>ID}" text="{view>name}" />
+        </Select>
+        <Label text="{i18n>reassignmentReason}" required="true" labelFor="reassignReason" />
+        <TextArea
+          id="reassignReason"
+          width="100%"
+          rows="4"
+          value="{view>/reassignmentForm/reason}"
+          placeholder="{i18n>reassignmentReasonPlaceholder}" />
+      </VBox>
+    </content>
+    <beginButton>
+      <Button
+        text="{i18n>reassign}"
+        type="Emphasized"
+        enabled="{= !${view>/actionBusy} }"
+        press=".onConfirmReassignApprovals" />
+    </beginButton>
+    <endButton>
+      <Button text="{i18n>cancel}" press=".onCloseReassignDialog" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

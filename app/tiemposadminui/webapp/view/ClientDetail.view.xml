@@ -1,0 +1,139 @@
+<mvc:View
+  controllerName="sabnez.com.tiemposadminui.controller.ClientDetail"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:uxap="sap.uxap"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <uxap:ObjectPageLayout id="clientPage" showTitleInHeaderContent="false" upperCaseAnchorBar="false"
+    toggleHeaderOnTitleClick="false"
+    busy="{view>/busy}" busyIndicatorDelay="300">
+
+    <uxap:headerTitle>
+      <uxap:ObjectPageDynamicHeaderTitle>
+        <uxap:expandedHeading>
+          <VBox>
+            <Text text="Cliente" class="objectEyebrow"/>
+            <Title text="{= ${view>/currentClient/tradeName} || ${view>/currentClient/legalName} }" level="H1" wrapping="true"/>
+          </VBox>
+        </uxap:expandedHeading>
+        <uxap:snappedHeading>
+          <Title text="{= ${view>/currentClient/tradeName} || ${view>/currentClient/legalName} }" level="H2"/>
+        </uxap:snappedHeading>
+        <uxap:actions>
+          <Button text="Editar" icon="sap-icon://edit" press=".onEdit"
+            visible="{= ${view>/currentClient/status} !== 'INACTIVE' }"/>
+          <Button text="Desactivar" icon="sap-icon://locked" press=".onDeactivate"
+            visible="{= ${view>/currentClient/status} !== 'INACTIVE' }"/>
+          <Button text="Reactivar" icon="sap-icon://unlocked" press=".onReactivate"
+            visible="{= ${view>/currentClient/status} === 'INACTIVE' }"/>
+          <Button icon="sap-icon://decline" tooltip="Cerrar detalle" type="Transparent" press=".onCloseDetail"/>
+        </uxap:actions>
+      </uxap:ObjectPageDynamicHeaderTitle>
+    </uxap:headerTitle>
+
+    <uxap:headerContent>
+      <FlexBox wrap="Wrap" class="objectFacts">
+        <VBox class="fact"><Label text="Razón social"/><Text text="{view>/currentClient/legalName}"/></VBox>
+        <VBox class="fact"><Label text="Prefijo de proyectos"/><Text text="{= ${view>/currentClient/projectCodePrefix} || 'Pendiente' }"/></VBox>
+        <VBox class="fact"><Label text="Identificación"/><Text text="{view>/currentClient/taxIdentification}"/></VBox>
+        <VBox class="fact"><Label text="País"/><Text text="{view>/currentClient/countryCode}"/></VBox>
+        <VBox class="fact"><Label text="Moneda"/><Text text="{view>/currentClient/defaultCurrency}"/></VBox>
+        <VBox class="fact"><Label text="Zona horaria"/><Text text="{view>/currentClient/timeZone}"/></VBox>
+        <VBox class="fact">
+          <Label text="Condición de IVA"/>
+          <ObjectStatus
+            text="{= ${view>/currentClient/taxExempt} ? 'Exento de IVA' : 'IVA aplicable' }"
+            state="{= ${view>/currentClient/taxExempt} ? 'Information' : 'None' }"
+            icon="{= ${view>/currentClient/taxExempt} ? 'sap-icon://taxes' : '' }"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Plazo de pago"/>
+          <Text text="{path: 'view>/currentClient/paymentTermDays', formatter: '.formatter.plazoPago'}"/>
+        </VBox>
+        <VBox class="fact">
+          <Label text="Estado"/>
+          <ObjectStatus text="{path: 'view>/currentClient/status', formatter: '.formatter.estado'}"
+            state="{path: 'view>/currentClient/status', formatter: '.formatter.estadoState'}"/>
+        </VBox>
+      </FlexBox>
+    </uxap:headerContent>
+
+    <uxap:sections>
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Proyectos">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <Table items="{view>/currentProjects}" itemPress=".onOpenProject" mode="SingleSelectMaster"
+                noDataText="Este cliente no tiene proyectos todavía.">
+                <columns>
+                  <Column><Text text="Proyecto"/></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Modalidad"/></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+                  <Column hAlign="End" width="6rem"><Text text="Equipo"/></Column>
+                  <Column width="7rem"><Text text="Estado"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem type="Navigation">
+                    <cells>
+                      <ObjectIdentifier title="{view>name}" text="{view>code}"/>
+                      <Text text="{path: 'view>modality', formatter: '.formatter.modalidad'}"/>
+                      <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                      <ObjectNumber number="{view>teamSize}"/>
+                      <ObjectStatus text="{path: 'view>status', formatter: '.formatter.estado'}"
+                        state="{path: 'view>status', formatter: '.formatter.estadoState'}"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+
+      <uxap:ObjectPageSection showTitle="false" titleUppercase="false" title="Contratos">
+        <uxap:subSections>
+          <uxap:ObjectPageSubSection titleUppercase="false">
+            <uxap:blocks>
+              <Table items="{view>/currentContracts}"
+                noDataText="Sin contratos registrados. Los proyectos pueden funcionar sin uno.">
+                <headerToolbar>
+                  <Toolbar class="tableToolbar">
+                    <Title text="Acuerdos" level="H4"/>
+                    <ToolbarSpacer/>
+                    <Button text="Nuevo contrato" icon="sap-icon://add" press=".onAddContract"/>
+                  </Toolbar>
+                </headerToolbar>
+                <columns>
+                  <Column><Text text="Contrato"/></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+                  <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Valor"/></Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Documento"/></Column>
+                  <Column hAlign="End" width="8rem"><Text text="Acciones"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <ObjectIdentifier title="{view>reference}" text="{view>description}"/>
+                      <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                      <Text class="numeric" text="{parts: ['view>totalValue', 'view>currency'], formatter: '.formatter.importe'}"/>
+                      <Button text="{= ${view>documentCount} > 0 ? ${view>documentCount} + ' archivo(s)' : 'Sin archivo' }"
+                        icon="sap-icon://attachment" type="Transparent"
+                        enabled="{= ${view>documentCount} > 0 }" press=".onDownloadContract"/>
+                      <HBox justifyContent="End">
+                        <Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditContract"
+                          visible="{= ${view>status} !== 'INACTIVE' }"/>
+                        <Button icon="sap-icon://journey-arrive" type="Transparent" tooltip="Cerrar contrato" press=".onFinishContract"
+                          visible="{= ${view>status} !== 'INACTIVE' }"/>
+                      </HBox>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </uxap:blocks>
+          </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+      </uxap:ObjectPageSection>
+    </uxap:sections>
+  </uxap:ObjectPageLayout>
+</mvc:View>

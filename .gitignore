@@ -5,6 +5,9 @@ gen/
 mta_archives/
 dist/
 coverage/
+resources/
+.sabnez-*_mta_build_tmp/
+_tmp*/
 
 # Variables y credenciales locales
 .env
@@ -25,6 +28,7 @@ db.sqlite*
 
 # Archivos del sistema e IDE
 .DS_Store
+.fuse_hidden*
 .vscode/
 .idea/
 *.code-workspace

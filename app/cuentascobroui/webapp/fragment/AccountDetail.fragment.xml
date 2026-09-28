@@ -1,0 +1,38 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:u="sap.ui.unified">
+  <Dialog id="accountDetailDialog" title="Detalle de la cuenta de cobro" contentWidth="72rem" contentHeight="46rem" resizable="true" draggable="true" stretchOnPhone="true">
+    <content>
+      <VBox class="sapUiMediumMargin">
+        <HBox justifyContent="SpaceBetween" alignItems="Center" class="accountDetailHeader">
+          <VBox><Title text="{view>/detail/summary/number}" level="H2"/><Text text="{view>/detail/summary/employeeName}"/></VBox>
+          <VBox alignItems="End"><ObjectStatus text="{view>/detail/summary/statusText}" state="{path:'view>/detail/summary/status',formatter:'.statusState'}"/><ObjectNumber number="{parts:[{path:'view>/detail/summary/grossAmount'},{path:'view>/detail/summary/currency'}],formatter:'.formatMoney'}"/></VBox>
+        </HBox>
+        <MessageStrip class="sapUiSmallMarginTop" type="Information" showIcon="true" text="{view>/detail/summary/socialRequirementText}"/>
+        <MessageStrip class="sapUiSmallMarginTop" type="Warning" showIcon="true" text="{view>/detail/correctionReason}" visible="{= !!${view>/detail/correctionReason} }"/>
+        <MessageStrip class="sapUiSmallMarginTop" type="Information" showIcon="true" text="{view>/detail/hrComment}" visible="{= !!${view>/detail/hrComment} }"/>
+
+        <Title text="Conceptos" level="H3" class="sapUiMediumMarginTop"/>
+        <Table items="{view>/detail/items}">
+          <columns><Column><Text text="Proyecto"/></Column><Column><Text text="Concepto"/></Column><Column hAlign="End"><Text text="Horas"/></Column><Column hAlign="End"><Text text="Valor"/></Column></columns>
+          <items><ColumnListItem><cells><ObjectIdentifier title="{view>projectName}" text="{view>clientName}"/><Text text="{view>concept}" wrapping="true"/><ObjectNumber number="{view>approvedHours}" unit="h"/><ObjectNumber number="{parts:[{path:'view>amount'},{path:'view>/detail/summary/currency'}],formatter:'.formatMoney'}"/></cells></ColumnListItem></items>
+        </Table>
+
+        <HBox wrap="Wrap" class="accountDetailGrid sapUiMediumMarginTop">
+          <VBox class="accountDetailBlock"><Title text="Datos para el pago" level="H4"/><Text text="{view>/detail/bankName}"/><Text text="{= ${view>/detail/bankAccountType} + ' · ' + ${view>/detail/bankAccountNumber} }"/><Text text="{view>/detail/bankHolder}"/></VBox>
+          <VBox class="accountDetailBlock"><Title text="Soporte requerido" level="H4"/><ObjectStatus text="{= ${view>/detail/summary/hasSocialEvidence} ? 'Soporte cargado y validado' : 'Pendiente de cargar' }" state="{= ${view>/detail/summary/hasSocialEvidence} ? 'Success' : 'Warning' }"/><u:FileUploader id="supportUploader" width="100%" fileType="pdf,jpg,jpeg,png" change=".onSupportFileChange" visible="{= ${view>/detail/summary/status} === 'PENDING_SIGNATURE' || ${view>/detail/summary/status} === 'SIGNED' || ${view>/detail/summary/status} === 'HR_REJECTED' }"/><Button text="Cargar soporte" icon="sap-icon://upload" press=".onUploadSupport" visible="{= ${view>/detail/summary/status} === 'PENDING_SIGNATURE' || ${view>/detail/summary/status} === 'SIGNED' || ${view>/detail/summary/status} === 'HR_REJECTED' }" class="sapUiTinyMarginTop"/></VBox>
+        </HBox>
+
+        <Title text="Trazabilidad" level="H3" class="sapUiMediumMarginTop"/>
+        <List items="{view>/detail/events}" noDataText="Sin eventos"><StandardListItem title="{view>typeText}" description="{view>detail}" info="{path:'view>occurredAt',formatter:'.formatDateTime'}"/></List>
+      </VBox>
+    </content>
+    <buttons>
+      <Button text="Descargar cuenta" icon="sap-icon://download" press=".onDownloadAccount" visible="{= !!${view>/detail/summary/signedAt} }"/>
+      <Button text="Descargar soporte" icon="sap-icon://attachment" press=".onDownloadSupport" visible="{view>/detail/summary/hasSocialEvidence}"/>
+      <Button text="Solicitar corrección" press=".onRequestCorrection" visible="{view>/detail/summary/canRequestCorrection}"/>
+      <Button text="Cancelar cuenta" type="Reject" press=".onCancelAccount" visible="{view>/detail/summary/canCancel}"/>
+      <Button text="Firmar" type="Emphasized" icon="sap-icon://signature" press=".onSign" visible="{view>/detail/summary/canSign}"/>
+      <Button text="Enviar a RR. HH." type="Emphasized" icon="sap-icon://paper-plane" press=".onSubmit" visible="{view>/detail/summary/canSubmit}"/>
+      <Button text="Cerrar" press=".onCloseDetail"/>
+    </buttons>
+  </Dialog>
+</core:FragmentDefinition>

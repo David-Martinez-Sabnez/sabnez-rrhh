@@ -1,0 +1,63 @@
+Sabnez_Cards_WZ v1.4.9 - que cambio respecto a 1.4.8
+=====================================================
+
+EL PROBLEMA QUE REPORTASTE
+   La card de proyectos mostraba HOURLY y FULL_TIME tal cual salen del
+   servicio. Eso es el enum de la base de datos, no algo que se le
+   pueda mostrar a un empleado.
+
+LA CORRECCION  (proyectos-actuales-card / Extension.js)
+   Se agrego una tabla de traduccion y una funcion etiqueta() que se
+   aplica a modalidad y a tipoAsignacion:
+
+     HOURLY        -> Por horas        REMOTE      -> Remoto
+     FULL_TIME     -> Completo         HYBRID      -> Hibrido
+     PART_TIME     -> Parcial          ONSITE      -> Presencial
+     DAILY         -> Por dias         CONTRACTOR  -> Contratista
+     WEEKLY        -> Semanal          INTERN      -> Practicante
+     MONTHLY       -> Mensual          TEMPORARY   -> Temporal
+     BILLABLE      -> Facturable       PERMANENT   -> Indefinido
+     NON_BILLABLE  -> Interno          ACTIVE      -> Vigente
+                                       CLOSED      -> Cerrado
+
+   Normaliza antes de buscar, asi que "part-time", "Part Time" y
+   "PART_TIME" caen todos en la misma entrada.
+
+   Si aparece un valor que NO esta en la tabla, no se rompe ni muestra
+   el enum crudo: lo embellece solo. WEEKEND_SHIFT -> "Weekend shift".
+
+POR QUE "COMPLETO" Y NO "TIEMPO COMPLETO"
+   Porque no cabe. Medi el campo info renderizando la card: a 300 px de
+   columna el hueco es de 82 px exactos. "Tiempo completo" y "Medio
+   tiempo" llegaban justo a 82 px, se partian en dos lineas, el item
+   crecia y el tercer proyecto se salia de la card. Es el mismo fallo
+   que arregle en 1.4.8, y lo habia vuelto a meter yo con las
+   etiquetas largas.
+
+   Anchos medidos, todos de una sola linea:
+     Parcial 42 · Hibrido 44 · Remoto 48 · Por dias 50 · Temporal 57
+     Por horas 59 · Completo 60 · Indefinido 61 · Presencial 64
+     Contratista 67 · Practicante 69
+
+   El limite queda escrito en el codigo (LIMITE = 11 caracteres) por si
+   agregas etiquetas nuevas. El fallback tambien lo respeta: si el
+   valor desconocido no cabe se queda con la primera palabra.
+
+LO QUE NO TOQUE
+   Mis tiempos, Bienvenida y Vacaciones quedan igual que en 1.4.8, solo
+   les subi la version. Los ids del paquete, de las cards y de las
+   businessapps no cambiaron.
+
+   El calculo del objetivo de horas sigue como estaba: lo dejas tu del
+   lado del servicio. Cuando lo tengas, la card no necesita cambios,
+   solo que horasObjetivo venga bien calculado.
+
+VERIFICADO
+   Renderice las cards SACADAS DE ESTE MISMO ZIP, a 300 px, con datos
+   que traen HOURLY, FULL_TIME, PART-TIME, ON_SITE, un WEEKEND_SHIFT
+   inventado y un proyecto sin modalidad:
+     · Ningun enum crudo queda visible en pantalla.
+     · Ningun texto se corta ni se parte en dos lineas.
+     · El proyecto sin modalidad cae al rol, como estaba previsto.
+   Las dos copias del sap.card (data.zip y vizConfig) coinciden en las
+   cuatro cards.

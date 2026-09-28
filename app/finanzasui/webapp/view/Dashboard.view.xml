@@ -1,0 +1,209 @@
+<mvc:View
+  controllerName="sabnez.com.finanzasui.controller.Dashboard"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <Page showHeader="false" class="pageContent" busy="{view>/busy}" busyIndicatorDelay="300">
+    <content>
+      <VBox class="finTablero">
+
+        <MessageStrip type="Error" showIcon="true" showCloseButton="true"
+          class="sapUiSmallMarginBottom"
+          visible="{= !!${view>/error} }"
+          text="{view>/error}" close=".onDismissError"/>
+
+        <!-- ============ LO QUE HAY ============ -->
+        <FlexBox class="finKpis" wrap="Wrap">
+          <VBox class="finKpi finKpiPrimario">
+            <Text class="finKpiLabel" text="Disponible de verdad"/>
+            <Text class="finKpiValue" text="{path: 'view>/tablero/disponibleCOP', formatter: '.formatter.compacto'}"/>
+            <Text class="finKpiHint" text="Lo cobrado menos el IVA que hay que girar"/>
+          </VBox>
+          <VBox class="finKpi">
+            <Text class="finKpiLabel" text="Por cobrar"/>
+            <Text class="finKpiValue" text="{path: 'view>/tablero/carteraTotalCOP', formatter: '.formatter.compacto'}"/>
+            <Text class="finKpiHint" text="Facturas emitidas sin saldar"/>
+          </VBox>
+          <VBox class="finKpi">
+            <Text class="finKpiLabel" text="IVA por declarar"/>
+            <Text class="finKpiValue" text="{path: 'view>/tablero/ivaPorDeclararCOP', formatter: '.formatter.compacto'}"/>
+            <Text class="finKpiHint" text="No es tuyo: está de paso hacia la DIAN"/>
+          </VBox>
+          <VBox class="finKpi">
+            <Text class="finKpiLabel" text="Anticipo de renta"/>
+            <Text class="finKpiValue" text="{path: 'view>/tablero/anticiposRentaCOP', formatter: '.formatter.compacto'}"/>
+            <Text class="finKpiHint" text="Retenciones que se descuentan el año siguiente"/>
+          </VBox>
+          <VBox class="finKpi" visible="{= ${view>/tablero/compensatorioHoras} > 0 }">
+            <Text class="finKpiLabel" text="Por compensar al equipo"/>
+            <Text class="finKpiValue" text="{path: 'view>/tablero/compensatorioHoras', formatter: '.formatter.horas'}"/>
+            <Text class="finKpiHint"
+              text="{path: 'view>/tablero/compensatorioCostoCOP', formatter: '.formatter.costoCompensatorio'}"/>
+          </VBox>
+          <VBox class="finKpi">
+            <Text class="finKpiLabel" text="Diferencia en cambio"/>
+            <ObjectStatus class="finKpiValue"
+              text="{path: 'view>/tablero/diferenciaCambioCOP', formatter: '.formatter.conSignoCompacto'}"
+              state="{path: 'view>/tablero/diferenciaCambioCOP', formatter: '.formatter.signoState'}"/>
+            <Text class="finKpiHint" text="Lo que movió el dólar entre emitir y cobrar"/>
+          </VBox>
+        </FlexBox>
+
+        <!-- ============ AVISOS ============ -->
+        <VBox items="{view>/tablero/avisos}">
+          <MessageStrip class="sapUiTinyMarginTop" showIcon="true"
+            text="{view>mensaje}"
+            type="{path: 'view>tipo', formatter: '.formatter.avisoState'}"/>
+        </VBox>
+
+        <!-- ============ MES A MES ============ -->
+        <VBox class="finSeccion">
+          <FlexBox alignItems="Center" wrap="Wrap" class="filterBar">
+            <VBox class="filterField">
+              <Label text="Desde"/>
+              <DatePicker value="{view>/rango/desde}" valueFormat="yyyy-MM-dd"
+                displayFormat="MMM yyyy" change=".onRangeChange"/>
+            </VBox>
+            <VBox class="filterField">
+              <Label text="Hasta"/>
+              <DatePicker value="{view>/rango/hasta}" valueFormat="yyyy-MM-dd"
+                displayFormat="MMM yyyy" change=".onRangeChange"/>
+            </VBox>
+          </FlexBox>
+
+          <Text class="finHint"
+            text="El trabajo se devenga el mes en que se hace, se factura el siguiente y, a 30 días, la plata entra el otro. Por eso las tres columnas nunca coinciden en el mismo mes."/>
+
+          <FlexBox class="finLeyenda" wrap="Wrap">
+            <FlexBox class="finLeyendaItem">
+              <core:HTML content="&lt;span class=&quot;finLeyendaMarca finBarraRecibida&quot;&gt;&lt;/span&gt;"/>
+              <Text text="Ya entró"/>
+            </FlexBox>
+            <FlexBox class="finLeyendaItem">
+              <core:HTML content="&lt;span class=&quot;finLeyendaMarca finBarraEsperada&quot;&gt;&lt;/span&gt;"/>
+              <Text text="Se espera"/>
+            </FlexBox>
+          </FlexBox>
+
+          <Table id="mesesTable" items="{view>/tablero/meses}" sticky="ColumnHeaders"
+            noDataText="Todavía no hay facturas ni horas aprobadas en este rango.">
+            <headerToolbar>
+              <Toolbar class="tableToolbar">
+                <Title text="Mes a mes" level="H4"/>
+                <Text class="resultCount" text="{= ${view>/tablero/meses/length} + ' mes(es)' }"/>
+              </Toolbar>
+            </headerToolbar>
+            <columns>
+              <Column width="8rem"><Text text="Mes"/></Column>
+              <Column hAlign="End" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Devengado"/></Column>
+              <Column hAlign="End" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Facturado"/></Column>
+              <Column hAlign="End"><Text text="Ya entró"/></Column>
+              <Column hAlign="End"><Text text="Se espera"/></Column>
+              <Column width="30%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block"><Text text=""/></Column>
+              <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Por compensar"/></Column>
+              <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Margen"/></Column>
+            </columns>
+            <items>
+              <ColumnListItem vAlign="Middle">
+                <cells>
+                  <ObjectIdentifier
+                    title="{path: 'view>mes', formatter: '.formatter.mesLargo'}"
+                    text="{path: 'view>vencidoCOP', formatter: '.formatter.vencidoNota'}"/>
+                  <Text class="finNumero" text="{path: 'view>devengadoCOP', formatter: '.formatter.compacto'}"/>
+                  <Text class="finNumero" text="{path: 'view>facturadoCOP', formatter: '.formatter.compacto'}"/>
+                  <Text class="finNumero" text="{path: 'view>cajaRecibidaCOP', formatter: '.formatter.compacto'}"/>
+                  <Text class="finNumero" text="{path: 'view>cajaEsperadaCOP', formatter: '.formatter.compacto'}"/>
+                  <core:HTML content="{parts: ['view>cajaRecibidaCOP', 'view>cajaEsperadaCOP', 'view>/escalas/mes'], formatter: '.formatter.barraCaja'}"/>
+                  <ObjectStatus class="finNumero"
+                    text="{path: 'view>horasPorCompensar', formatter: '.formatter.horasOCero'}"
+                    state="{= ${view>horasPorCompensar} > 0 ? 'Warning' : 'None' }"/>
+                  <ObjectStatus class="finNumero"
+                    text="{path: 'view>margenCOP', formatter: '.formatter.compacto'}"
+                    state="{= ${view>margenCOP} &lt; 0 ? 'Error' : 'None' }"/>
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+        </VBox>
+
+        <!-- ============ CARTERA ============ -->
+        <VBox class="finSeccion">
+          <Table id="carteraTable" items="{view>/tablero/cartera}"
+            noDataText="No hay facturas pendientes de cobro.">
+            <headerToolbar>
+              <Toolbar class="tableToolbar">
+                <Title text="Cartera por antigüedad" level="H4"/>
+                <Text class="resultCount"
+                  text="{path: 'view>/tablero/carteraTotalCOP', formatter: '.formatter.pesos'}"/>
+              </Toolbar>
+            </headerToolbar>
+            <columns>
+              <Column width="12rem"><Text text="Antigüedad"/></Column>
+              <Column hAlign="End" width="8rem"><Text text="Facturas"/></Column>
+              <Column hAlign="End" width="10rem"><Text text="Monto"/></Column>
+              <Column width="40%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block"><Text text=""/></Column>
+            </columns>
+            <items>
+              <ColumnListItem vAlign="Middle">
+                <cells>
+                  <ObjectStatus text="{view>etiqueta}"
+                    icon="{= ${view>clave} === 'd90_mas' &amp;&amp; ${view>montoCOP} > 0 ? 'sap-icon://alert' : '' }"
+                    state="{= ${view>clave} === 'd90_mas' &amp;&amp; ${view>montoCOP} > 0 ? 'Error' : 'None' }"/>
+                  <Text class="finNumero" text="{view>facturas}"/>
+                  <Text class="finNumero" text="{path: 'view>montoCOP', formatter: '.formatter.pesos'}"/>
+                  <core:HTML content="{parts: ['view>montoCOP', 'view>/escalas/cartera', 'view>clave'], formatter: '.formatter.barraCartera'}"/>
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+          <Text class="finHint"
+            text="Lo que importa no es cuánto te deben sino desde cuándo. Una factura de hace cuatro meses ya no es cartera: es un problema que hay que ir a resolver."/>
+        </VBox>
+
+        <!-- ============ COMPENSATORIOS ============ -->
+        <VBox class="finSeccion" visible="{= ${view>/compensatorios/length} > 0 }">
+          <Table id="compensatoryTable" items="{view>/compensatorios}"
+            noDataText="Nadie tiene compensatorios pendientes.">
+            <headerToolbar>
+              <Toolbar class="tableToolbar">
+                <Title text="Lo que le debemos al equipo" level="H4"/>
+                <Text class="resultCount"
+                  text="{path: 'view>/tablero/compensatorioHoras', formatter: '.formatter.horas'}"/>
+                <ToolbarSpacer/>
+                <Button text="Recalcular" icon="sap-icon://refresh" press=".onRecalcCompensatory"
+                  tooltip="Rehace el libro con los registros de tiempo y las ausencias aprobadas."/>
+              </Toolbar>
+            </headerToolbar>
+            <columns>
+              <Column><Text text="Persona"/></Column>
+              <Column hAlign="End" width="7rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Ganadas"/></Column>
+              <Column hAlign="End" width="7rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Tomadas"/></Column>
+              <Column hAlign="End" width="7rem"><Text text="Saldo"/></Column>
+              <Column hAlign="End" width="9rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Costo"/></Column>
+              <Column width="25%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block"><Text text=""/></Column>
+            </columns>
+            <items>
+              <ColumnListItem vAlign="Middle">
+                <cells>
+                  <ObjectIdentifier title="{view>nombre}"
+                    text="{path: 'view>ultimoMovimiento', formatter: '.formatter.ultimoMovimiento'}"/>
+                  <Text class="finNumero" text="{path: 'view>ganadas', formatter: '.formatter.horasOCero'}"/>
+                  <Text class="finNumero" text="{path: 'view>tomadas', formatter: '.formatter.horasOCero'}"/>
+                  <ObjectStatus class="finNumero"
+                    text="{path: 'view>saldo', formatter: '.formatter.horasOCero'}"
+                    state="{= ${view>saldo} &lt; 0 ? 'Error' : ${view>saldo} > 0 ? 'Warning' : 'None' }"/>
+                  <Text class="finNumero" text="{path: 'view>costoEstimadoCOP', formatter: '.formatter.compacto'}"/>
+                  <core:HTML content="{parts: ['view>saldo', 'view>/escalas/compensatorio'], formatter: '.formatter.barraSaldo'}"/>
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+          <Text class="finHint"
+            text="Son horas que la persona trabajó, que no se le cobraron a ningún cliente y que se le siguen debiendo. Se saldan dándole el tiempo con una ausencia de tipo Compensatorio; un saldo en rojo significa que ya tomó más de lo que había ganado."/>
+        </VBox>
+
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

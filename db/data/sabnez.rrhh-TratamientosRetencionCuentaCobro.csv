@@ -1,0 +1,6 @@
+codigo;descripcion;explicacion;activo
+PENDIENTE;Pendiente de validar con contabilidad;Úsalo mientras contabilidad confirma cuál tratamiento corresponde.;true
+ARTICULO_383;Tabla de retención del artículo 383;Aplica cuando contabilidad determina que la retención se calcula con la tabla del artículo 383.;true
+HONORARIOS;Retención por honorarios;Aplica cuando el pago se clasifica tributariamente como honorarios.;true
+SERVICIOS;Retención por servicios;Aplica cuando el pago se clasifica tributariamente como servicios.;true
+NO_APLICA;No aplica retención;Úsalo únicamente cuando contabilidad confirme que no debe practicarse retención.;true

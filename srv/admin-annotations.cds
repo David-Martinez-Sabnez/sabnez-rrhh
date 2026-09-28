@@ -109,6 +109,21 @@ annotate AdminService.Empleados with @(
       },
       {
         $Type : 'UI.ReferenceFacet',
+        Label : 'Datos para cuentas de cobro',
+        Target: '@UI.FieldGroup#CuentaCobro'
+      },
+      {
+        $Type : 'UI.ReferenceFacet',
+        Label : 'Cuentas bancarias',
+        Target: 'cuentasBancarias/@UI.LineItem'
+      },
+      {
+        $Type : 'UI.ReferenceFacet',
+        Label : 'Dependientes tributarios',
+        Target: 'dependientesTributarios/@UI.LineItem'
+      },
+      {
+        $Type : 'UI.ReferenceFacet',
         Label : 'Ausencias históricas',
         Target: 'ausencias/@UI.LineItem'
       }
@@ -117,6 +132,7 @@ annotate AdminService.Empleados with @(
     FieldGroup #Personal    : {Data: [
       {Value: tipoDocumento},
       {Value: numeroDocumento},
+      {Value: lugarExpedicionDocumento},
       {Value: primerNombre},
       {Value: segundoNombre},
       {Value: primerApellido},
@@ -150,6 +166,7 @@ annotate AdminService.Empleados with @(
       {Value: fechaIngreso},
       {Value: fechaRetiro},
       {Value: cargo_ID},
+      {Value: facturable},
       {Value: estado_codigo},
       {Value: jefeDirecto_ID}
     ]},
@@ -158,6 +175,16 @@ annotate AdminService.Empleados with @(
       {Value: salarioBase},
       {Value: auxilioTransporte},
       {Value: auxilioConectividad}
+    ]},
+
+    FieldGroup #CuentaCobro: {Data: [
+      {Value: generaCuentaCobro},
+      {Value: direccionTributaria},
+      {Value: ciudadTributaria},
+      {Value: actividadEconomicaCiiu},
+      {Value: responsableIVA},
+      {Value: declaranteRenta},
+      {Value: aplicaCostosDeducciones}
     ]},
 
     FieldGroup #Afiliaciones: {Data: [
@@ -216,7 +243,46 @@ annotate AdminService.Empleados with {
   ciudad              @title: 'Ciudad';
   barrio              @title: 'Barrio';
   alergias            @title: 'Alergias' @UI.MultiLineText;
+  generaCuentaCobro   @title: '¿Es prestador y genera cuenta de cobro?'
+                      @Common.QuickInfo: 'La cuenta se genera por el valor bruto de los honorarios. Las retenciones aplicables las determina Contabilidad al realizar el pago.';
+  lugarExpedicionDocumento @(
+    title: 'Ciudad de expedición de la identificación',
+    Common.QuickInfo: 'Selecciona la ciudad que aparece como lugar de expedición en la cédula o documento del prestador.',
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', Label: 'Ciudad de expedición', CollectionPath: 'CiudadesColombia',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: lugarExpedicionDocumento, ValueListProperty: 'nombre'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'departamento'}
+      ]
+    }
+  );
+  direccionTributaria @title: 'Dirección registrada en el RUT'
+                      @Common.QuickInfo: 'Copia la dirección exactamente como aparece en la sección de ubicación del RUT vigente.';
+  ciudadTributaria    @(
+    title: 'Ciudad registrada en el RUT',
+    Common.QuickInfo: 'Selecciona el municipio que figura en el RUT vigente.',
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', Label: 'Ciudad del RUT', CollectionPath: 'CiudadesColombia',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: ciudadTributaria, ValueListProperty: 'nombre'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'departamento'}
+      ]
+    }
+  );
+  actividadEconomicaCiiu @title: 'Código CIIU principal del RUT'
+                         @Common.QuickInfo: 'Copia el código numérico de la actividad económica principal que aparece en el RUT. Ejemplo: 6201.';
+  responsableIVA      @title: '¿Es responsable de IVA? (consultar el RUT)'
+                      @Common.QuickInfo: 'Marca Sí solamente si el RUT vigente identifica al prestador como responsable de IVA.';
+  declaranteRenta     @title: '¿Declara renta? (preguntar al prestador)'
+                      @Common.QuickInfo: 'Respuesta suministrada y certificada por el prestador.';
+  aplicaCostosDeducciones @title: '¿Solicita costos y deducciones? (declaración del prestador)'
+                          @Common.QuickInfo: 'Conserva la respuesta certificada por el prestador para una futura integración contable. No modifica el valor de la cuenta de cobro.';
+  tratamientoRetencion @UI.Hidden;
+  _tratamientoRetencion @UI.Hidden;
   fechaIngreso        @title: 'Fecha de ingreso';
+  facturable          @title: 'Recurso facturable'
+                      @Common.FieldControl: #Optional
+                      @Common.QuickInfo   : 'Si su tiempo se espera que genere ingreso. Se hereda del cargo al dar de alta; desmárcalo en coordinaciones y estructura interna.';
   fechaRetiro         @title: 'Fecha de retiro';
   cargo               @title: 'Cargo';
   estado              @title: 'Estado';
@@ -331,6 +397,8 @@ annotate AdminService.Contratos with @(UI: {
     {Value: fechaInicio},
     {Value: fechaFin},
     {Value: salario},
+    {Value: diaInicioCuentaCobro},
+    {Value: fechaCorteCuentaCobro},
     {Value: auxilioTransporte},
     {Value: auxilioConectividad},
     {Value: vigente},
@@ -351,8 +419,225 @@ annotate AdminService.Contratos with {
   cargo               @UI.Hidden;
   fechaInicio         @title: 'Fecha de inicio';
   fechaFin            @title: 'Fecha de finalización';
+  diaInicioCuentaCobro @title: 'Día inicial de cuenta de cobro'
+                       @Common.FieldControl: #Mandatory;
+  fechaCorteCuentaCobro @title: 'Cuentas de cobro desde'
+                        @Common.FieldControl: #Optional;
   vigente             @title: 'Vigente';
   observaciones       @title: 'Observaciones'  @UI.MultiLineText;
+};
+
+annotate AdminService.CuentasBancarias with @(UI: {
+  HeaderInfo: {
+    TypeName: 'Cuenta bancaria', TypeNamePlural: 'Cuentas bancarias',
+    Title: {Value: banco}, Description: {Value: numeroCuenta}
+  },
+  LineItem: [
+    {Value: banco, Label: 'Banco'},
+    {Value: tipoCuenta, Label: 'Tipo'},
+    {Value: numeroCuenta, Label: 'Número'},
+    {Value: titularNombre, Label: 'Titular'},
+    {Value: principal, Label: 'Principal'},
+    {Value: activa, Label: 'Activa'}
+  ],
+  Facets: [{$Type: 'UI.ReferenceFacet', Label: 'Datos para el pago', Target: '@UI.FieldGroup#General'}],
+  FieldGroup #General: {Data: [
+    {Value: banco}, {Value: tipoCuenta}, {Value: numeroCuenta},
+    {Value: titularNombre}, {Value: titularTipoDocumento}, {Value: titularNumeroDocumento},
+    {Value: moneda}, {Value: principal}, {Value: activa}, {Value: observaciones}
+  ]}
+});
+
+annotate AdminService.CuentasBancarias with {
+  empleado @UI.Hidden;
+  _banco @UI.Hidden;
+  _tipoCuenta @UI.Hidden;
+  _moneda @UI.Hidden;
+  _titularTipoDocumento @UI.Hidden;
+  banco @(
+    title: 'Banco o entidad financiera',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'EntidadesFinancieras',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: banco, ValueListProperty: 'nombre'}
+      ]
+    }
+  );
+  tipoCuenta @(
+    title: 'Tipo de cuenta',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'TiposCuentaBancaria',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: tipoCuenta, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'}
+      ]
+    },
+    Common.Text: _tipoCuenta.descripcion,
+    Common.TextArrangement: #TextOnly
+  );
+  numeroCuenta @title: 'Número de cuenta';
+  titularNombre @title: 'Nombre del titular';
+  titularTipoDocumento @(
+    title: 'Tipo de documento del titular',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'TiposDocumento',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: titularTipoDocumento, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'}
+      ]
+    },
+    Common.Text: _titularTipoDocumento.descripcion,
+    Common.TextArrangement: #TextOnly
+  );
+  titularNumeroDocumento @title: 'Documento del titular';
+  moneda @(
+    title: 'Moneda', Semantics.currencyCode,
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'Monedas',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: moneda, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'}
+      ]
+    }
+  );
+  principal @title: 'Cuenta principal';
+  activa @title: 'Activa';
+  observaciones @title: 'Observaciones' @UI.MultiLineText;
+};
+
+annotate AdminService.DependientesTributarios with @(UI: {
+  HeaderInfo: {
+    TypeName: 'Dependiente tributario', TypeNamePlural: 'Dependientes tributarios',
+    Title: {Value: nombre}, Description: {Value: parentesco}
+  },
+  LineItem: [
+    {Value: nombre, Label: 'Nombre'},
+    {Value: numeroDocumento, Label: 'Documento'},
+    {Value: parentesco, Label: 'Parentesco'},
+    {Value: fechaNacimiento, Label: 'Nacimiento'},
+    {Value: activo, Label: 'Activo'}
+  ],
+  Facets: [{$Type: 'UI.ReferenceFacet', Label: 'Datos del dependiente', Target: '@UI.FieldGroup#General'}],
+  FieldGroup #General: {Data: [
+    {Value: nombre}, {Value: tipoDocumento}, {Value: numeroDocumento}, {Value: parentesco},
+    {Value: fechaNacimiento}, {Value: vigenteDesde}, {Value: vigenteHasta},
+    {Value: activo}, {Value: observaciones}
+  ]}
+});
+
+annotate AdminService.DependientesTributarios with {
+  empleado @UI.Hidden;
+  _tipoDocumento @UI.Hidden;
+  _parentesco @UI.Hidden;
+  nombre @title: 'Nombre completo';
+  tipoDocumento @(
+    title: 'Tipo de documento',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'TiposDocumento',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: tipoDocumento, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'}
+      ]
+    },
+    Common.Text: _tipoDocumento.descripcion,
+    Common.TextArrangement: #TextOnly
+  );
+  numeroDocumento @title: 'Número de documento';
+  parentesco @(
+    title: 'Parentesco',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'Parentescos',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: parentesco, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'}
+      ]
+    },
+    Common.Text: _parentesco.descripcion,
+    Common.TextArrangement: #TextOnly
+  );
+  fechaNacimiento @title: 'Fecha de nacimiento';
+  vigenteDesde @title: 'Vigente desde';
+  vigenteHasta @title: 'Vigente hasta';
+  activo @title: 'Activo';
+  observaciones @title: 'Observaciones' @UI.MultiLineText;
+};
+
+annotate AdminService.DocumentosEmpleado with @(
+  Capabilities.DeleteRestrictions: {Deletable: false},
+  UI: {
+    HeaderInfo: {
+      TypeName: 'Documento del expediente', TypeNamePlural: 'Expediente documental',
+      Title: {Value: nombre}, Description: {Value: tipo_codigo}
+    },
+    LineItem: [
+      {Value: tipo_codigo, Label: 'Clasificación'},
+      {Value: nombre, Label: 'Documento'},
+      {Value: fechaDocumento, Label: 'Fecha'},
+      {Value: contrato, Label: 'Contrato relacionado'},
+      {Value: estado, Label: 'Estado'},
+      {Value: createdBy, Label: 'Cargado por'},
+      {Value: createdAt, Label: 'Cargado el'}
+    ],
+    Facets: [
+      {$Type: 'UI.ReferenceFacet', Label: 'Clasificación', Target: '@UI.FieldGroup#General'},
+      {$Type: 'UI.ReferenceFacet', Label: 'Archivo', Target: '@UI.FieldGroup#Archivo'},
+      {$Type: 'UI.ReferenceFacet', Label: 'Trazabilidad', Target: '@UI.FieldGroup#Auditoria'}
+    ],
+    FieldGroup #General: {Data: [
+      {Value: tipo_codigo}, {Value: nombre}, {Value: fechaDocumento}, {Value: contrato},
+      {Value: vigenteDesde}, {Value: vigenteHasta}, {Value: estado},
+      {Value: confidencial}, {Value: observaciones}
+    ]},
+    FieldGroup #Archivo: {Data: [
+      {Value: archivo_content}, {Value: archivo_filename}, {Value: archivo_status}
+    ]},
+    FieldGroup #Auditoria: {Data: [
+      {Value: createdBy}, {Value: createdAt}, {Value: modifiedBy}, {Value: modifiedAt}
+    ]}
+  }
+);
+
+annotate AdminService.DocumentosEmpleado with {
+  empleado @UI.Hidden;
+  tipo @UI.Hidden;
+  tipo_codigo @(
+    title: 'Tipo de documento',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'TiposDocumentoEmpleado',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: tipo_codigo, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'categoria'}
+      ]
+    },
+    Common.Text: tipo.descripcion,
+    Common.TextArrangement: #TextOnly
+  );
+  nombre @title: 'Nombre descriptivo';
+  fechaDocumento @title: 'Fecha del documento';
+  contrato @title: 'Contrato relacionado';
+  vigenteDesde @title: 'Vigente desde';
+  vigenteHasta @title: 'Vigente hasta';
+  estado @title: 'Estado';
+  confidencial @title: 'Confidencial';
+  observaciones @title: 'Observaciones' @UI.MultiLineText;
+  createdBy @title: 'Cargado por' @Core.Immutable;
+  createdAt @title: 'Cargado el' @Core.Immutable;
+  modifiedBy @title: 'Última modificación por' @Core.Immutable;
+  modifiedAt @title: 'Última modificación' @Core.Immutable;
+};
+
+annotate AdminService.TiposDocumentoEmpleado with {
+  codigo @Common.Text: descripcion @Common.TextArrangement: #TextOnly;
+  descripcion @title: 'Tipo de documento';
+  categoria @title: 'Categoría';
 };
 
 annotate AdminService.Ausencias with @(UI: {
@@ -1211,10 +1496,49 @@ annotate AdminService.Contratos with @(Common.SideEffects #CambioVigencia: {
   TargetProperties: ['fechaFin']
 });
 
+annotate AdminService.Contratos.adjuntos with @UI.LineItem: [
+  {Value: content, Label: 'Anexo'},
+  {Value: tipoDocumento_codigo, Label: 'Tipo de documento'},
+  {Value: status, Label: 'Estado de escaneo', Criticality: statusNav.criticality},
+  {Value: createdAt, Label: 'Fecha de creación'},
+  {Value: createdBy, Label: 'Autor'},
+  {Value: note, Label: 'Nota'}
+];
+
 annotate AdminService.Contratos.adjuntos with {
+  tipoDocumento @UI.Hidden;
+  tipoDocumento_codigo @(
+    title: 'Tipo de documento',
+    Common.ValueListWithFixedValues: true,
+    Common.ValueList: {
+      $Type: 'Common.ValueListType', CollectionPath: 'TiposDocumentoEmpleado',
+      Parameters: [
+        {$Type: 'Common.ValueListParameterInOut', LocalDataProperty: tipoDocumento_codigo, ValueListProperty: 'codigo'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'descripcion'},
+        {$Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'categoria'}
+      ]
+    },
+    Common.Text: tipoDocumento.descripcion,
+    Common.TextArrangement: #TextOnly
+  );
   content
-  @Core.AcceptableMediaTypes: ['application/pdf']
-  @Validation.Maximum       : '10MB';
+  @Core.AcceptableMediaTypes: ['application/pdf', 'image/jpeg', 'image/png']
+  @Validation.Maximum       : '15MB';
+};
+
+annotate AdminService.EntidadesFinancieras with {
+  codigo @UI.Hidden;
+  nombre @title: 'Entidad financiera';
+};
+
+annotate AdminService.TiposCuentaBancaria with {
+  codigo @Common.Text: descripcion @Common.TextArrangement: #TextOnly;
+  descripcion @title: 'Tipo de cuenta';
+};
+
+annotate AdminService.Monedas with {
+  codigo @Common.Text: descripcion @Common.TextArrangement: #TextOnly;
+  descripcion @title: 'Moneda';
 };
 
 annotate AdminService.Contratos with {

@@ -1,0 +1,3 @@
+ID;code;name;countryCode;subdivisionCode;hoursPerDay;monday;tuesday;wednesday;thursday;friday;saturday;sunday;active
+2c3d8bf1-8b28-4a7b-83dd-64db8d640001;CO-GENERAL;Colombia - Jornada general;CO;;8;true;true;true;true;true;false;false;true
+2c3d8bf1-8b28-4a7b-83dd-64db8d640002;CL-GENERAL;Chile - Jornada general;CL;;8;true;true;true;true;true;false;false;true

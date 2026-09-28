@@ -1,0 +1,91 @@
+<mvc:View controllerName="sabnez.com.cuentascobroui.controller.Main"
+  xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:f="sap.f" xmlns:core="sap.ui.core">
+  <f:DynamicPage id="page" busy="{view>/busy}" busyIndicatorDelay="0" fitContent="true">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading><VBox><Title text="{i18n>appTitle}" level="H1"/><Text text="{view>/context/employeeName}" visible="{= !!${view>/context/employeeName} }"/></VBox></f:heading>
+        <f:actions>
+          <Button text="Descargar reporte" icon="sap-icon://excel-attachment" press=".onDownloadReport" visible="{view>/context/isHR}"/>
+          <Button icon="sap-icon://refresh" tooltip="Actualizar" press=".onRefresh"/>
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+    <f:header>
+      <f:DynamicPageHeader pinnable="true">
+        <f:content>
+          <VBox width="100%">
+            <MessageStrip text="{view>/error}" type="Error" showIcon="true" visible="{= !!${view>/error} }"/>
+            <MessageStrip text="{view>/context/message}" type="Information" showIcon="true" visible="{= !!${view>/context/message} }"/>
+            <HBox class="accountKpiRow" wrap="Wrap">
+              <VBox class="accountKpi"><Label text="Periodos disponibles"/><ObjectNumber number="{view>/context/eligibleCount}" unit="periodos" state="Success"/></VBox>
+              <VBox class="accountKpi"><Label text="En proceso"/><ObjectNumber number="{view>/context/pendingCount}" unit="cuentas" state="Warning"/></VBox>
+              <VBox class="accountKpi"><Label text="Histórico"/><ObjectNumber number="{view>/context/historyCount}" unit="cuentas"/></VBox>
+              <VBox class="accountKpi accountKpiTotal" visible="{view>/context/isProvider}">
+                <Label text="Total cobrado"/>
+                <ObjectNumber
+                  number="{parts:[{path:'view>/context/approvedAmount'},{path:'view>/context/currency'}],formatter:'.formatMoney'}"
+                  state="Success" emphasized="true"/>
+                <Text class="accountKpiHint" text="{= ${view>/context/approvedCount} + ' cuenta(s) aprobada(s) para pago' }"/>
+              </VBox>
+            </HBox>
+          </VBox>
+        </f:content>
+      </f:DynamicPageHeader>
+    </f:header>
+    <f:content>
+      <VBox class="sapUiResponsiveContentPadding" visible="{= !!${view>/context/employeeID} }">
+
+        <Panel headerText="Periodos aprobados disponibles" expandable="true" expanded="true" visible="{view>/context/isProvider}">
+          <headerToolbar>
+            <OverflowToolbar>
+              <Title text="Periodos aprobados disponibles" level="H3"/>
+              <ToolbarSpacer/>
+              <Label text="Combinar conceptos"/><Switch state="{view>/combine}"/>
+              <Button text="Generar cuenta" type="Emphasized" icon="sap-icon://document" press=".onGenerate" enabled="{view>/context/canGenerate}"/>
+            </OverflowToolbar>
+          </headerToolbar>
+          <Table id="eligibleTable" mode="MultiSelect" items="{view>/eligible}" growing="true" noDataText="No hay periodos aprobados disponibles">
+            <columns><Column><Text text="Proyecto"/></Column><Column><Text text="Periodo"/></Column><Column hAlign="End"><Text text="Horas aprobadas"/></Column><Column hAlign="End"><Text text="Valor bruto"/></Column><Column><Text text="Validación"/></Column></columns>
+            <items><ColumnListItem type="Inactive"><cells>
+              <ObjectIdentifier title="{view>projectName}" text="{= ${view>clientName} + ' · ' + ${view>modality} }"/>
+              <Text text="{parts:[{path:'view>periodStart'},{path:'view>periodEnd'}],formatter:'.formatPeriod'}"/>
+              <ObjectNumber number="{view>approvedHours}" unit="h"/>
+              <ObjectNumber number="{parts:[{path:'view>amount'},{path:'view>currency'}],formatter:'.formatMoney'}"/>
+              <ObjectStatus text="{= ${view>eligible} ? 'Lista para generar' : ${view>blockingReason} }" state="{= ${view>eligible} ? 'Success' : 'Warning' }"/>
+            </cells></ColumnListItem></items>
+          </Table>
+        </Panel>
+
+        <Panel headerText="Histórico de cuentas" class="sapUiSmallMarginTop">
+          <headerToolbar>
+            <OverflowToolbar>
+              <Title text="Histórico de cuentas" level="H3"/>
+              <ToolbarSpacer/>
+              <Label text="Año" labelFor="yearFilter"/>
+              <Select id="yearFilter" selectedKey="{view>/filterYear}" change=".onYearChange" autoAdjustWidth="true" items="{view>/years}">
+                <core:ListItem key="{view>key}" text="{view>label}"/>
+              </Select>
+              <Label text="Periodo" labelFor="periodFilter"/>
+              <Select id="periodFilter" selectedKey="{view>/filterPeriod}" change=".onPeriodChange" autoAdjustWidth="true"
+                items="{view>/visiblePeriods}">
+                <core:ListItem key="{view>periodKey}" text="{view>label}"/>
+              </Select>
+              <Button icon="sap-icon://clear-filter" tooltip="Quitar filtros" press=".onClearFilters"/>
+            </OverflowToolbar>
+          </headerToolbar>
+          <Table items="{view>/accounts}" growing="true" noDataText="No hay cuentas de cobro para los filtros seleccionados">
+            <columns><Column><Text text="Cuenta"/></Column><Column><Text text="Periodo"/></Column><Column hAlign="End"><Text text="Valor bruto"/></Column><Column><Text text="Estado"/></Column><Column width="8rem"><Text text="Acciones"/></Column></columns>
+            <items><ColumnListItem><cells>
+              <ObjectIdentifier title="{view>number}" text="{= ${view>itemCount} + ' concepto(s)' }"/>
+              <Text text="{parts:[{path:'view>periodStart'},{path:'view>periodEnd'}],formatter:'.formatPeriod'}"/>
+              <ObjectNumber number="{parts:[{path:'view>grossAmount'},{path:'view>currency'}],formatter:'.formatMoney'}"/>
+              <ObjectStatus text="{view>statusText}" state="{path:'view>status',formatter:'.statusState'}"/>
+              <Button text="Ver" icon="sap-icon://inspect" press=".onOpenAccount"/>
+            </cells></ColumnListItem></items>
+          </Table>
+        </Panel>
+
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>

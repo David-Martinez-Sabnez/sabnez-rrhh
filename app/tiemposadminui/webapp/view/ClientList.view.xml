@@ -1,0 +1,82 @@
+<mvc:View
+  controllerName="sabnez.com.tiemposadminui.controller.ClientList"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <f:DynamicPage id="clientListPage" class="listPage" toggleHeaderOnTitleClick="false" busy="{view>/busy}" busyIndicatorDelay="300">
+    <f:title>
+      <f:DynamicPageTitle>
+        <f:heading><Title text="Clientes" level="H2"/></f:heading>
+        <f:actions>
+          <Button text="Nuevo cliente" type="Emphasized" icon="sap-icon://add" press=".onCreate"/>
+        </f:actions>
+      </f:DynamicPageTitle>
+    </f:title>
+
+    <f:header>
+      <f:DynamicPageHeader pinnable="true">
+        <f:content>
+          <HBox wrap="Wrap" alignItems="End" class="filterBar">
+            <VBox class="filterField">
+              <Label text="Buscar"/>
+              <SearchField value="{view>/filters/clients/search}" placeholder="Razón social, nombre o identificación"
+                liveChange=".onFilter" search=".onFilter"/>
+            </VBox>
+            <VBox class="filterField">
+              <Label text="Estado"/>
+              <Select selectedKey="{view>/filters/clients/status}" change=".onFilter">
+                <core:Item key="" text="Todos los estados"/>
+                <core:Item key="DRAFT" text="Borrador"/>
+                <core:Item key="ACTIVE" text="Activo"/>
+                <core:Item key="INACTIVE" text="Inactivo"/>
+                <core:Item key="CLOSED" text="Cerrado"/>
+              </Select>
+            </VBox>
+            <VBox class="filterField filterActions">
+              <Button text="Limpiar" icon="sap-icon://clear-filter" type="Transparent" press=".onClearFilters"/>
+            </VBox>
+          </HBox>
+        </f:content>
+      </f:DynamicPageHeader>
+    </f:header>
+
+    <f:content>
+      <VBox class="pageContent">
+        <MessageStrip text="{view>/error}" type="Error" showIcon="true" showCloseButton="true"
+          visible="{= !!${view>/error} }" close=".onDismissError" class="sapUiSmallMarginBottom"/>
+        <Table id="clientsTable" items="{view>/filteredClients}" mode="SingleSelectMaster"
+          itemPress=".onOpen" growing="true" growingThreshold="30" sticky="ColumnHeaders"
+          noDataText="Ningún cliente coincide con los filtros.">
+          <headerToolbar>
+            <Toolbar class="tableToolbar">
+              <Title text="Resultados" level="H4"/>
+              <Text class="resultCount" text="{= ${view>/filteredClients/length} === ${view>/clients/length} ? ${view>/clients/length} + ' clientes' : ${view>/filteredClients/length} + ' de ' + ${view>/clients/length} + ' clientes' }"/>
+              <ToolbarSpacer/>
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="Cliente"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Identificación"/></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Moneda"/></Column>
+            <Column hAlign="End" width="7rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Proyectos"/></Column>
+            <Column width="7rem"><Text text="Estado"/></Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Navigation">
+              <cells>
+                <ObjectIdentifier title="{= ${view>tradeName} || ${view>legalName} }" text="{view>legalName}"/>
+                <Text text="{view>taxIdentification}"/>
+                <Text text="{view>defaultCurrency}"/>
+                <ObjectNumber number="{view>projectCount}"/>
+                <ObjectStatus text="{path: 'view>status', formatter: '.formatter.estado'}"
+                  state="{path: 'view>status', formatter: '.formatter.estadoState'}"/>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </VBox>
+    </f:content>
+  </f:DynamicPage>
+</mvc:View>

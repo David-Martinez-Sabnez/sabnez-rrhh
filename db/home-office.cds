@@ -92,6 +92,36 @@ entity ConfiguracionHomeOffice : managed {
         activa              : Boolean default true;
 }
 
+// Políticas versionadas. Cada registro empieza a regir en una fecha y
+// permanece vigente hasta que exista otro registro posterior.
+entity PoliticasHomeOffice : managed {
+    key vigenteDesde      : Date;
+
+        maxDiasPorSemana : Integer @assert.range: [1, 5];
+        cuposPorDia       : Integer @assert.range: [1, _];
+        cuposLunes        : Integer @assert.range: [1, _];
+        cuposMartes       : Integer @assert.range: [1, _];
+        cuposMiercoles    : Integer @assert.range: [1, _];
+        cuposJueves       : Integer @assert.range: [1, _];
+        cuposViernes      : Integer @assert.range: [1, _];
+        motivo            : String(300) @mandatory;
+        activa            : Boolean default true;
+}
+
+entity HistorialConfiguracionHomeOffice : cuid, managed {
+    alcance                    : String(10) @mandatory;
+    vigenteDesde               : Date;
+    semanaInicio               : Date;
+    fecha                      : Date;
+    maxDiasPorSemanaAnterior  : Integer;
+    maxDiasPorSemanaNuevo     : Integer;
+    cuposPorDiaAnterior       : Integer;
+    cuposPorDiaNuevo          : Integer     @mandatory;
+    distribucionAnterior      : String(300);
+    distribucionNueva         : String(300);
+    motivo                     : String(300) @mandatory;
+}
+
 // ============================================================
 // REGISTRO EMPLEADO + SEMANA
 //
@@ -142,6 +172,8 @@ entity DiasHomeOffice : managed {
             1,
             _
         ];
+
+        motivo       : String(300);
 }
 
 // ============================================================

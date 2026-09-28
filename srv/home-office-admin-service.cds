@@ -1,8 +1,20 @@
 using {sabnez.rrhh as db} from '../db/home-office';
 
 @path    : '/home-office-admin'
-@requires: 'Editor'
+@requires: ['Editor', 'TimeAdmin']
 service HomeOfficeAdminService {
+
+    @readonly
+    entity HistorialConfiguracion as projection on db.HistorialConfiguracionHomeOffice;
+
+    type ResultadoConfiguracion {
+        exito               : Boolean;
+        mensaje             : String(500);
+        semanaInicio        : Date;
+        fecha               : Date;
+        maxDiasPorSemana    : Integer;
+        cuposPorDia         : Integer;
+    }
 
     @readonly
     @cds.persistence.skip
@@ -50,4 +62,17 @@ service HomeOfficeAdminService {
 
             estadoSemanaCriticality : Integer;
     }
+
+    action configurarCupos(
+        alcance: String(10),
+        fecha: Date,
+        maxDiasPorSemana: Integer,
+        cuposPorDia: Integer,
+        cuposLunes: Integer,
+        cuposMartes: Integer,
+        cuposMiercoles: Integer,
+        cuposJueves: Integer,
+        cuposViernes: Integer,
+        motivo: String(300)
+    ) returns ResultadoConfiguracion;
 }

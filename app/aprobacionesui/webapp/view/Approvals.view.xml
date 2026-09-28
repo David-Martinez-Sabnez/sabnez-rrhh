@@ -21,9 +21,6 @@
           <f:heading>
             <Title id="title" text="{i18n>appTitle}" level="H1" />
         </f:heading>
-        <f:expandedContent>
-          <Text id="pageSubtitle" text="{i18n>pageSubtitle}" />
-        </f:expandedContent>
         <f:snappedContent>
           <Text id="snappedSummary" text="{view>/snappedSummary}" />
         </f:snappedContent>
@@ -39,7 +36,7 @@
     </f:title>
 
     <f:header>
-      <f:DynamicPageHeader id="summaryHeader" pinnable="true">
+      <f:DynamicPageHeader id="summaryHeader" pinnable="true" class="approvalSummaryHeader">
         <f:content>
           <VBox id="summaryContent" width="100%">
             <MessageStrip
@@ -67,7 +64,6 @@
                   number="{view>/summary/porDecidir}"
                   unit="{i18n>tasksUnit}"
                   state="Warning" />
-                <Text id="pendingCardDetail" text="{i18n>pendingCardDetail}" />
               </VBox>
 
               <VBox id="dueSoonCard" class="approvalKpiCard approvalKpiCritical">
@@ -80,33 +76,42 @@
                   number="{view>/summary/vencidas}"
                   unit="{i18n>tasksUnit}"
                   state="Error" />
-                <Text id="dueSoonCardDetail" text="{i18n>dueSoonDetail}" />
               </VBox>
 
               <VBox id="backupCard" class="approvalKpiCard approvalKpiInformation">
-                <HBox id="backupCardHeader" alignItems="Center" class="approvalKpiHeader">
-                  <core:Icon id="backupCardIcon" src="sap-icon://group" decorative="true" />
-                  <Label id="backupCardLabel" text="{i18n>asBackup}" />
+                <HBox id="backupCardHeader" width="100%" alignItems="Center"
+                  justifyContent="SpaceBetween" class="approvalKpiHeader">
+                  <HBox id="backupCardTitleGroup" alignItems="Center" class="approvalKpiTitleGroup">
+                    <core:Icon id="backupCardIcon" src="sap-icon://group" decorative="true" />
+                    <Label id="backupCardLabel" text="{i18n>asBackup}" />
+                  </HBox>
+                  <core:Icon id="backupCardInfo" src="sap-icon://hint" decorative="false"
+                    useIconTooltip="false" tooltip="{i18n>backupCardDetail}"
+                    press=".onShowBackupInfo" class="approvalKpiInfo" />
                 </HBox>
                 <ObjectNumber
                   id="backupCardNumber"
                   number="{view>/summary/comoBackup}"
                   unit="{i18n>tasksUnit}"
                   state="Information" />
-                <Text id="backupCardDetail" text="{i18n>backupCardDetail}" />
               </VBox>
 
               <VBox id="delegatedCard" class="approvalKpiCard approvalKpiDelegated">
-                <HBox id="delegatedCardHeader" alignItems="Center" class="approvalKpiHeader">
-                  <core:Icon id="delegatedCardIcon" src="sap-icon://share-2" decorative="true" />
-                  <Label id="delegatedCardLabel" text="{i18n>delegatedByMe}" />
+                <HBox id="delegatedCardHeader" width="100%" alignItems="Center"
+                  justifyContent="SpaceBetween" class="approvalKpiHeader">
+                  <HBox id="delegatedCardTitleGroup" alignItems="Center" class="approvalKpiTitleGroup">
+                    <core:Icon id="delegatedCardIcon" src="sap-icon://share-2" decorative="true" />
+                    <Label id="delegatedCardLabel" text="{i18n>delegatedByMe}" />
+                  </HBox>
+                  <core:Icon id="delegatedCardInfo" src="sap-icon://hint" decorative="false"
+                    useIconTooltip="false" tooltip="{i18n>delegatedCardDetail}"
+                    press=".onShowDelegatedInfo" class="approvalKpiInfo" />
                 </HBox>
                 <ObjectNumber
                   id="delegatedCardNumber"
                   number="{view>/summary/delegadasPorMi}"
                   unit="{i18n>delegationsUnit}"
                   state="Information" />
-                <Text id="delegatedCardDetail" text="{i18n>delegatedCardDetail}" />
               </VBox>
 
               <VBox id="approvedCard" class="approvalKpiCard approvalKpiSuccess">
@@ -119,7 +124,6 @@
                   number="{view>/summary/aprobadas}"
                   unit="{i18n>tasksUnit}"
                   state="Success" />
-                <Text id="approvedDetail" text="{i18n>approvedCardDetail}" />
               </VBox>
 
               <VBox id="rejectedCard" class="approvalKpiCard approvalKpiRejected">
@@ -132,7 +136,6 @@
                   number="{view>/summary/rechazadas}"
                   unit="{i18n>tasksUnit}"
                   state="Error" />
-                <Text id="rejectedDetail" text="{i18n>rejectedCardDetail}" />
               </VBox>
             </FlexBox>
           </VBox>
@@ -168,9 +171,19 @@
               text="{i18n>historyTab}"
               icon="sap-icon://history"
               count="{view>/tabCounts/history}" />
+            <IconTabFilter
+              id="reassignmentTab"
+              key="REASSIGN"
+              text="{i18n>reassignmentTab}"
+              icon="sap-icon://synchronize"
+              count="{view>/reassignment/count}"
+              visible="{view>/auth/canReassignTimeApprovals}" />
           </items>
           <content>
-            <VBox id="worklistContent" width="100%">
+            <VBox
+              id="worklistContent"
+              width="100%"
+              visible="{= ${view>/selectedTab} !== 'REASSIGN' }">
               <FlexBox id="filterToolbar" wrap="Wrap" alignItems="Center" class="approvalFilterToolbar approvalFilterBar">
                 <SearchField
                   id="taskSearch"
@@ -333,6 +346,87 @@
                 </detailPages>
               </SplitApp>
             </VBox>
+
+            <VBox
+              id="reassignmentContent"
+              width="100%"
+              visible="{= ${view>/selectedTab} === 'REASSIGN' &amp;&amp; ${view>/auth/canReassignTimeApprovals} }"
+              class="approvalReassignmentSection">
+
+              <MessageStrip
+                text="{i18n>reassignmentInfo}"
+                type="Information"
+                showIcon="true"
+                showCloseButton="false"
+                class="sapUiSmallMarginBottom" />
+
+              <OverflowToolbar class="approvalReassignmentToolbar">
+                <Title text="{i18n>reassignmentTitle}" level="H2" />
+                <ObjectStatus
+                  text="{= ${view>/reassignment/count} + ' ' + ${i18n>incidentsUnit} }"
+                  state="Warning" />
+                <ToolbarSpacer />
+                <Button
+                  text="{i18n>reprocessSelected}"
+                  icon="sap-icon://synchronize"
+                  type="Emphasized"
+                  enabled="{= ${view>/reassignment/selectedCount} > 0 &amp;&amp; !${view>/actionBusy} }"
+                  press=".onReprocessSelectedApprovals" />
+                <Button
+                  text="{i18n>reassignSelected}"
+                  icon="sap-icon://employee-reassign"
+                  enabled="{= ${view>/reassignment/selectedCount} > 0 &amp;&amp; !${view>/actionBusy} }"
+                  press=".onOpenReassignApprovals" />
+              </OverflowToolbar>
+
+              <Table
+                id="reassignmentTable"
+                items="{view>/reassignment/items}"
+                mode="MultiSelect"
+                selectionChange=".onReassignmentSelectionChange"
+                growing="true"
+                growingThreshold="25"
+                sticky="ColumnHeaders,HeaderToolbar"
+                fixedLayout="true"
+                alternateRowColors="true"
+                noDataText="{i18n>noReassignmentIssues}"
+                class="approvalReassignmentTable">
+                <columns>
+                  <Column width="18%"><Text text="{i18n>employee}" /></Column>
+                  <Column width="20%"><Text text="{i18n>project}" /></Column>
+                  <Column width="12%"><Text text="{i18n>week}" /></Column>
+                  <Column width="11%"><Text text="{i18n>approvalStage}" /></Column>
+                  <Column width="19%"><Text text="Ruta de aprobación" /></Column>
+                  <Column width="20%"><Text text="{i18n>incidentReason}" /></Column>
+                </columns>
+                <items>
+                  <ColumnListItem vAlign="Middle" highlight="Warning">
+                    <cells>
+                      <VBox class="approvalReassignmentCell">
+                        <Text text="{view>empleadoNombre}" wrapping="true" class="approvalStrongText" />
+                        <Text text="{view>empleadoCorreo}" wrapping="true" class="approvalSecondaryText" />
+                        <ObjectNumber number="{view>totalHoras}" unit="h" class="sapUiTinyMarginTop" />
+                      </VBox>
+                      <VBox class="approvalReassignmentCell">
+                        <Text text="{view>proyectoNombre}" wrapping="true" class="approvalStrongText" />
+                        <Text text="{view>clienteNombre}" wrapping="true" class="approvalSecondaryText" />
+                      </VBox>
+                      <Text text="{view>weekText}" wrapping="true" />
+                      <ObjectStatus text="{view>etapa}" state="Information" />
+                      <VBox class="approvalReassignmentCell">
+                        <Text text="Actual" class="approvalReassignmentMiniLabel" />
+                        <Text text="{view>aprobadorActualNombre}" wrapping="true" />
+                        <Text text="Sugerido" class="approvalReassignmentMiniLabel sapUiTinyMarginTop" />
+                        <ObjectStatus
+                          text="{view>aprobadorSugeridoNombre}"
+                          state="{= ${view>resolubleAutomaticamente} ? 'Success' : 'Warning' }" />
+                      </VBox>
+                      <Text text="{view>motivo}" wrapping="true" maxLines="3" />
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
           </content>
         </IconTabBar>
 
@@ -340,6 +434,7 @@
           id="delegationsPanel"
           expandable="true"
           expanded="true"
+          visible="{= ${view>/selectedTab} !== 'REASSIGN' }"
           class="approvalDelegationPanel sapUiMediumMarginTop">
           <headerToolbar>
             <OverflowToolbar id="delegationsToolbar">

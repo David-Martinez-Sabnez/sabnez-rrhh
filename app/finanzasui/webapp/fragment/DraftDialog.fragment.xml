@@ -1,0 +1,68 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="Armar borrador de factura" contentWidth="76rem" contentHeight="40rem"
+    resizable="true" draggable="true" class="formDialog" busy="{view>/draftLoading}">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="2" labelSpanM="3" labelSpanS="12" emptySpanL="0" emptySpanM="0"
+        adjustLabelSpan="false" class="dialogForm">
+        <Label text="Cliente" required="true"/>
+        <ComboBox selectedKey="{view>/draftForm/clienteID}" items="{view>/clientes}"
+          placeholder="¿A quién se le factura?" change=".onDraftClientChange">
+          <core:Item key="{view>ID}" text="{= ${view>tradeName} || ${view>legalName} }"/>
+        </ComboBox>
+
+        <Label text="Periodo trabajado" required="true"/>
+        <DatePicker value="{view>/draftForm/desde}" valueFormat="yyyy-MM-dd"
+          displayFormat="dd/MM/yyyy" placeholder="Desde" change=".onDraftCriteriaChange"/>
+        <Label text=""/>
+        <DatePicker value="{view>/draftForm/hasta}" valueFormat="yyyy-MM-dd"
+          displayFormat="dd/MM/yyyy" placeholder="Hasta" change=".onDraftCriteriaChange"/>
+
+        <Label text="Moneda"/>
+        <Select selectedKey="{view>/draftForm/moneda}" change=".onDraftCriteriaChange">
+          <core:Item key="COP" text="COP · Peso colombiano"/>
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+        </Select>
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        text="Consulta los conceptos y marca únicamente los que quieres reunir en esta factura. Puedes dejar los demás para otro borrador, aunque pertenezcan al mismo cliente o proyecto."/>
+      <Toolbar>
+        <Title text="Conceptos disponibles" level="H4"/>
+        <ToolbarSpacer/>
+        <Button text="Consultar conceptos" icon="sap-icon://search" type="Emphasized"
+          press=".onDraftLoadConcepts"/>
+      </Toolbar>
+      <Table id="draftConceptsTable" items="{view>/draftConcepts}" mode="MultiSelect"
+        sticky="ColumnHeaders" selectionChange=".onDraftConceptSelection"
+        noDataText="Selecciona cliente y periodo, y pulsa Consultar conceptos.">
+        <columns>
+          <Column width="12rem"><Text text="Recurso"/></Column>
+          <Column width="13rem"><Text text="Proyecto"/></Column>
+          <Column width="12rem"><Text text="Periodo"/></Column>
+          <Column width="11rem"><Text text="Concepto"/></Column>
+          <Column width="6rem" hAlign="End"><Text text="Horas"/></Column>
+          <Column width="10rem" hAlign="End"><Text text="Valor estimado"/></Column>
+          <Column width="13rem"><Text text="Validación"/></Column>
+        </columns>
+        <items>
+          <ColumnListItem vAlign="Middle" type="Inactive">
+            <cells>
+              <Text text="{view>recurso}"/>
+              <Text text="{view>proyecto}"/>
+              <Text text="{parts: ['view>periodoDesde', 'view>periodoHasta'], formatter: '.formatter.rangoFechas'}"/>
+              <Text text="{view>concepto}"/>
+              <ObjectNumber number="{path: 'view>horas', formatter: '.formatter.horas'}"/>
+              <ObjectNumber number="{parts: ['view>valorEstimado', 'view>moneda'], formatter: '.formatter.importe'}"
+                state="{= ${view>seleccionable} ? 'None' : 'Error' }"/>
+              <ObjectStatus text="{view>validacion}"
+                state="{= ${view>seleccionable} ? 'Success' : 'Error' }"/>
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onDraftCancel"/></beginButton>
+    <endButton><Button text="Armar borrador" type="Emphasized" press=".onDraftSave"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>

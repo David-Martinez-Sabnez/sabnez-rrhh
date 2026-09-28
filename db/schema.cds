@@ -23,6 +23,11 @@ using {
   sabnez.rrhh.Generos,
   sabnez.rrhh.EstadosCiviles,
   sabnez.rrhh.Parentescos,
+  sabnez.rrhh.TiposDocumentoEmpleado,
+  sabnez.rrhh.TratamientosRetencionCuentaCobro,
+  sabnez.rrhh.EntidadesFinancieras,
+  sabnez.rrhh.TiposCuentaBancaria,
+  sabnez.rrhh.Monedas,
   sabnez.rrhh.UnidadConsumo
 } from './catalogos';
 
@@ -71,6 +76,35 @@ type OrigenRegistroAusencia : String(20) enum {
   LEGADO_RRHH  = 'LEGADO_RRHH';
 };
 
+type TipoCuentaBancaria : String(20) enum {
+  AHORROS;
+  CORRIENTE;
+  DEPOSITO_ELECTRONICO;
+};
+
+type EstadoDocumentoEmpleado : String(20) enum {
+  VIGENTE;
+  VENCIDO;
+  REEMPLAZADO;
+  ANULADO;
+};
+
+// La opción define qué tratamiento solicita el prestador en su
+// certificación tributaria. RR. HH. elige una alternativa legible y el
+// sistema conserva un código estable para generar el documento.
+type TratamientoRetencionCuentaCobro : String(30) enum {
+  @title: 'Pendiente de validar con contabilidad'
+  PENDIENTE = 'PENDIENTE';
+  @title: 'Tabla de retención del artículo 383'
+  ARTICULO_383 = 'ARTICULO_383';
+  @title: 'Retención por honorarios'
+  HONORARIOS = 'HONORARIOS';
+  @title: 'Retención por servicios'
+  SERVICIOS = 'SERVICIOS';
+  @title: 'No aplica retención'
+  NO_APLICA = 'NO_APLICA';
+};
+
 // ============================================================
 // EMPLEADO — entidad central
 // ============================================================
@@ -107,11 +141,28 @@ entity Empleados : cuid, managed {
   ciudad                : String(80);
   barrio                : String(100);
 
+  // --- Perfil para pagos y cuentas de cobro ---
+  generaCuentaCobro     : Boolean default false;
+  lugarExpedicionDocumento : String(100);
+  direccionTributaria   : String(200);
+  ciudadTributaria      : String(100);
+  actividadEconomicaCiiu: String(10);
+  responsableIVA        : Boolean default false;
+  declaranteRenta       : Boolean default false;
+  aplicaCostosDeducciones: Boolean default false;
+  tratamientoRetencion  : TratamientoRetencionCuentaCobro @assert.range: true default 'PENDIENTE';
+  _tratamientoRetencion : Association to TratamientosRetencionCuentaCobro
+                            on _tratamientoRetencion.codigo = tratamientoRetencion;
+
   // --- Datos laborales ---
   codigoInterno         : String(20)               @readonly;
   fechaIngreso          : Date                     @mandatory;
   fechaRetiro           : Date;
   cargo                 : Association to Cargos    @mandatory  @assert.target;
+  // Si el tiempo de esta persona se espera que genere ingreso. Hereda
+  // del cargo al dar de alta y se puede corregir: hay coordinaciones
+  // que entran en un contrato y otras que son estructura interna.
+  facturable            : Boolean;
   estado                : Association to Estados   @mandatory  @assert.target;
   jefeDirecto           : Association to Empleados @assert.target;
 
@@ -139,6 +190,10 @@ entity Empleados : cuid, managed {
   // --- Detalles del empleado ---
   contratos             : Composition of many Contratos
                             on contratos.empleado = $self;
+  cuentasBancarias      : Composition of many CuentasBancarias
+                            on cuentasBancarias.empleado = $self;
+  dependientesTributarios: Composition of many DependientesTributarios
+                            on dependientesTributarios.empleado = $self;
   contactosEmergencia   : Composition of many ContactosEmergencia
                             on contactosEmergencia.empleado = $self;
   ausencias             : Composition of many Ausencias
@@ -169,6 +224,12 @@ annotate sabnez.rrhh.Empleados with {
 // ============================================================
 // CONTRATOS — histórico laboral
 // ============================================================
+aspect AdjuntosContrato : Attachments {
+  tipoDocumento_codigo : String(30) default 'CONTRATO';
+  tipoDocumento        : Association to TiposDocumentoEmpleado
+                           on tipoDocumento.codigo = tipoDocumento_codigo;
+}
+
 entity Contratos : cuid, managed {
   empleado            : Association to Empleados @mandatory;
 
@@ -208,13 +269,95 @@ entity Contratos : cuid, managed {
                                                  @mandatory
   default 'COP';
 
+  // Ciclo interno de pago al prestador. Es deliberadamente independiente
+  // del ciclo de reporte/facturación configurado para cada cliente.
+  diaInicioCuentaCobro: Integer default 1;
+
+  // Desde cuándo este vínculo cobra por la plataforma. Vacío significa que
+  // rige el parámetro global CUENTAS_COBRO_DESDE; se llena sólo para quien
+  // deba arrancar antes, y nunca puede ser anterior a la fecha de inicio del
+  // contrato. Existe porque los periodos previos a la entrada en vigor de la
+  // aplicación ya se cobraron por fuera y no deben volver a ofrecerse.
+  fechaCorteCuentaCobro: Date;
+
   vigente             : Boolean default true;
   observaciones       : LargeString;
 
-  @Validation.MinItems: 1
-  @Validation.MaxItems: 1
-  adjuntos            : Composition of many Attachments;
+  // Expediente del contrato: admite varios archivos y cada anexo conserva
+  // su clasificación documental.
+  adjuntos            : Composition of many AdjuntosContrato;
 }
+
+// ============================================================
+// PAGOS, TRIBUTACIÓN Y EXPEDIENTE DOCUMENTAL
+// ============================================================
+@assert.unique: { empleadoCuenta: [empleado, numeroCuenta] }
+entity CuentasBancarias : cuid, managed {
+  empleado          : Association to Empleados @mandatory;
+  banco             : String(120) @mandatory;
+  tipoCuenta        : TipoCuentaBancaria @mandatory @assert.range: true;
+  _tipoCuenta       : Association to TiposCuentaBancaria
+                        on _tipoCuenta.codigo = tipoCuenta;
+  _banco            : Association to EntidadesFinancieras
+                        on _banco.nombre = banco;
+  numeroCuenta      : String(60) @mandatory;
+  titularNombre     : String(240) @mandatory;
+  titularTipoDocumento: TipoDocumento @mandatory default 'CC';
+  titularNumeroDocumento: String(30) @mandatory;
+  moneda            : String(3) @mandatory default 'COP';
+  _moneda           : Association to Monedas on _moneda.codigo = moneda;
+  _titularTipoDocumento: Association to TiposDocumento
+                           on _titularTipoDocumento.codigo = titularTipoDocumento;
+  principal         : Boolean default false;
+  activa            : Boolean default true;
+  observaciones     : String(500);
+}
+
+entity DependientesTributarios : cuid, managed {
+  empleado          : Association to Empleados @mandatory;
+  nombre            : String(240) @mandatory;
+  tipoDocumento     : TipoDocumento default 'CC';
+  numeroDocumento   : String(30);
+  parentesco        : Parentesco @assert.range: true;
+  _tipoDocumento    : Association to TiposDocumento
+                        on _tipoDocumento.codigo = tipoDocumento;
+  _parentesco       : Association to Parentescos
+                        on _parentesco.codigo = parentesco;
+  fechaNacimiento   : Date;
+  vigenteDesde      : Date;
+  vigenteHasta      : Date;
+  activo            : Boolean default true;
+  observaciones     : String(500);
+}
+
+entity DocumentosEmpleado : cuid, managed {
+  empleado          : Association to Empleados @mandatory;
+  contrato          : Association to Contratos;
+  tipo_codigo       : String(30) @mandatory;
+  tipo              : Association to TiposDocumentoEmpleado
+                        on tipo.codigo = tipo_codigo;
+  nombre            : String(200) @mandatory;
+  fechaDocumento    : Date @mandatory;
+  vigenteDesde      : Date;
+  vigenteHasta      : Date;
+  observaciones     : String(1000);
+  confidencial      : Boolean default true;
+  estado            : EstadoDocumentoEmpleado @assert.range: true default 'VIGENTE';
+  archivo           : Attachment;
+}
+
+annotate sabnez.rrhh.DocumentosEmpleado with {
+  archivo {
+    content
+    @Core.AcceptableMediaTypes: [
+      'application/pdf',
+      'image/jpeg',
+      'image/png'
+    ]
+    @Validation.Maximum: '15MB';
+  };
+};
+
 
 // ============================================================
 // CONTACTOS DE EMERGENCIA

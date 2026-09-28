@@ -26,6 +26,48 @@ const {
 } = require("./lib/approval-rules");
 
 const { sendApprovalEmail } = require("./lib/approval-mailer");
+const { sendWorkZoneNotification } = require("./lib/workzone-notifier");
+
+// ---------------------------------------------------------------------------
+// Las notificaciones de delegación no tienen una ApprovalInstance detrás, así
+// que el drenador de la outbox no puede deducir ni el título ni los datos: si
+// no se envía este payload, el correo sale con el texto genérico. Aquí se
+// arman los datos que el correo necesita para decir quién delegó, con qué
+// alcance y hasta cuándo.
+// ---------------------------------------------------------------------------
+function fechaLegible(valor) {
+  const texto = String(valor ?? "");
+  const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : texto;
+}
+
+function delegationNotificationPayload(row, otorganteNombre) {
+  const alcanceTexto =
+    row.alcance === "PROCESS" && row.processCode ? row.processCode : "Todos los procesos";
+  const vigencia =
+    row.fechaInicio && row.fechaFin
+      ? `del ${fechaLegible(row.fechaInicio)} al ${fechaLegible(row.fechaFin)}`
+      : null;
+
+  return {
+    titulo: alcanceTexto,
+    resumen: "",
+    otorganteNombre: otorganteNombre || null,
+    alcanceTexto,
+    vigencia,
+    modoTexto: row.modo,
+    comentario: row.motivo || null,
+    facts: [
+      { etiqueta: "Alcance de la delegación", valor: alcanceTexto, orden: 10 },
+      ...(vigencia ? [{ etiqueta: "Vigencia", valor: vigencia, orden: 20 }] : []),
+      ...(otorganteNombre
+        ? [{ etiqueta: "Delegada por", valor: otorganteNombre, orden: 30 }]
+        : []),
+    ],
+  };
+}
+
+
 
 const { SELECT, INSERT, UPDATE } = cds.ql;
 
@@ -128,7 +170,7 @@ module.exports = cds.service.impl(function () {
     }
 
     const taskRow = await SELECT.one.from(approval.ApprovalTasks).where({ ID });
-    const [facts, events, supportFacts] = await Promise.all([
+    const [facts, events, supportFacts, accountFacts] = await Promise.all([
       SELECT.from(approval.ApprovalFacts).where({
         instancia_ID: taskRow.instancia_ID,
       }),
@@ -136,6 +178,7 @@ module.exports = cds.service.impl(function () {
         instancia_ID: taskRow.instancia_ID,
       }),
       buildAbsenceSupportFacts(task, SoportesAusencia),
+      buildCollectionAccountDocumentFacts(task),
     ]);
     const employeeIDs = new Set();
     events.forEach((event) => {
@@ -146,7 +189,7 @@ module.exports = cds.service.impl(function () {
 
     return {
       tarea: task,
-      hechos: [...facts, ...supportFacts]
+      hechos: [...facts, ...supportFacts, ...accountFacts]
         .sort((a, b) => a.orden - b.orden)
         .map((fact) => ({
           ID: fact.ID,
@@ -557,6 +600,10 @@ module.exports = cds.service.impl(function () {
       type: ID ? "DELEGATION_UPDATED" : "DELEGATION_CREATED",
       recipientID: delegate.userID,
       processCode: processCode || "ALL",
+      payload: {
+        ...delegationNotificationPayload(row, context.employee?.nombreCompleto),
+        recipientName: delegate.nombreCompleto,
+      },
       idempotencyKey: derivedKey(idempotencyKey, "notify"),
     });
 
@@ -656,6 +703,7 @@ module.exports = cds.service.impl(function () {
       type: "DELEGATION_REVOKED",
       recipientID: row.delegadoUserID,
       processCode: row.processCode || "ALL",
+      payload: delegationNotificationPayload(row, context.employee?.nombreCompleto),
       idempotencyKey: derivedKey(idempotencyKey, "notify"),
     });
 
@@ -674,6 +722,58 @@ module.exports = cds.service.impl(function () {
         delegates.get(row.delegado_ID),
         context.today,
       ),
+    };
+  });
+
+  /**
+   * Descarga el PDF de la cuenta de cobro o su soporte de seguridad social.
+   *
+   * Solo lo permite sobre cuentas cuya tarea es visible para el aprobador
+   * autenticado: no basta con tener el rol de RR. HH., hay que tener la tarea
+   * asignada o en el historial autorizado.
+   */
+  this.on("descargarDocumentoCuentaCobro", async (req) => {
+    const cuentaID = req.data?.cuentaID;
+    const tipo = String(req.data?.tipo || "").toUpperCase();
+
+    if (!cuentaID || !["ACCOUNT", "SUPPORT"].includes(tipo)) {
+      reject(req, 400, "DATOS_DOCUMENTO_INCOMPLETOS", "Indica la cuenta y el tipo de documento (ACCOUNT o SUPPORT).");
+    }
+
+    const context = await inboxContext(req, approval, rrhh);
+    const tasks = await visibleTasks(req, approval, rrhh, context);
+    const autorizada = tasks.some(
+      (task) =>
+        task.businessObjectType === "CollectionAccount" &&
+        task.businessObjectID === cuentaID,
+    );
+    if (!autorizada) {
+      reject(req, 404, "CUENTA_NO_DISPONIBLE", "La cuenta de cobro no existe o no está disponible para el usuario.");
+    }
+
+    const { CollectionAccounts } = cds.entities("sabnez.collectionaccounts");
+    const columnas = tipo === "ACCOUNT"
+      ? ["generatedFileName", "generatedMimeType", "generatedContent"]
+      : ["socialSecurityFileName", "socialSecurityMimeType", "socialSecurityContent", "socialSecurityStatus"];
+    const cuenta = await SELECT.one.from(CollectionAccounts).columns(...columnas).where({ ID: cuentaID });
+
+    if (tipo === "SUPPORT" && cuenta?.socialSecurityStatus !== "CLEAN") {
+      reject(req, 409, "SOPORTE_NO_VALIDADO", "El soporte todavía no pasó la validación de seguridad.");
+    }
+
+    const contenido = await streamToBuffer(
+      tipo === "ACCOUNT" ? cuenta?.generatedContent : cuenta?.socialSecurityContent,
+    );
+    if (!contenido?.length) {
+      reject(req, 404, "DOCUMENTO_NO_ENCONTRADO", tipo === "ACCOUNT"
+        ? "La cuenta todavía no tiene el documento firmado."
+        : "La cuenta no tiene soporte de seguridad social.");
+    }
+
+    return {
+      filename: tipo === "ACCOUNT" ? cuenta.generatedFileName : cuenta.socialSecurityFileName,
+      mimeType: (tipo === "ACCOUNT" ? cuenta.generatedMimeType : cuenta.socialSecurityMimeType) || "application/octet-stream",
+      contenidoBase64: contenido.toString("base64"),
     };
   });
 
@@ -791,7 +891,7 @@ module.exports = cds.service.impl(function () {
         }
       }
 
-      await sendApprovalEmail({
+      const mensaje = {
         ...payload,
         eventID,
         tipo: notification.tipo,
@@ -813,7 +913,24 @@ module.exports = cds.service.impl(function () {
         estadoInstancia: payload.estadoInstancia || instance?.estado,
         taskStatus: task?.estado,
         facts: payload.facts || facts,
-      });
+      };
+
+      // El correo es el canal obligatorio: si falla, la outbox queda en FAILED.
+      await sendApprovalEmail(mensaje);
+
+      // Work Zone es complementario. Un fallo aquí no debe marcar la
+      // notificación como fallida ni provocar el reenvío del correo.
+      try {
+        await sendWorkZoneNotification(mensaje);
+      } catch (error) {
+        cds
+          .log("workzone-notifier")
+          .warn("No fue posible publicar la notificación en Work Zone.", {
+            eventID,
+            tipo: notification.tipo,
+            message: String(error?.message || error).slice(0, 500),
+          });
+      }
 
       await tx.run(
         UPDATE(approval.ApprovalNotificationOutbox)
@@ -1068,6 +1185,70 @@ async function buildAbsenceSupportFacts(task, SoportesAusencia) {
       semanticColor: null,
       orden: 1000 + index,
     }));
+}
+
+/**
+ * Enlaces de descarga del expediente de una cuenta de cobro, para que RR. HH.
+ * pueda revisar el PDF firmado y el soporte de seguridad social antes de
+ * decidir la tarea.
+ *
+ * Se construyen al leer, como los soportes de ausencia: ApprovalFacts no
+ * persiste el enlace, y así el enlace siempre apunta al documento vigente
+ * aunque la cuenta se haya devuelto y vuelto a firmar.
+ */
+async function buildCollectionAccountDocumentFacts(task) {
+  if (
+    !task ||
+    task.businessObjectType !== "CollectionAccount" ||
+    !task.businessObjectID
+  ) {
+    return [];
+  }
+
+  const { CollectionAccounts } = cds.entities("sabnez.collectionaccounts");
+  const cuenta = await SELECT.one
+    .from(CollectionAccounts)
+    .columns(
+      "ID",
+      "generatedFileName",
+      "socialSecurityFileName",
+      "socialSecurityStatus",
+    )
+    .where({ ID: task.businessObjectID });
+
+  if (!cuenta) return [];
+
+  const documentos = [];
+  if (cuenta.generatedFileName) {
+    documentos.push({
+      clave: "documentoCuenta",
+      etiqueta: "Cuenta de cobro firmada",
+      valor: cuenta.generatedFileName,
+      tipo: "ACCOUNT",
+    });
+  }
+  // Un soporte que no pasó el antivirus no se ofrece para descarga.
+  if (cuenta.socialSecurityFileName && cuenta.socialSecurityStatus === "CLEAN") {
+    documentos.push({
+      clave: "documentoSoporte",
+      etiqueta: "Soporte de seguridad social",
+      valor: cuenta.socialSecurityFileName,
+      tipo: "SUPPORT",
+    });
+  }
+
+  return documentos.map((documento, index) => ({
+    ID: `${cuenta.ID}:${documento.tipo}`,
+    seccion: "Documentos",
+    clave: documento.clave,
+    etiqueta: documento.etiqueta,
+    valor: documento.valor,
+    // El UI reconoce este esquema y llama a descargarDocumentoCuentaCobro.
+    enlace: `cuenta-cobro://${cuenta.ID}/${documento.tipo}`,
+    tipoDato: "LINK",
+    semanticColor: null,
+    orden: 2000 + index,
+  }));
 }
 
 function isApprovalSupportRequest(req) {

@@ -1,0 +1,47 @@
+<mvc:View
+  controllerName="sabnez.com.finanzasui.controller.App"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:f="sap.f"
+  displayBlock="true"
+  height="100%">
+  <Shell appWidthLimited="false">
+
+    <!-- Misma cabecera que el resto de programas de la plataforma: el
+         título lo dibuja un DynamicPageTitle nativo y hereda del tema. -->
+    <f:DynamicPage
+      id="shellPage"
+      class="shellPage"
+      fitContent="true"
+      showFooter="false"
+      toggleHeaderOnTitleClick="false"
+      backgroundDesign="Solid">
+
+      <f:title>
+        <f:DynamicPageTitle id="shellTitle">
+          <f:heading>
+            <Title id="appTitle" text="{i18n>appTitle}" level="H1"/>
+          </f:heading>
+          <f:actions>
+            <Button icon="sap-icon://refresh" tooltip="{i18n>refresh}" type="Transparent" press=".onRefresh"/>
+          </f:actions>
+        </f:DynamicPageTitle>
+      </f:title>
+
+      <f:content>
+        <VBox class="shellContent" fitContainer="true" renderType="Bare">
+          <IconTabHeader id="areaTabs" selectedKey="{view>/area}" select=".onAreaSelect"
+            mode="Inline" class="areaTabs">
+            <items>
+              <IconTabFilter key="dashboard" text="{i18n>areaDashboard}" icon="sap-icon://business-objects-experience"/>
+              <IconTabFilter key="invoices" text="{i18n>areaInvoices}" icon="sap-icon://sales-document"/>
+              <IconTabFilter key="settings" text="{i18n>areaSettings}" icon="sap-icon://action-settings"/>
+            </items>
+          </IconTabHeader>
+          <f:FlexibleColumnLayout id="fcl" backgroundDesign="Solid"/>
+        </VBox>
+      </f:content>
+
+    </f:DynamicPage>
+  </Shell>
+</mvc:View>

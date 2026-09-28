@@ -1,0 +1,53 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="{= ${view>/withholdingForm/ID} ? 'Editar retención' : 'Nueva retención' }"
+    contentWidth="34rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Cliente" required="true"/>
+        <ComboBox selectedKey="{view>/withholdingForm/clienteID}" items="{view>/clientes}"
+          enabled="{= !${view>/withholdingForm/ID} }">
+          <core:Item key="{view>ID}" text="{= ${view>tradeName} || ${view>legalName} }"/>
+        </ComboBox>
+
+        <Label text="Tipo" required="true"/>
+        <Select selectedKey="{view>/withholdingForm/type}" change=".onWithholdingTypeChange">
+          <core:Item key="RETEFUENTE" text="Retención en la fuente"/>
+          <core:Item key="RETEICA" text="Retención de ICA"/>
+          <core:Item key="RETEIVA" text="Retención de IVA"/>
+          <core:Item key="OTRA" text="Otra retención"/>
+        </Select>
+
+        <Label text="Nombre"/>
+        <Input value="{view>/withholdingForm/label}" placeholder="Retefuente servicios 4 %"/>
+
+        <Label text="Se calcula sobre" required="true"/>
+        <Select selectedKey="{view>/withholdingForm/base}">
+          <core:Item key="SUBTOTAL" text="El valor del servicio"/>
+          <core:Item key="TAX" text="El IVA"/>
+        </Select>
+
+        <Label text="Tarifa" required="true"/>
+        <Input value="{view>/withholdingForm/rate}" type="Number" description="%"
+          placeholder="4 para el 4 %, 0,966 para el 9,66 por mil"/>
+
+        <Label text="Cuantía mínima"/>
+        <Input value="{view>/withholdingForm/minimumBase}" type="Number"
+          placeholder="Por debajo de este monto no se practica"/>
+
+        <Label text="Vigente desde" required="true"/>
+        <DatePicker value="{view>/withholdingForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+        <Label text="Vigente hasta"/>
+        <DatePicker value="{view>/withholdingForm/validTo}" valueFormat="yyyy-MM-dd"
+          displayFormat="dd/MM/yyyy" placeholder="Sin fecha fin"/>
+
+        <Label text="Activa"/>
+        <Switch state="{view>/withholdingForm/active}" customTextOn="Sí" customTextOff="No"/>
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        text="El reteIVA se calcula sobre el impuesto, no sobre el servicio. Es la diferencia que más se equivoca al configurarlo."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onWithholdingCancel"/></beginButton>
+    <endButton><Button text="Guardar" type="Emphasized" press=".onWithholdingSave"/></endButton>
+  </Dialog>
+</core:FragmentDefinition>

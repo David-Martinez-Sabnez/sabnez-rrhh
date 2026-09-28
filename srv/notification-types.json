@@ -1,0 +1,114 @@
+[
+  {
+    "NotificationTypeKey": "CollectionAccountSubmitted",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "Aprobaciones",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Cuenta de cobro pendiente de aprobación",
+        "TemplateSensitive": "{{prestador}} envió la cuenta {{cuenta}} por {{valor}}",
+        "Subtitle": "Periodo {{periodo}} · pendiente de tu aprobación",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  },
+  {
+    "NotificationTypeKey": "CollectionAccountApproved",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "CuentasCobro",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Cuenta de cobro aprobada",
+        "TemplateSensitive": "Tu cuenta {{cuenta}} por {{valor}} fue aprobada",
+        "Subtitle": "Aprobada por {{aprobador}} · queda en programación de pagos",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  },
+  {
+    "NotificationTypeKey": "CollectionAccountReturned",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "CuentasCobro",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Cuenta de cobro devuelta",
+        "TemplateSensitive": "Tu cuenta {{cuenta}} fue devuelta para corrección",
+        "Subtitle": "{{motivo}}",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  },
+  {
+    "NotificationTypeKey": "CollectionAccountDue",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "CuentasCobro",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Ya puedes generar tu cuenta de cobro",
+        "TemplateSensitive": "El periodo {{periodo}} cerró con {{horas}} aprobadas",
+        "Subtitle": "Valor estimado {{valor}} · genera y firma tu cuenta de cobro",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  },
+  {
+    "NotificationTypeKey": "CollectionAccountOverdue",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "CuentasCobro",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Tu cuenta de cobro sigue pendiente",
+        "TemplateSensitive": "El periodo {{periodo}} lleva {{dias}} días abierto sin cuenta de cobro",
+        "Subtitle": "Valor estimado {{valor}} · si no la firmas, el pago pasa al siguiente ciclo",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  },
+  {
+    "NotificationTypeKey": "CollectionAccountCorrectionRequested",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "Aprobaciones",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Corrección de cuenta de cobro pendiente",
+        "TemplateSensitive": "{{prestador}} pidió corregir la cuenta {{cuenta}}",
+        "Subtitle": "{{motivo}}",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  },
+  {
+    "NotificationTypeKey": "CollectionAccountCorrectionResolved",
+    "NotificationTypeVersion": "1",
+    "NavigationTargetObject": "CuentasCobro",
+    "NavigationTargetAction": "display",
+    "Templates": [
+      {
+        "Language": "es",
+        "TemplateGrouped": "Cuentas de cobro",
+        "TemplatePublic": "Tu solicitud de corrección fue revisada",
+        "TemplateSensitive": "La cuenta {{cuenta}} quedó lista para firmar de nuevo",
+        "Subtitle": "{{motivo}}",
+        "TemplateLanguage": "mustache"
+      }
+    ]
+  }
+]

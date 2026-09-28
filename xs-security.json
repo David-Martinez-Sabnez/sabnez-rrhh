@@ -23,6 +23,32 @@
     {
       "name": "$XSAPPNAME.TimeDeliverables",
       "description": "Generación de entregables de reportes de tiempos"
+    },
+    {
+      "name": "$XSAPPNAME.TimeApprovalReassign",
+      "description": "Reasignación y recuperación de aprobaciones de tiempos"
+    },
+    {
+      "name": "$XSAPPNAME.TimeAssignmentReactivate",
+      "description": "Reactivación excepcional de asignaciones de proyecto"
+    },
+    {
+      "name": "$XSAPPNAME.CollectionAccountHR",
+      "description": "Revisión y aprobación de cuentas de cobro"
+    },
+    {
+      "name": "$XSAPPNAME.CollectionAccountJob",
+      "description": "Ejecución programada de los recordatorios de cuentas de cobro",
+      "grant-as-authority-to-apps": [
+        "$XSSERVICENAME(Sabnez-Scheduler)"
+      ]
+    },
+    {
+      "name": "$XSAPPNAME.TimeCutoffReminderJob",
+      "description": "Ejecución programada de recordatorios de corte de tiempos",
+      "grant-as-authority-to-apps": [
+        "$XSSERVICENAME(Sabnez-Scheduler)"
+      ]
     }
   ],
   "attributes": [],
@@ -30,38 +56,88 @@
     {
       "name": "Editor",
       "description": "generated",
-      "scope-references": ["$XSAPPNAME.Editor"],
+      "scope-references": [
+        "$XSAPPNAME.Editor"
+      ],
       "attribute-references": []
     },
     {
       "name": "Admin",
       "description": "generated",
-      "scope-references": ["$XSAPPNAME.Admin"],
+      "scope-references": [
+        "$XSAPPNAME.Admin"
+      ],
       "attribute-references": []
     },
     {
       "name": "ApprovalAdmin",
       "description": "Administración de aprobaciones y delegaciones",
-      "scope-references": ["$XSAPPNAME.ApprovalAdmin"],
+      "scope-references": [
+        "$XSAPPNAME.ApprovalAdmin"
+      ],
       "attribute-references": []
     },
     {
       "name": "TimeAdmin",
       "description": "Administración de clientes, proyectos y tiempos",
-      "scope-references": ["$XSAPPNAME.TimeAdmin"],
+      "scope-references": [
+        "$XSAPPNAME.TimeAdmin"
+      ],
       "attribute-references": []
     },
     {
       "name": "TimeFinance",
       "description": "Acceso a tarifas, costos y rentabilidad",
-      "scope-references": ["$XSAPPNAME.TimeFinance"],
+      "scope-references": [
+        "$XSAPPNAME.TimeFinance"
+      ],
       "attribute-references": []
     },
     {
       "name": "TimeDeliverables",
       "description": "Generación de entregables de reportes de tiempos",
-      "scope-references": ["$XSAPPNAME.TimeDeliverables"],
+      "scope-references": [
+        "$XSAPPNAME.TimeDeliverables"
+      ],
       "attribute-references": []
+    },
+    {
+      "name": "TimeApprovalReassign",
+      "description": "Reasignación y recuperación de aprobaciones de tiempos",
+      "scope-references": [
+        "$XSAPPNAME.TimeApprovalReassign"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "TimeAssignmentReactivate",
+      "description": "Reactivación excepcional de asignaciones de proyecto",
+      "scope-references": [
+        "$XSAPPNAME.TimeAssignmentReactivate"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "CollectionAccountHR",
+      "description": "Revisión y aprobación de cuentas de cobro",
+      "scope-references": [
+        "$XSAPPNAME.CollectionAccountHR"
+      ],
+      "attribute-references": []
+    },
+    {
+      "name": "CollectionAccountJob",
+      "description": "Rol técnico del planificador que dispara los recordatorios de cuentas de cobro",
+      "scope-references": [
+        "$XSAPPNAME.CollectionAccountJob"
+      ]
+    },
+    {
+      "name": "TimeCutoffReminderJob",
+      "description": "Rol técnico del planificador para recordatorios de corte de tiempos",
+      "scope-references": [
+        "$XSAPPNAME.TimeCutoffReminderJob"
+      ]
     }
   ]
 }

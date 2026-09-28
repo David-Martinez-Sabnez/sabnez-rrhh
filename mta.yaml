@@ -11,6 +11,7 @@ modules:
       - name: sabnez-rrhh-auth
       - name: sabnez-rrhh-destination
       - name: sabnez-rrhh-malware-scanner
+      - name: sabnez-rrhh-scheduler
     provides:
       - name: srv-api
         properties:
@@ -18,8 +19,16 @@ modules:
     parameters:
       buildpack: nodejs_buildpack
       instances: 1
+    properties:
+      # Work Zone requiere el destino SAP_Notifications. Se habilita cuando ese
+      # destino y SAP Alert Notification estén provisionados en el subaccount.
+      CDS_REQUIRES_NOTIFICATIONS_ENABLED: false
     build-parameters:
-      builder: npm-ci
+      builder: custom
+      commands:
+        # Producción usa PostgreSQL. SQLite y sus binarios nativos sólo
+        # pertenecen al desarrollo local y no deben entrar al MTAR.
+        - npm ci --omit=dev --omit=optional --ignore-scripts
   - name: sabnez-rrhh-postgres-deployer
     type: nodejs
     path: gen/pg
@@ -34,6 +43,9 @@ modules:
       - name: sabnez-rrhh-db
     build-parameters:
       timeout: 20m
+      builder: custom
+      commands:
+        - npm install --offline --no-audit --no-fund --omit=dev --omit=optional --ignore-scripts
   - name: sabnez-rrhh-app-deployer
     type: com.sap.application.content
     path: gen
@@ -89,6 +101,26 @@ modules:
         - artifacts:
             - sabnezcomreportestiemposui.zip
           name: sabnezcomreportestiemposui
+          target-path: app/
+        - artifacts:
+            - sabnezcomfinanzasui.zip
+          name: sabnezcomfinanzasui
+          target-path: app/
+        - artifacts:
+            - sabnezcomcuentascobroui.zip
+          name: sabnezcomcuentascobroui
+          target-path: app/
+        - artifacts:
+            - sabnezcomcuentascobrorrhhui.zip
+          name: sabnezcomcuentascobrorrhhui
+          target-path: app/
+        - artifacts:
+            - sabnezcomconfiguracionui.zip
+          name: sabnezcomconfiguracionui
+          target-path: app/
+        - artifacts:
+            - sabnezcomcalendariosui.zip
+          name: sabnezcomcalendariosui
           target-path: app/
   - name: sabnez-rrhh-destinations
     type: com.sap.application.content
@@ -181,6 +213,56 @@ modules:
         - npm ci
         - npm run build
       supported-platforms: []
+  - name: sabnezcomfinanzasui
+    type: html5
+    path: app/finanzasui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+  - name: sabnezcomcuentascobroui
+    type: html5
+    path: app/cuentascobroui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+  - name: sabnezcomcuentascobrorrhhui
+    type: html5
+    path: app/cuentascobrorrhhui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+  - name: sabnezcomconfiguracionui
+    type: html5
+    path: app/configuracionui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+  - name: sabnezcomcalendariosui
+    type: html5
+    path: app/calendariosui
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
   - name: sabnezcomtiemposempleadoui
     type: html5
     path: app/tiemposempleadoui
@@ -210,6 +292,12 @@ resources:
     type: org.cloudfoundry.existing-service
     parameters:
       service-name: sabnez-rrhh-malware-scanner
+  # Dispara enviarRecordatoriosCuentaCobro una vez al día. Plan free: hasta 15
+  # planificaciones y frecuencia mínima de una hora, suficiente para un job diario.
+  - name: sabnez-rrhh-scheduler
+    type: org.cloudfoundry.existing-service
+    parameters:
+      service-name: Sabnez-Scheduler
   - name: sabnez-rrhh-auth
     type: org.cloudfoundry.managed-service
     parameters:
@@ -242,7 +330,15 @@ resources:
           - description: Generación de entregables para clientes
             name: Entregables Tiempos
             role-template-references:
-              - $XSAPPNAME.TimeDeliverables    
+              - $XSAPPNAME.TimeDeliverables
+          - description: Reactivación excepcional de asignaciones cerradas
+            name: Reactivación de asignaciones
+            role-template-references:
+              - $XSAPPNAME.TimeAssignmentReactivate
+          - description: Consulta de expedientes y envío de cuentas de cobro a contabilidad
+            name: Cuentas de cobro RRHH
+            role-template-references:
+              - $XSAPPNAME.CollectionAccountHR
         tenant-mode: dedicated
         xsappname: sabnez-rrhh
       path: ./xs-security.json
@@ -285,5 +381,10 @@ build-parameters:
   before-all:
     - builder: custom
       commands:
-        - npm ci
+        # El ensamblado raíz sólo compila CDS. Los módulos productivos
+        # instalan después sus propias dependencias; ejecutar aquí los
+        # instaladores nativos de SQLite hace fallar builds sin acceso a
+        # GitHub y no aporta nada al artefacto PostgreSQL.
+        - npm ci --ignore-scripts
+        - npm run clean:gen
         - npx cds build --production

@@ -1,0 +1,23 @@
+{
+  "_version": "1.27.0",
+  "_generator": "sabnez-content-package",
+  "sap.artifact": {
+    "id": "com.sabnez.cards.vacacionesbienestar",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis vacaciones y bienestar",
+    "subTitle": "Vacaciones y valera emocional",
+    "shortTitle": "Mis vacaciones y bienestar",
+    "info": "Vacaciones y valera emocional",
+    "description": "Vacaciones y valera emocional",
+    "tags": {
+      "keywords": [
+        "Sabnez",
+        "Cards"
+      ]
+    },
+    "artifactVersion": {
+      "version": "1.4.9"
+    }
+  }
+}

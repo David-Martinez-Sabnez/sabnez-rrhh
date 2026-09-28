@@ -1,0 +1,90 @@
+<mvc:View
+  controllerName="sabnez.com.finanzasui.controller.InvoiceList"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <Page showHeader="false" class="pageContent" busy="{view>/busy}" busyIndicatorDelay="300">
+    <content>
+      <VBox class="sapUiSmallMargin">
+
+        <MessageStrip type="Error" showIcon="true" showCloseButton="true"
+          class="sapUiSmallMarginBottom"
+          visible="{= !!${view>/error} }" text="{view>/error}" close=".onDismissError"/>
+
+        <FlexBox class="filterBar" wrap="Wrap" alignItems="End">
+          <VBox class="filterField">
+            <Label text="Buscar"/>
+            <SearchField value="{view>/filters/texto}" liveChange=".onFilter"
+              placeholder="Número o cliente"/>
+          </VBox>
+          <VBox class="filterField">
+            <Label text="Cliente"/>
+            <ComboBox selectedKey="{view>/filters/clienteID}" items="{view>/clientes}"
+              showClearIcon="true" placeholder="Todos los clientes" change=".onFilter">
+              <core:Item key="{view>ID}" text="{= ${view>tradeName} || ${view>legalName} }"/>
+            </ComboBox>
+          </VBox>
+          <VBox class="filterField">
+            <Label text="Estado"/>
+            <ComboBox selectedKey="{view>/filters/estado}" showClearIcon="true"
+              placeholder="Todos los estados" change=".onFilter">
+              <core:Item key="DRAFT" text="Borrador"/>
+              <core:Item key="ISSUED" text="Emitida"/>
+              <core:Item key="SENT" text="Enviada al cliente"/>
+              <core:Item key="PARTIALLY_PAID" text="Abonada"/>
+              <core:Item key="PAID" text="Pagada"/>
+              <core:Item key="VOID" text="Anulada"/>
+            </ComboBox>
+          </VBox>
+          <VBox class="filterActions">
+            <Button text="Armar borrador" icon="sap-icon://add-document"
+              type="Emphasized" press=".onNewDraft"/>
+          </VBox>
+        </FlexBox>
+
+        <Table id="invoicesTable" items="{view>/filteredFacturas}" sticky="ColumnHeaders"
+          mode="SingleSelectMaster" itemPress=".onOpen"
+          noDataText="No hay facturas con esos filtros. Arma un borrador desde las horas ya aprobadas.">
+          <headerToolbar>
+            <Toolbar class="tableToolbar">
+              <Title text="Facturas" level="H4"/>
+              <Text class="resultCount"
+                text="{parts: ['view>/filteredFacturas/length', 'view>/facturas/length'], formatter: '.formatter.conteo'}"/>
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="Factura"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Periodo"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Se espera"/></Column>
+            <Column hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Total"/></Column>
+            <Column hAlign="End"><Text text="Pendiente"/></Column>
+            <Column width="9rem"><Text text="Estado"/></Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Navigation" vAlign="Middle">
+              <cells>
+                <ObjectIdentifier
+                  title="{= ${view>number} || 'Borrador sin número' }"
+                  text="{view>clientName}"/>
+                <Text text="{parts: ['view>periodStart', 'view>periodEnd'], formatter: '.formatter.periodo'}"/>
+                <ObjectStatus
+                  text="{path: 'view>expectedPaymentDate', formatter: '.formatter.fecha'}"
+                  state="{= ${view>vencida} ? 'Error' : 'None' }"
+                  icon="{= ${view>vencida} ? 'sap-icon://alert' : '' }"/>
+                <Text class="finNumero"
+                  text="{parts: ['view>total', 'view>currency'], formatter: '.formatter.importe'}"/>
+                <ObjectNumber
+                  number="{parts: ['view>pendiente', 'view>currency'], formatter: '.formatter.importe'}"
+                  state="{= ${view>vencida} ? 'Error' : 'None' }"/>
+                <ObjectStatus
+                  text="{path: 'view>status', formatter: '.formatter.estadoFactura'}"
+                  state="{path: 'view>status', formatter: '.formatter.estadoFacturaState'}"/>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

@@ -1,0 +1,45 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog
+    title="Historial de cupos de Home Office"
+    contentWidth="72rem"
+    contentHeight="32rem"
+    horizontalScrolling="true"
+    verticalScrolling="true">
+    <content>
+      <Table
+        class="sapUiSmallMargin"
+        growing="true"
+        growingThreshold="20"
+        noDataText="Todavía no se han realizado cambios de cupos"
+        items="{path: '/HistorialConfiguracion', parameters: {$orderby: 'createdAt desc'}}">
+        <columns>
+          <Column width="10rem"><Text text="Fecha del cambio" /></Column>
+          <Column width="13rem"><Text text="Realizado por" /></Column>
+          <Column width="9rem"><Text text="Alcance" /></Column>
+          <Column width="10rem"><Text text="Fecha de aplicación" /></Column>
+          <Column width="10rem"><Text text="Máximo semanal" /></Column>
+          <Column width="10rem"><Text text="Cupos por día" /></Column>
+          <Column width="22rem"><Text text="Distribución semanal" /></Column>
+          <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Motivo" /></Column>
+        </columns>
+        <items>
+          <ColumnListItem vAlign="Middle">
+            <cells>
+              <Text text="{path: 'createdAt', formatter: '.formatHistoryDate'}" />
+              <Text text="{createdBy}" />
+              <Text text="{path: 'alcance', formatter: '.formatScope'}" />
+              <Text text="{parts: [{path: 'alcance'}, {path: 'vigenteDesde'}, {path: 'fecha'}], formatter: '.formatEffectiveDate'}" />
+              <Text text="{parts: [{path: 'maxDiasPorSemanaAnterior'}, {path: 'maxDiasPorSemanaNuevo'}], formatter: '.formatChange'}" />
+              <Text text="{parts: [{path: 'cuposPorDiaAnterior'}, {path: 'cuposPorDiaNuevo'}], formatter: '.formatChange'}" />
+              <Text text="{distribucionNueva}" wrapping="true" />
+              <Text text="{motivo}" wrapping="true" />
+            </cells>
+          </ColumnListItem>
+        </items>
+      </Table>
+    </content>
+    <endButton>
+      <Button text="Cerrar" press=".onCloseHistory" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

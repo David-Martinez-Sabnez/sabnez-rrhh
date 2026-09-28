@@ -1,0 +1,43 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="Facturabilidad · {path: 'view>/ruleForm/requestedType', formatter: '.formatter.tipoTiempo'}"
+    contentWidth="34rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+
+        <Label text="Tratamiento" required="true"/>
+        <Select selectedKey="{view>/ruleForm/treatment}" change=".onRuleTreatmentChange">
+          <core:Item key="INCLUDED_FULL_TIME" text="Incluido en la mensualidad"/>
+          <core:Item key="BILLABLE_REGULAR" text="Se factura como hora ordinaria"/>
+          <core:Item key="BILLABLE_OVERTIME" text="Se factura como hora extra"/>
+          <core:Item key="SPECIAL_RATE" text="Tarifa especial"/>
+          <core:Item key="NON_BILLABLE" text="No se factura"/>
+        </Select>
+
+        <Label text="Factor"/>
+        <Input value="{view>/ruleForm/billableFactor}" type="Number" placeholder="1"
+          enabled="{= ${view>/ruleForm/treatment} !== 'NON_BILLABLE' }"
+          description="× horas registradas"/>
+
+        <Label text="Se le reconoce al recurso"/>
+        <Switch state="{view>/ruleForm/payableToEmployee}"
+          customTextOn="Sí" customTextOff="No"/>
+
+        <Label text="Nota"/>
+        <TextArea value="{view>/ruleForm/notes}" rows="2" growing="true"
+          placeholder="Qué dice el contrato sobre este tipo de tiempo"/>
+      </f:SimpleForm>
+
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        visible="{= ${view>/ruleForm/treatment} === 'NON_BILLABLE' &amp;&amp; ${view>/ruleForm/payableToEmployee} }"
+        text="Estas horas no se le cobran al cliente pero sí se le reconocen al recurso. Van a aparecer en el dashboard como horas por compensar."/>
+      <MessageStrip class="dialogHint" showIcon="true" type="Warning"
+        visible="{= !${view>/ruleForm/payableToEmployee} }"
+        text="El recurso no recibe nada por estas horas. Úsalo sólo cuando el tiempo ya está pagado por otra vía."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onRuleCancel"/></beginButton>
+    <endButton>
+      <Button text="Guardar regla" type="Emphasized" press=".onRuleSave"/>
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

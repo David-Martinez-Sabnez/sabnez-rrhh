@@ -1,0 +1,11 @@
+codigo;descripcion;categoria;requiereVigencia;activo
+CONTRATO;Contrato laboral o de prestación de servicios;LABORAL;true;true
+OTROSI;Otrosí o modificación contractual;LABORAL;true;true
+TERMINACION;Carta o acuerdo de terminación;RETIRO;false;true
+LIQUIDACION;Liquidación definitiva;RETIRO;false;true
+CERTIFICADO_MEDICO;Certificado médico;SALUD;true;true
+RUT;Registro Único Tributario (RUT);TRIBUTARIO;true;true
+CERTIFICACION_BANCARIA;Certificación bancaria;PAGO;true;true
+IDENTIFICACION;Documento de identificación;IDENTIFICACION;true;true
+AFILIACION;Soporte de afiliación a seguridad social;SEGURIDAD_SOCIAL;true;true
+OTRO;Otro documento;OTRO;false;true

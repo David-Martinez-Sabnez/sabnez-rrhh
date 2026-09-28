@@ -16,6 +16,152 @@ module.exports = cds.service.impl(function () {
   } = times;
   const Evidence = times["TimeEntries.evidence"];
 
+  this.on("obtenerPermisosReasignacion", (req) => ({
+    puedeReasignar: Boolean(req.user?.is?.("TimeApprovalReassign")),
+  }));
+
+  this.on("obtenerIncidenciasReasignacion", async (req) => {
+    requireReassignmentPermission(req);
+    return loadReassignmentIssues({
+      WeeklyTimesheets,
+      TimeEntries,
+      ProjectApprovers,
+    });
+  });
+
+  this.on("reprocesarAprobacion", async (req) => {
+    requireReassignmentPermission(req);
+    const hojaID = req.data?.hojaID;
+    if (!hojaID) {
+      return req.reject(400, "Debes indicar la hoja de tiempos a reprocesar.");
+    }
+
+    const { group } = await loadReassignmentGroup(req, hojaID, { WeeklyTimesheets });
+    const resolution = await resolveExpectedApprover(group, {
+      TimeEntries,
+      ProjectApprovers,
+    });
+
+    if (!resolution.approver) {
+      return req.reject(
+        409,
+        resolution.reason ||
+          "La aprobación todavía no tiene una ruta válida configurada.",
+      );
+    }
+
+    const now = new Date().toISOString();
+    await cds.tx(req).run(
+      group.sheets.map((sheet) =>
+        UPDATE(WeeklyTimesheets)
+          .set({
+            currentApprover_ID: resolution.approver.ID,
+            version: Number(sheet.version || 1) + 1,
+          })
+          .where({ ID: sheet.ID }),
+      ),
+    );
+
+    const context = await reviewerContext(req);
+    await appendTimeApprovalEvent(WeeklyTimeApprovalEvents, {
+      group,
+      context,
+      type: "TIME_APPROVER_REPROCESSED",
+      targetEmployeeID: resolution.approver.ID,
+      detail: [
+        `Aprobador reprocesado automáticamente: ${resolution.approver.nombreCompleto}.`,
+        req.data?.comentario ? `Motivo: ${req.data.comentario}` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      occurredAt: now,
+    });
+
+    await notifyReassignedApprover(
+      cds.tx(req),
+      group,
+      resolution.approver,
+      "REPROCESSED",
+      now,
+      { TimeEntries },
+    );
+
+    return {
+      exito: true,
+      mensaje: `La aprobación fue reasignada a ${resolution.approver.nombreCompleto}.`,
+      aprobadorID: resolution.approver.ID,
+      aprobadorNombre: resolution.approver.nombreCompleto,
+    };
+  });
+
+  this.on("reasignarAprobacion", async (req) => {
+    requireReassignmentPermission(req);
+    const hojaID = req.data?.hojaID;
+    const aprobadorID = req.data?.aprobadorID;
+    const comentario = String(req.data?.comentario || "").trim();
+
+    if (!hojaID || !aprobadorID) {
+      return req.reject(400, "Debes indicar la hoja y el nuevo aprobador.");
+    }
+    if (!comentario) {
+      return req.reject(400, "Debes indicar el motivo de la reasignación manual.");
+    }
+
+    const { group } = await loadReassignmentGroup(req, hojaID, { WeeklyTimesheets });
+    if (aprobadorID === group.employee_ID) {
+      return req.reject(400, "El empleado no puede ser aprobador de su propia hoja.");
+    }
+
+    const approver = await SELECT.one
+      .from("sabnez.rrhh.Empleados")
+      .columns("ID", "nombreCompleto", "correoCorporativo", "estado_codigo")
+      .where({ ID: aprobadorID, estado_codigo: "AC" });
+    if (!approver || !approver.correoCorporativo) {
+      return req.reject(
+        409,
+        "El aprobador seleccionado no está activo o no tiene correo corporativo.",
+      );
+    }
+
+    const now = new Date().toISOString();
+    await cds.tx(req).run(
+      group.sheets.map((sheet) =>
+        UPDATE(WeeklyTimesheets)
+          .set({
+            currentApprover_ID: approver.ID,
+            version: Number(sheet.version || 1) + 1,
+          })
+          .where({ ID: sheet.ID }),
+      ),
+    );
+
+    const context = await reviewerContext(req);
+    await appendTimeApprovalEvent(WeeklyTimeApprovalEvents, {
+      group,
+      context,
+      type: "TIME_APPROVER_REASSIGNED",
+      targetEmployeeID: approver.ID,
+      detail: `Aprobador reasignado manualmente a ${approver.nombreCompleto}. Motivo: ${comentario}`,
+      occurredAt: now,
+    });
+
+    await notifyReassignedApprover(
+      cds.tx(req),
+      group,
+      approver,
+      "MANUAL",
+      now,
+      { TimeEntries },
+    );
+
+    return {
+      exito: true,
+      mensaje: `La aprobación fue reasignada a ${approver.nombreCompleto}.`,
+      aprobadorID: approver.ID,
+      aprobadorNombre: approver.nombreCompleto,
+    };
+  });
+
   this.on("obtenerBandeja", async (req) => {
     const context = await reviewerContext(req);
     const statuses = requestedStatuses(req.data?.estado);
@@ -40,8 +186,7 @@ module.exports = cds.service.impl(function () {
       });
       const visible =
         group.pendingForReviewer ||
-        context.isAdmin ||
-        context.directReportIDs.has(group.employee_ID);
+        context.isAdmin;
       if (visible && (!pendingFilter || group.pendingForReviewer)) groups.push(group);
     }
     return Promise.all(groups.map((group) => summarizeGroup(group, { TimeEntries, Evidence, context })));
@@ -133,60 +278,73 @@ module.exports = cds.service.impl(function () {
     if (!isPendingForContext(group, context)) {
       reject(req, 409, "SEMANA_NO_APROBABLE", "La semana no corresponde a tu etapa de aprobación.");
     }
-    const administrativeStep = group.status === "LEADER_APPROVED";
-    const nextStatus = administrativeStep ? "INTERNALLY_APPROVED" : "LEADER_APPROVED";
     const now = new Date().toISOString();
-    const timestamp = administrativeStep ? { internallyApprovedAt: now } : { leaderApprovedAt: now };
-    const administrativeApprovers = administrativeStep
-      ? []
-      : await configuredAdministrativeApprovers(group, {
-          TimeEntries,
-          ProjectApprovers,
-        });
-    if (!administrativeStep && !administrativeApprovers.length) {
-      reject(
-        req,
-        409,
-        "APROBADOR_ADMINISTRATIVO_NO_CONFIGURADO",
-        "No existe un aprobador administrativo común para todos los proyectos de la semana. Configúralo en Gestión comercial.",
-      );
+    const sheetProjects = await SELECT.from(TimeEntries)
+      .columns("timesheet_ID", "assignment.project.approvalScheme as approvalScheme")
+      .where({ timesheet_ID: { in: group.sheetIDs } });
+    const schemeBySheet = new Map(sheetProjects.map((row) => [row.timesheet_ID, row.approvalScheme || "LEADER_THEN_ADMIN"]));
+    const forwarded = [];
+    const completed = [];
+    const operations = [];
+    for (const sheet of group.sheets) {
+      const needsAdmin = group.status !== "LEADER_APPROVED" && schemeBySheet.get(sheet.ID) === "LEADER_THEN_ADMIN";
+      let nextApprover = null;
+      if (needsAdmin) {
+        const routes = await configuredRoutes({ ...group, sheets: [sheet], sheetIDs: [sheet.ID] },
+          { TimeEntries, ProjectApprovers }, "ADMIN");
+        nextApprover = routes[0]?.approver;
+        if (!nextApprover)
+          reject(req, 409, "APROBADOR_ADMINISTRATIVO_NO_CONFIGURADO", routes[0]?.reason || "Falta el aprobador administrativo del proyecto.");
+      }
+      const nextStatus = needsAdmin ? "LEADER_APPROVED" : "INTERNALLY_APPROVED";
+      const timestamps = needsAdmin ? { leaderApprovedAt: now } : { internallyApprovedAt: now };
+      operations.push(UPDATE(WeeklyTimesheets).set({
+        status: nextStatus,
+        currentApprover_ID: nextApprover?.ID || null,
+        ...timestamps,
+        version: Number(sheet.version || 1) + 1,
+      }).where({ ID: sheet.ID, status: sheet.status }));
+      operations.push(UPDATE(TimeEntries).set({ status: nextStatus }).where({ timesheet_ID: sheet.ID }));
+      (needsAdmin ? forwarded : completed).push({ sheet, approver: nextApprover });
     }
-    const operations = group.sheets.map((sheet) => UPDATE(WeeklyTimesheets)
-      .set({ status: nextStatus, currentApprover_ID: null, ...timestamp, version: Number(sheet.version || 1) + 1 })
-      .where({ ID: sheet.ID, status: sheet.status }));
-    operations.push(UPDATE(TimeEntries).set({ status: nextStatus }).where({ timesheet_ID: { in: group.sheetIDs } }));
     await cds.tx(req).run(operations);
-    await recordDecision(group.sheetIDs, "APPROVAL", nextStatus, req, req.data?.comentario, { TimeEntries, TimeEntryDecisions });
+    if (completed.length)
+      await recordDecision(completed.map((item) => item.sheet.ID), "APPROVAL", "INTERNALLY_APPROVED", req, req.data?.comentario, { TimeEntries, TimeEntryDecisions });
+    if (forwarded.length)
+      await recordDecision(forwarded.map((item) => item.sheet.ID), "APPROVAL", "LEADER_APPROVED", req, req.data?.comentario, { TimeEntries, TimeEntryDecisions });
     await appendTimeApprovalEvent(WeeklyTimeApprovalEvents, {
       group,
       context,
-      type: administrativeStep ? "TIME_ADMIN_APPROVED" : "TIME_LEADER_APPROVED",
-      detail: administrativeStep
-        ? "Semana aprobada administrativamente."
-        : "Semana aprobada por el jefe inmediato.",
+      type: group.status === "LEADER_APPROVED" ? "TIME_ADMIN_APPROVED" : "TIME_PROJECT_APPROVED",
+      detail: `${completed.length} hoja(s) completaron su aprobación y ${forwarded.length} pasaron a la siguiente etapa.`,
       occurredAt: now,
     });
-    const summary = await summarizeGroup({ ...group, status: nextStatus }, { TimeEntries, Evidence, context });
-    if (administrativeStep) {
+    if (completed.length) {
+      const completedSheets = completed.map((item) => item.sheet);
+      const summary = await summarizeGroup({ ...group, status: "INTERNALLY_APPROVED", sheets: completedSheets, sheetIDs: completedSheets.map((sheet) => sheet.ID) }, { TimeEntries, Evidence, context });
       await notifyEmployee(
         cds.tx(req),
         summary,
-        nextStatus,
+        "INTERNALLY_APPROVED",
         req.data?.comentario,
         now,
       );
-    } else {
-      await notifyAdministrators(
-        cds.tx(req),
-        summary,
-        now,
-        administrativeApprovers,
-      );
+    }
+    const byApprover = new Map();
+    for (const item of forwarded) {
+      if (!byApprover.has(item.approver.ID)) byApprover.set(item.approver.ID, { approver: item.approver, sheets: [] });
+      byApprover.get(item.approver.ID).sheets.push(item.sheet);
+    }
+    for (const block of byApprover.values()) {
+      const summary = await summarizeGroup({ ...group, status: "LEADER_APPROVED", sheets: block.sheets, sheetIDs: block.sheets.map((sheet) => sheet.ID), ID: block.sheets[0].ID }, { TimeEntries, Evidence, context });
+      await notifyAdministrators(cds.tx(req), summary, now, [block.approver]);
     }
     return {
       exito: true,
-      mensaje: administrativeStep ? "La semana quedó aprobada internamente." : "La semana completa quedó aprobada por el jefe inmediato.",
-      estado: nextStatus,
+      mensaje: forwarded.length
+        ? `${forwarded.length} bloque(s) pasaron a aprobación administrativa.${completed.length ? ` ${completed.length} bloque(s) quedaron aprobados.` : ""}`
+        : "El bloque quedó aprobado internamente.",
+      estado: forwarded.length ? "LEADER_APPROVED" : "INTERNALLY_APPROVED",
     };
   });
 
@@ -345,6 +503,311 @@ module.exports = cds.service.impl(function () {
   });
 });
 
+
+function requireReassignmentPermission(req) {
+  if (!req.user?.is?.("TimeApprovalReassign")) {
+    return req.reject(403, "No tienes autorización para reasignar aprobaciones de tiempos.");
+  }
+}
+
+async function loadReassignmentGroup(req, ID, options = {}) {
+  const times = cds.entities("sabnez.times");
+  const WeeklyTimesheets = options.WeeklyTimesheets || times.WeeklyTimesheets;
+
+  if (!ID) {
+    return req.reject(400, "Debes indicar la hoja de tiempos.");
+  }
+
+  const seed = await SELECT.one
+    .from(WeeklyTimesheets)
+    .columns(
+      "ID",
+      "employee_ID",
+      "employee.nombreCompleto as employeeName",
+      "employee.correoCorporativo as employeeEmail",
+      "weekStart",
+      "weekEnd",
+      "status",
+      "submittedAt",
+      "version",
+      "currentApprover_ID",
+    )
+    .where({ ID });
+
+  if (!seed) {
+    return req.reject(404, "La hoja de tiempos indicada no existe.");
+  }
+
+  const sheets = await SELECT.from(WeeklyTimesheets)
+    .columns(
+      "ID",
+      "employee_ID",
+      "employee.nombreCompleto as employeeName",
+      "employee.correoCorporativo as employeeEmail",
+      "weekStart",
+      "weekEnd",
+      "status",
+      "submittedAt",
+      "version",
+      "currentApprover_ID",
+    )
+    .where({ employee_ID: seed.employee_ID, weekStart: seed.weekStart });
+
+  const group = groupSheets(sheets).find((item) => item.sheetIDs.includes(seed.ID));
+  if (!group) {
+    return req.reject(404, "No fue posible reconstruir la semana de tiempos.");
+  }
+
+  return { group };
+}
+
+async function resolveExpectedApprover(
+  group,
+  { TimeEntries, ProjectApprovers },
+) {
+  if (new Set(["SUBMITTED", "UNDER_REVIEW", "LEADER_APPROVED"]).has(group.status)) {
+    const routes = await configuredRoutes(group, { TimeEntries, ProjectApprovers },
+      group.status === "LEADER_APPROVED" ? "ADMIN" : null);
+    const approverIDs = [...new Set(routes.map((route) => route.approver?.ID).filter(Boolean))];
+    if (routes.length && approverIDs.length === 1 && routes.every((route) => route.approver)) {
+      return {
+        approver: routes[0].approver,
+        stage: routes[0].role === "ADMIN" ? "Aprobación administrativa" : "Aprobación del líder",
+        reason: "",
+      };
+    }
+    return {
+      approver: null,
+      stage: group.status === "LEADER_APPROVED" ? "Aprobación administrativa" : "Aprobación del proyecto",
+      reason: routes.find((route) => !route.approver)?.reason ||
+        "Los proyectos del bloque ya no comparten el mismo aprobador configurado.",
+    };
+  }
+
+  return {
+    approver: null,
+    stage: "Sin etapa pendiente",
+    reason: `El estado ${group.status || "desconocido"} no requiere reasignación de aprobador.`,
+  };
+}
+
+async function loadReassignmentIssues({
+  WeeklyTimesheets,
+  TimeEntries,
+  ProjectApprovers,
+}) {
+  const pendingStatuses = ["SUBMITTED", "UNDER_REVIEW", "LEADER_APPROVED"];
+
+  const sheets = await SELECT.from(WeeklyTimesheets)
+    .columns(
+      "ID",
+      "employee_ID",
+      "employee.nombreCompleto as employeeName",
+      "employee.correoCorporativo as employeeEmail",
+      "weekStart",
+      "weekEnd",
+      "status",
+      "submittedAt",
+      "version",
+      "currentApprover_ID",
+    )
+    .where({ status: { in: pendingStatuses } });
+
+  const groups = groupSheets(sheets);
+  const approverIDs = new Set(
+    groups.map((group) => group.currentApprover_ID).filter(Boolean),
+  );
+  const currentApprovers = approverIDs.size
+    ? await SELECT.from("sabnez.rrhh.Empleados")
+        .columns("ID", "nombreCompleto", "correoCorporativo", "estado_codigo")
+        .where({ ID: { in: [...approverIDs] } })
+    : [];
+  const currentByID = new Map(currentApprovers.map((row) => [row.ID, row]));
+
+  const issues = [];
+
+  for (const group of groups) {
+    const current = group.currentApprover_ID
+      ? currentByID.get(group.currentApprover_ID)
+      : null;
+    const currentValid = Boolean(
+      current && current.estado_codigo === "AC" && current.correoCorporativo,
+    );
+
+    // Siempre resolvemos la ruta que DEBERÍA tener hoy la aprobación.
+    // Antes se descartaba cualquier hoja que tuviera un currentApprover válido,
+    // aunque ese aprobador ya no correspondiera con la ruta vigente.
+    const resolution = await resolveExpectedApprover(group, {
+      TimeEntries,
+      ProjectApprovers,
+    });
+
+    const expectedApproverID = resolution.approver?.ID || null;
+    const routeMatchesExpected = Boolean(
+      currentValid &&
+        expectedApproverID &&
+        group.currentApprover_ID === expectedApproverID,
+    );
+
+    // Un reenvío o una reasignación manual son excepciones intencionales a la
+    // ruta calculada. Si el aprobador actual coincide con el último destinatario
+    // explícito de una de esas acciones, no lo marcamos como incidencia.
+    const latestOverrideEvent = await SELECT.one
+      .from("sabnez.times.WeeklyTimeApprovalEvents")
+      .columns("type", "targetEmployee_ID", "occurredAt")
+      .where({
+        employee_ID: group.employee_ID,
+        weekStart: group.weekStart,
+        type: { in: ["TIME_FORWARDED", "TIME_APPROVER_REASSIGNED"] },
+      })
+      .orderBy("occurredAt desc");
+
+    const validExplicitOverride = Boolean(
+      currentValid &&
+        latestOverrideEvent?.targetEmployee_ID &&
+        latestOverrideEvent.targetEmployee_ID === group.currentApprover_ID,
+    );
+
+    // La hoja solo está sana si el responsable actual coincide con la ruta
+    // vigente o si existe una reasignación/reenvío manual válido que lo explique.
+    if (routeMatchesExpected || validExplicitOverride) {
+      continue;
+    }
+
+    const entries = await SELECT.from(TimeEntries)
+      .columns(
+        "durationHours",
+        "assignment.project.name as projectName",
+        "assignment.project.client.tradeName as clientTradeName",
+        "assignment.project.client.legalName as clientLegalName",
+      )
+      .where({ timesheet_ID: { in: group.sheetIDs } });
+
+    const projectNames = [
+      ...new Set(entries.map((entry) => entry.projectName).filter(Boolean)),
+    ];
+    const clientNames = [
+      ...new Set(
+        entries
+          .map((entry) => entry.clientTradeName || entry.clientLegalName)
+          .filter(Boolean),
+      ),
+    ];
+
+    let issueReason;
+    if (!group.currentApprover_ID) {
+      issueReason = resolution.approver
+        ? "La solicitud está pendiente pero no tiene aprobador asignado."
+        : resolution.reason;
+    } else if (!current) {
+      issueReason = "El aprobador actual ya no existe en el maestro de empleados.";
+    } else if (current.estado_codigo !== "AC") {
+      issueReason = "El aprobador actual ya no está activo.";
+    } else if (!current.correoCorporativo) {
+      issueReason = "El aprobador actual no tiene correo corporativo configurado.";
+    } else if (expectedApproverID && group.currentApprover_ID !== expectedApproverID) {
+      issueReason = `El aprobador actual (${current.nombreCompleto}) no coincide con la ruta vigente (${resolution.approver.nombreCompleto}).`;
+    } else if (!expectedApproverID) {
+      issueReason =
+        resolution.reason ||
+        "No fue posible determinar un aprobador válido con la configuración vigente.";
+    } else {
+      issueReason = "La ruta de aprobación requiere revisión.";
+    }
+
+    issues.push({
+      ID: group.ID,
+      empleadoID: group.employee_ID,
+      empleadoNombre: group.employeeName,
+      empleadoCorreo: group.employeeEmail,
+      clienteNombre: clientNames.join(", "),
+      proyectoNombre: projectNames.join(", "),
+      semanaInicio: group.weekStart,
+      semanaFin: group.weekEnd,
+      estado: group.status,
+      etapa: resolution.stage,
+      aprobadorActualID: group.currentApprover_ID || null,
+      aprobadorActualNombre: current?.nombreCompleto || null,
+      aprobadorSugeridoID: resolution.approver?.ID || null,
+      aprobadorSugeridoNombre: resolution.approver?.nombreCompleto || null,
+      motivo: issueReason || resolution.reason || "Ruta de aprobación incompleta.",
+      resolubleAutomaticamente: Boolean(resolution.approver),
+      totalHoras: Number(
+        entries
+          .reduce((sum, entry) => sum + Number(entry.durationHours || 0), 0)
+          .toFixed(2),
+      ),
+      totalRegistros: entries.length,
+    });
+  }
+
+  return issues.sort(
+    (a, b) =>
+      String(b.semanaInicio || "").localeCompare(String(a.semanaInicio || "")) ||
+      String(a.empleadoNombre || "").localeCompare(
+        String(b.empleadoNombre || ""),
+        "es",
+      ),
+  );
+}
+
+async function notifyReassignedApprover(
+  tx,
+  group,
+  approver,
+  mode,
+  notificationKey,
+  { TimeEntries },
+) {
+  if (!approver?.correoCorporativo) return;
+
+  const entries = await SELECT.from(TimeEntries)
+    .columns(
+      "durationHours",
+      "assignment.project.name as projectName",
+    )
+    .where({ timesheet_ID: { in: group.sheetIDs } });
+
+  const projects = [
+    ...new Set(entries.map((entry) => entry.projectName).filter(Boolean)),
+  ];
+  const totalHours = entries.reduce(
+    (sum, entry) => sum + Number(entry.durationHours || 0),
+    0,
+  );
+
+  await queueTimeNotification(tx, {
+    type: "TIME_SUBMITTED",
+    recipientID: approver.correoCorporativo,
+    idempotencyKey: `time-reassign:${group.ID}:${mode}:${notificationKey}:${String(
+      approver.correoCorporativo,
+    ).toLowerCase()}`,
+    payload: {
+      recipientName: approver.nombreCompleto || "Aprobador",
+      solicitanteNombre: group.employeeName,
+      hojaID: group.ID,
+      titulo: `${group.weekStart} a ${group.weekEnd}`,
+      resumen: `${totalHours.toFixed(1)} horas · Solicitud reasignada`,
+      facts: [
+        { etiqueta: "Empleado", valor: group.employeeName, orden: 1 },
+        {
+          etiqueta: "Proyectos",
+          valor: projects.join(", ") || "Sin proyecto",
+          orden: 2,
+        },
+        {
+          etiqueta: "Motivo",
+          valor:
+            mode === "MANUAL"
+              ? "Reasignación manual de aprobación"
+              : "Ruta de aprobación reprocesada",
+          orden: 3,
+        },
+      ],
+    },
+  });
+}
+
 async function summarizeGroup(group, { TimeEntries, Evidence, context }) {
   const entries = await SELECT.from(TimeEntries).columns(
     "ID",
@@ -378,7 +841,7 @@ async function summarizeGroup(group, { TimeEntries, Evidence, context }) {
     totalRegistros: entries.length,
     registrosConAlerta: entries.filter((entry) => entry.dailyHoursWarning).length,
     soportesPendientes: pendingEvidence,
-    siguienteAccion: group.status === "LEADER_APPROVED" ? "Aprobación administrativa" : "Jefe inmediato",
+    siguienteAccion: group.status === "LEADER_APPROVED" ? "Aprobación administrativa" : "Aprobación configurada en el proyecto",
     puedeAprobar: pendingEvidence === 0 && pendingForReviewer,
     puedeDevolver: pendingForReviewer,
   };
@@ -415,7 +878,7 @@ async function loadSheetGroup(req, ID, options) {
     "version",
     "currentApprover_ID",
   ).where({ employee_ID: seed.employee_ID, weekStart: seed.weekStart });
-  const group = groupSheets(sheets)[0];
+  const group = groupSheets(sheets).find((item) => item.sheetIDs.includes(seed.ID));
   const context = await reviewerContext(req);
   group.pendingForReviewer = await isAssignedReviewer(group, context, {
     TimeEntries,
@@ -423,8 +886,7 @@ async function loadSheetGroup(req, ID, options) {
   });
   if (
     !group.pendingForReviewer &&
-    !context.isAdmin &&
-    !context.directReportIDs.has(group.employee_ID)
+    !context.isAdmin
   ) {
     reject(req, 403, "SEMANA_NO_AUTORIZADA", "No tienes autorización para revisar esta semana.");
   }
@@ -434,7 +896,7 @@ async function loadSheetGroup(req, ID, options) {
 function groupSheets(sheets) {
   const groups = new Map();
   for (const sheet of sheets) {
-    const key = `${sheet.employee_ID}|${sheet.weekStart}`;
+    const key = `${sheet.employee_ID}|${sheet.weekStart}|${sheet.status}|${sheet.currentApprover_ID || "SIN_APROBADOR"}`;
     if (!groups.has(key)) {
       groups.set(key, {
         ID: sheet.ID,
@@ -467,14 +929,11 @@ async function reviewerContext(req) {
     .columns("ID", "correoCorporativo")
     .where({ estado_codigo: "AC" });
   const employee = employees.find((row) => String(row.correoCorporativo || "").trim().toLowerCase() === email);
-  const directReports = employee
-    ? await SELECT.from("sabnez.rrhh.Empleados").columns("ID").where({ jefeDirecto_ID: employee.ID, estado_codigo: "AC" })
-    : [];
   return {
     isAdmin,
     email,
     employeeID: employee?.ID || null,
-    directReportIDs: new Set(directReports.map((row) => row.ID)),
+    directReportIDs: new Set(),
   };
 }
 
@@ -483,14 +942,6 @@ async function isAssignedReviewer(group, context, entities) {
   if (group.currentApprover_ID) {
     return group.currentApprover_ID === context.employeeID;
   }
-  if (new Set(["SUBMITTED", "UNDER_REVIEW"]).has(group.status)) {
-    // Compatibilidad con hojas enviadas antes de persistir currentApprover.
-    return context.directReportIDs.has(group.employee_ID);
-  }
-  if (group.status === "LEADER_APPROVED" && context.isAdmin) {
-    const approvers = await configuredAdministrativeApprovers(group, entities);
-    return approvers.some((approver) => approver.ID === context.employeeID);
-  }
   return false;
 }
 
@@ -498,10 +949,23 @@ async function configuredAdministrativeApprovers(
   group,
   { TimeEntries, ProjectApprovers },
 ) {
+  const routes = await configuredRoutes(group, { TimeEntries, ProjectApprovers }, "ADMIN");
+  const ids = [...new Set(routes.map((route) => route.approver?.ID).filter(Boolean))];
+  if (ids.length !== 1 || routes.some((route) => !route.approver)) return [];
+  return [routes[0].approver];
+}
+
+async function configuredRoutes(group, { TimeEntries, ProjectApprovers }, forcedRole) {
   const entries = await SELECT.from(TimeEntries)
-    .columns("assignment.project_ID as projectID")
+    .columns(
+      "assignment.project_ID as projectID",
+      "assignment.project.name as projectName",
+      "assignment.project.approvalScheme as approvalScheme",
+    )
     .where({ timesheet_ID: { in: group.sheetIDs } });
-  const projectIDs = [...new Set(entries.map((row) => row.projectID).filter(Boolean))];
+  const projects = [...new Map(entries.filter((row) => row.projectID)
+    .map((row) => [row.projectID, row])).values()];
+  const projectIDs = projects.map((row) => row.projectID);
   if (!projectIDs.length) return [];
 
   const rows = await SELECT.from(ProjectApprovers)
@@ -519,35 +983,37 @@ async function configuredAdministrativeApprovers(
     .where({ project_ID: { in: projectIDs }, active: true });
   const valid = rows.filter(
     (row) =>
-      String(row.approverType || "").toUpperCase() === "ADMIN" &&
       row.employeeStatus === "AC" &&
       row.employeeEmail &&
       (!row.validFrom || row.validFrom <= group.weekEnd) &&
       (!row.validTo || row.validTo >= group.weekStart) &&
       row.employee_ID !== group.employee_ID,
   );
-  const byProject = new Map(
-    projectIDs.map((projectID) => [
-      projectID,
-      new Set(
-        valid
-          .filter((row) => row.project_ID === projectID)
-          .map((row) => row.employee_ID),
-      ),
-    ]),
-  );
-  const commonIDs = [...(byProject.get(projectIDs[0]) || new Set())].filter(
-    (employeeID) =>
-      projectIDs.every((projectID) => byProject.get(projectID)?.has(employeeID)),
-  );
-  return commonIDs.map((employeeID) => {
-    const row = valid.find((candidate) => candidate.employee_ID === employeeID);
+  return projects.map((project) => {
+    const roles = forcedRole ? [forcedRole] : initialRoles(project.approvalScheme);
+    const row = roles.flatMap((role) => valid.filter((candidate) =>
+      candidate.project_ID === project.projectID &&
+      String(candidate.approverType || "").toUpperCase() === role,
+    ))[0];
     return {
-      ID: employeeID,
-      nombreCompleto: row.employeeName,
-      correoCorporativo: row.employeeEmail,
+      projectID: project.projectID,
+      projectName: project.projectName,
+      scheme: project.approvalScheme || "LEADER_THEN_ADMIN",
+      role: row ? String(row.approverType || "").toUpperCase() : roles[0],
+      approver: row ? {
+        ID: row.employee_ID,
+        nombreCompleto: row.employeeName,
+        correoCorporativo: row.employeeEmail,
+      } : null,
+      reason: row ? "" : `${project.projectName || "El proyecto"} no tiene un aprobador ${roles.join(" o ").toLowerCase()} activo y vigente.`,
     };
   });
+}
+
+function initialRoles(scheme) {
+  if (scheme === "ADMIN_ONLY") return ["ADMIN"];
+  if (scheme === "LEADER_OR_ADMIN") return ["LEADER", "ADMIN"];
+  return ["LEADER"];
 }
 
 async function employeeNames(employeeIDs) {
@@ -598,7 +1064,7 @@ async function notifyEmployee(tx, summary, status, comment, notificationKey) {
       recipientName: summary.empleadoNombre,
       titulo: `${summary.semanaInicio} a ${summary.semanaFin}`,
       estadoInstancia: status === "RETURNED" ? "Devuelta para corrección" : "Aprobada",
-      resumen: status === "RETURNED" ? "Tu semana fue devuelta y requiere ajustes." : "Tu semana completa fue aprobada.",
+      resumen: status === "RETURNED" ? "Tu bloque de tiempos fue devuelto y requiere ajustes." : "Tu bloque de tiempos fue aprobado.",
       comentario: comment,
       facts: [
         { etiqueta: "Proyectos", valor: summary.proyectoNombre, orden: 1 },
@@ -635,7 +1101,7 @@ async function notifyAdministrators(
         titulo: `${summary.semanaInicio} a ${summary.semanaFin}`,
         resumen: `${Number(summary.totalHoras || 0).toFixed(1)} horas · ${summary.proyectoNombre}`,
         facts: [
-          { etiqueta: "Estado", valor: "Aprobada por jefe inmediato", orden: 1 },
+          { etiqueta: "Estado", valor: "Lista para aprobación administrativa", orden: 1 },
           { etiqueta: "Empleado", valor: summary.empleadoNombre, orden: 2 },
           { etiqueta: "Proyectos", valor: summary.proyectoNombre, orden: 3 },
         ],

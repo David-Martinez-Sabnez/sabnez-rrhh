@@ -1,0 +1,4 @@
+codigo;descripcion;activo
+AHORROS;Cuenta de ahorros;true
+CORRIENTE;Cuenta corriente;true
+DEPOSITO_ELECTRONICO;Depósito electrónico;true

@@ -1,0 +1,129 @@
+{
+  "_version": "1.64.0",
+  "sap.app": {
+    "id": "com.sabnez.cards.mistiempos",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis tiempos",
+    "subTitle": "Resumen mensual de tiempos",
+    "applicationVersion": {
+      "version": "1.4.9"
+    },
+    "description": "Resumen mensual de tiempos"
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "sap-icon://timesheet"
+    }
+  },
+  "sap.card": {
+    "type": "Analytical",
+    "extension": "./Extension",
+    "configuration": {
+      "destinations": {
+        "sabnezApi": {
+          "name": "CAP_APPS",
+          "label": "Sabnez Apps API"
+        }
+      },
+      "parameters": {
+        "pathResumen": {
+          "value": "/tiempos-empleado/obtenerMiResumenMes()",
+          "type": "string",
+          "label": "Ruta del servicio de resumen"
+        },
+        "urlResumen": {
+          "value": "",
+          "type": "string",
+          "label": "URL completa (solo pruebas; vacío = usa el destination)"
+        }
+      }
+    },
+    "data": {
+      "extension": {
+        "method": "getData"
+      }
+    },
+    "header": {
+      "type": "Numeric",
+      "title": "Mis horas registradas",
+      "subtitle": "{mesEtiqueta}",
+      "mainIndicator": {
+        "number": "{horasRegistradas}",
+        "unit": "h",
+        "trend": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Up' : 'None' }",
+        "state": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Good' : 'Neutral' }"
+      },
+      "details": "{= format.float(${porcentaje}, {decimals: 1}) } % del objetivo de {horasObjetivo} h",
+      "sideIndicators": [
+        {
+          "title": "Objetivo",
+          "number": "{horasObjetivo}",
+          "unit": "h"
+        },
+        {
+          "title": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Excedente' : 'Pendiente' }",
+          "number": "{= Math.abs(${horasRegistradas} - ${horasObjetivo}) }",
+          "unit": "h",
+          "state": "{= ${horasRegistradas} >= ${horasObjetivo} ? 'Good' : 'Critical' }"
+        }
+      ]
+    },
+    "content": {
+      "chartType": "Donut",
+      "measureAxis": "size",
+      "dimensionAxis": "color",
+      "data": {
+        "path": "/desglose"
+      },
+      "dimensions": [
+        {
+          "label": "Concepto",
+          "value": "{concepto}"
+        }
+      ],
+      "measures": [
+        {
+          "label": "Horas",
+          "value": "{horas}"
+        }
+      ],
+      "title": {
+        "visible": false
+      },
+      "legend": {
+        "visible": true,
+        "position": "Bottom",
+        "alignment": "Center"
+      },
+      "plotArea": {
+        "dataLabel": {
+          "visible": true
+        }
+      }
+    },
+    "footer": {
+      "showSeparator": true,
+      "actionsStrip": [
+        {
+          "text": "Abrir Mis tiempos",
+          "icon": "sap-icon://navigation-right-arrow",
+          "buttonType": "Transparent",
+          "overflowPriority": "High",
+          "actions": [
+            {
+              "type": "Navigation",
+              "parameters": {
+                "ibnTarget": {
+                  "semanticObject": "MisTiempos",
+                  "action": "display"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

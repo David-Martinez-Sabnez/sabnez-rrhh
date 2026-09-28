@@ -1,0 +1,47 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:u="sap.ui.unified" xmlns:f="sap.ui.layout.form">
+  <Dialog title="{= ${view>/contractForm/ID} ? 'Editar contrato' : 'Nuevo contrato' }"
+    contentWidth="32rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="5" labelSpanM="5" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Referencia" required="true"/>
+        <Input value="{view>/contractForm/reference}" maxLength="80" placeholder="MSA-2026-001"/>
+
+        <Label text="Descripción"/>
+        <TextArea value="{view>/contractForm/description}" rows="2" growing="true" maxLength="500"/>
+
+        <Label text="Inicio" required="true"/>
+        <DatePicker value="{view>/contractForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+
+
+        <Label text="Moneda"/>
+        <Select selectedKey="{view>/contractForm/currency}">
+          <core:Item key="COP" text="COP · Peso colombiano"/>
+          <core:Item key="USD" text="USD · Dólar estadounidense"/>
+          <core:Item key="EUR" text="EUR · Euro"/>
+          <core:Item key="MXN" text="MXN · Peso mexicano"/>
+          <core:Item key="PEN" text="PEN · Sol peruano"/>
+          <core:Item key="CLP" text="CLP · Peso chileno"/>
+        </Select>
+
+        <Label text="Valor total"/>
+        <Input value="{view>/contractForm/totalValue}" type="Number" placeholder="0"/>
+
+        <Label text="Aviso de renovación"/>
+        <StepInput value="{view>/contractForm/renewalNoticeDays}" min="0" step="1" description="días"/>
+
+        <Label text="Documento firmado"/>
+        <u:FileUploader change=".onContractFileSelected" sameFilenameAllowed="true"
+          buttonText="Seleccionar" placeholder="PDF o documento · máximo 10 MB"/>
+
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        text="El documento pasa por el antivirus antes de quedar disponible para descarga."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onContractCancel"/></beginButton>
+    <endButton>
+      <Button text="{= ${view>/contractForm/ID} ? 'Guardar cambios' : 'Crear contrato' }"
+        type="Emphasized" press=".onContractSave"/>
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

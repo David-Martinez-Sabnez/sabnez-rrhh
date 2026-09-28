@@ -1,0 +1,149 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sabnez.com.cuentascobrorrhhui",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "1.0.0" },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "dataSources": {
+      "mainService": {
+        "uri": "/cuentas-cobro/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "CuentasCobroRRHH-manage": {
+          "semanticObject": "CuentasCobroRRHH",
+          "action": "manage",
+          "title": "{{appTitle}}",
+          "subTitle": "{{appDescription}}",
+          "icon": "sap-icon://money-bills",
+          "signature": { "parameters": {}, "additionalParameters": "allowed" }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": { "desktop": true, "tablet": true, "phone": true }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.150.0",
+      "libs": { "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {}, "sap.ui.unified": {}, "sap.fe.templates": {} }
+    },
+    "contentDensities": { "compact": true, "cozy": true },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "sabnez.com.cuentascobrorrhhui.i18n.i18n"
+        }
+      },
+      "@i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "uri": "i18n/i18n.properties"
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "pattern": ":?query:",
+          "name": "CuentasCobroList",
+          "target": "CuentasCobroList"
+        },
+        {
+          "pattern": "CuentasCobro({key}):?query:",
+          "name": "CuentasCobroDetalle",
+          "target": "CuentasCobroDetalle"
+        }
+      ],
+      "targets": {
+        "CuentasCobroList": {
+          "type": "Component",
+          "id": "CuentasCobroList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "contextPath": "/CuentasCobro",
+              "variantManagement": "Page",
+              "initialLoad": true,
+              "navigation": {
+                "CuentasCobro": { "detail": { "route": "CuentasCobroDetalle" } }
+              },
+              "controlConfiguration": {
+                "@com.sap.vocabularies.UI.v1.LineItem": {
+                  "tableSettings": {
+                    "type": "ResponsiveTable",
+                    "selectionMode": "Multi",
+                    "personalization": true
+                  },
+                  "actions": {
+                    "crearCuentaAsistida": {
+                      "press": "sabnez.com.cuentascobrorrhhui.ext.AssistedAccounts.create",
+                      "visible": true,
+                      "enabled": true,
+                      "text": "{i18n>createAssistedAccount}",
+                      "requiresSelection": false,
+                      "position": { "placement": "Before", "anchor": "enviarAContabilidad" }
+                    },
+                    "descargarCuentaAsistida": {
+                      "press": "sabnez.com.cuentascobrorrhhui.ext.AssistedAccounts.downloadDraft",
+                      "visible": true,
+                      "enabled": "{= ${internal>numberOfSelectedContexts} === 1 }",
+                      "text": "{i18n>downloadAssistedDraft}",
+                      "requiresSelection": true,
+                      "position": { "placement": "Before", "anchor": "enviarAContabilidad" }
+                    },
+                    "cargarCuentaAsistida": {
+                      "press": "sabnez.com.cuentascobrorrhhui.ext.AssistedAccounts.uploadSignedPackage",
+                      "visible": true,
+                      "enabled": "{= ${internal>numberOfSelectedContexts} === 1 }",
+                      "text": "{i18n>uploadSignedPackage}",
+                      "requiresSelection": true,
+                      "position": { "placement": "Before", "anchor": "enviarAContabilidad" }
+                    },
+                    "enviarAContabilidad": {
+                      "press": "sabnez.com.cuentascobrorrhhui.ext.AccountingDispatch.enviar",
+                      "visible": true,
+                      "enabled": "{= ${internal>numberOfSelectedContexts} > 0 }",
+                      "text": "{i18n>sendToAccounting}",
+                      "requiresSelection": true,
+                      "position": { "placement": "After", "anchor": "Sort" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "CuentasCobroDetalle": {
+          "type": "Component",
+          "id": "CuentasCobroDetalle",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "contextPath": "/CuentasCobro",
+              "editableHeaderContent": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "sap.cloud": { "public": true, "service": "sabnezrrhh.service" }
+}

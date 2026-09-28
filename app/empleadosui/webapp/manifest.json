@@ -30,8 +30,9 @@
         "Empleados-display": {
           "semanticObject": "Empleados",
           "action": "display",
-          "title": "{{Empleados-display.flpTitle}}",
-          "subTitle": "{{Empleados-display.flpSubtitle}}",
+          "title": "{{appTitle}}",
+          "subTitle": "{{appDescription}}",
+          "icon": "sap-icon://employee",
           "signature": {
             "parameters": {},
             "additionalParameters": "allowed"
@@ -125,6 +126,16 @@
           "name": "Empleados_ausenciasObjectPage",
           "pattern": "Empleados({key})/ausencias({ausenciasKey}):?query:",
           "target": "Empleados_ausenciasObjectPage"
+        },
+        {
+          "name": "Empleados_cuentasBancariasObjectPage",
+          "pattern": "Empleados({key})/cuentasBancarias({cuentasBancariasKey}):?query:",
+          "target": "Empleados_cuentasBancariasObjectPage"
+        },
+        {
+          "name": "Empleados_dependientesTributariosObjectPage",
+          "pattern": "Empleados({key})/dependientesTributarios({dependientesTributariosKey}):?query:",
+          "target": "Empleados_dependientesTributariosObjectPage"
         }
       ],
       "targets": {
@@ -176,6 +187,16 @@
                   "detail": {
                     "route": "Empleados_ausenciasObjectPage"
                   }
+                },
+                "cuentasBancarias": {
+                  "detail": {
+                    "route": "Empleados_cuentasBancariasObjectPage"
+                  }
+                },
+                "dependientesTributarios": {
+                  "detail": {
+                    "route": "Empleados_dependientesTributariosObjectPage"
+                  }
                 }
               },
               "content": {
@@ -225,6 +246,28 @@
             "settings": {
               "navigation": {},
               "contextPath": "/Empleados/ausencias"
+            }
+          }
+        },
+        "Empleados_cuentasBancariasObjectPage": {
+          "type": "Component",
+          "id": "Empleados_cuentasBancariasObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "navigation": {},
+              "contextPath": "/Empleados/cuentasBancarias"
+            }
+          }
+        },
+        "Empleados_dependientesTributariosObjectPage": {
+          "type": "Component",
+          "id": "Empleados_dependientesTributariosObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "navigation": {},
+              "contextPath": "/Empleados/dependientesTributarios"
             }
           }
         }

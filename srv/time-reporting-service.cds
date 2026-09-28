@@ -72,6 +72,43 @@ service TimeReportingService {
                                  employeeIDsJson: LargeString,
                                  statusIDsJson: LargeString) returns DashboardAnalyticsResult;
 
+  type ObjetivoPeriodo {
+    empleadoID      : UUID;
+    horasObjetivo   : Decimal(9, 2);
+    horasUmbral     : Decimal(9, 2);
+    horasCalendario : Decimal(9, 2);
+    tieneUmbral     : Boolean;
+  }
+
+  type ObjetivosPeriodo {
+    diasHabiles   : Integer;
+    horasObjetivo : Decimal(11, 2);
+    horasUmbral   : Decimal(11, 2);
+    porEmpleado   : many ObjetivoPeriodo;
+  }
+
+  // Capacidad vendible del periodo. Responde a otra pregunta que el
+  // objetivo por empleado: cuánta de la gente colocable está colocada.
+  type ObjetivoEmpresa {
+    diasHabiles          : Integer;
+    recursos             : Integer;
+    horasPorRecurso      : Decimal(9, 2);
+    horasObjetivo        : Decimal(11, 2);
+    horasFacturables     : Decimal(11, 2);
+    horasInternas        : Decimal(11, 2);
+    porcentaje           : Decimal(7, 2);
+    capacidadSinVender   : Decimal(11, 2);
+  }
+
+  // Objetivo del periodo calculado con la misma librería que la card de
+  // «Mis tiempos», para que las dos cifras no se separen nunca.
+  action   obtenerObjetivosPeriodo(dateFrom: Date,
+                                   dateTo: Date,
+                                   employeeIDsJson: LargeString) returns ObjetivosPeriodo;
+
+  action   obtenerObjetivoEmpresa(dateFrom: Date,
+                                  dateTo: Date)               returns ObjetivoEmpresa;
+
   type GeneratedDeliverable {
     fileName      : String(255);
     mimeType      : String(120);
@@ -81,15 +118,26 @@ service TimeReportingService {
     warningText   : String(1000);
   }
 
+  type DeliverableConceptPreview {
+    dataJson : LargeString;
+  }
+
   function getCurrentUserPermissions()                       returns {
     canGenerateDeliverables : Boolean;
   };
+
+  @requires: 'TimeDeliverables'
+  action   previewDeliverableConcepts(dateFrom: Date,
+                                      dateTo: Date,
+                                      clientID: UUID,
+                                      projectIDsJson: LargeString) returns DeliverableConceptPreview;
 
   @requires: 'TimeDeliverables'
   action   generateDeliverable(dateFrom: Date,
                                dateTo: Date,
                                clientID: UUID,
                                projectIDsJson: LargeString,
+                               selectedConceptIDsJson: LargeString,
                                formatType: String(20),
                                includeEvidence: Boolean)     returns GeneratedDeliverable;
 }

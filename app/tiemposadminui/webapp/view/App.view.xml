@@ -1,6 +1,54 @@
 <mvc:View
+  controllerName="sabnez.com.tiemposadminui.controller.App"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
-  displayBlock="true">
-  <App id="app" />
+  xmlns:f="sap.f"
+  displayBlock="true"
+  height="100%">
+  <Shell appWidthLimited="false">
+
+    <!-- Cabecera de aplicación con DynamicPage, igual que el resto de
+         programas de la plataforma: el título es un DynamicPageTitle
+         nativo, así que hereda del tema sin necesidad de CSS propio.
+         Sin agregación header: aquí no hay nada que plegar. -->
+    <f:DynamicPage
+      id="shellPage"
+      class="shellPage"
+      fitContent="true"
+      showFooter="false"
+      toggleHeaderOnTitleClick="false"
+      backgroundDesign="Solid">
+
+      <f:title>
+        <f:DynamicPageTitle id="shellTitle">
+          <f:heading>
+            <Title id="appTitle" text="{i18n>appTitle}" level="H1"/>
+          </f:heading>
+          <f:actions>
+            <Button icon="sap-icon://refresh" tooltip="{i18n>refresh}" type="Transparent" press=".onRefresh"/>
+          </f:actions>
+        </f:DynamicPageTitle>
+      </f:title>
+
+      <f:content>
+        <VBox class="shellContent" fitContainer="true" renderType="Bare">
+          <IconTabHeader id="areaTabs" selectedKey="{view>/area}" select=".onAreaSelect"
+            mode="Inline" class="areaTabs">
+            <items>
+              <IconTabFilter key="projects" text="{i18n>areaProjects}"
+                icon="sap-icon://project-definition-triangle-2"/>
+              <IconTabFilter key="clients" text="{i18n>areaClients}"
+                icon="sap-icon://customer"/>
+              <IconTabFilter key="rates" text="{i18n>areaRates}"
+                icon="sap-icon://money-bills" visible="{view>/canSeeRates}"/>
+            </items>
+          </IconTabHeader>
+          <f:FlexibleColumnLayout
+            id="fcl"
+            backgroundDesign="Solid"/>
+        </VBox>
+      </f:content>
+
+    </f:DynamicPage>
+  </Shell>
 </mvc:View>

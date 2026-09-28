@@ -1,0 +1,23 @@
+{
+  "_version": "1.27.0",
+  "_generator": "sabnez-content-package",
+  "sap.artifact": {
+    "id": "com.sabnez.cards.mistiempos",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Mis tiempos",
+    "subTitle": "Resumen mensual de tiempos",
+    "shortTitle": "Mis tiempos",
+    "info": "Resumen mensual de tiempos",
+    "description": "Resumen mensual de tiempos",
+    "tags": {
+      "keywords": [
+        "Sabnez",
+        "Portal"
+      ]
+    },
+    "artifactVersion": {
+      "version": "1.4.9"
+    }
+  }
+}

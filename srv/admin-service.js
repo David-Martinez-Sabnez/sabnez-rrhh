@@ -12,6 +12,9 @@ module.exports = cds.service.impl(function () {
   const {
     Empleados: EmpleadosSrv,
     Contratos: ContratosSrv,
+    CuentasBancarias: CuentasBancariasSrv,
+    DependientesTributarios: DependientesTributariosSrv,
+    DocumentosEmpleado: DocumentosEmpleadoSrv,
     Ausencias: AusenciasSrv,
     SaldosValeraEmocional: SaldosValeraSrv,
   } = this.entities;
@@ -21,6 +24,9 @@ module.exports = cds.service.impl(function () {
   const {
     Empleados,
     Contratos,
+    CuentasBancarias,
+    DependientesTributarios,
+    DocumentosEmpleado,
     ContactosEmergencia,
     Ausencias,
     TiposAusencia,
@@ -328,21 +334,21 @@ module.exports = cds.service.impl(function () {
   }
 
   async function validateCiudadSeleccionada(req, data, previous = {}) {
-    if (!hasOwn(req.data, "ciudad")) return;
-    if (!data.ciudad || data.ciudad === previous.ciudad) return;
-
-    const ciudadValida = await SELECT.one
-      .from(CiudadesColombia)
-      .columns("codigo")
-      .where({ nombre: data.ciudad });
-
-    if (!ciudadValida) {
-      error(
-        req,
-        "CIUDAD_INVALIDA",
-        "Selecciona una ciudad de la lista de municipios de Colombia.",
-        "ciudad",
-      );
+    for (const field of ["ciudad", "lugarExpedicionDocumento", "ciudadTributaria"]) {
+      if (!hasOwn(req.data, field)) continue;
+      if (!data[field] || data[field] === previous[field]) continue;
+      const ciudadValida = await SELECT.one
+        .from(CiudadesColombia)
+        .columns("codigo")
+        .where({ nombre: data[field] });
+      if (!ciudadValida) {
+        error(
+          req,
+          "CIUDAD_INVALIDA",
+          "Selecciona una ciudad de la lista de municipios de Colombia.",
+          field,
+        );
+      }
     }
   }
 
@@ -506,6 +512,19 @@ module.exports = cds.service.impl(function () {
     prepararCargaFoto(req);
   });
 
+  // La marca de recurso facturable arranca desde el cargo. Sigue siendo
+  // del empleado —hay coordinaciones que entran en un contrato y otras
+  // que son estructura interna— pero así es una corrección, no una
+  // decisión desde cero en cada alta.
+  this.before(["CREATE", "UPDATE"], EmpleadosSrv, async (req) => {
+    if (req.data.facturable != null || !req.data.cargo_ID) return;
+    const cargo = await SELECT.one
+      .from("sabnez.rrhh.Cargos")
+      .columns("facturablePorDefecto")
+      .where({ ID: req.data.cargo_ID });
+    if (cargo) req.data.facturable = cargo.facturablePorDefecto !== false;
+  });
+
   this.before("CREATE", EmpleadosSrv, async (req) => {
     if (req.data.codigoInterno) return;
 
@@ -557,7 +576,6 @@ module.exports = cds.service.impl(function () {
     // ARL requiere nivel y nivel requiere ARL.
     validateAfiliaciones(req, data, true);
     await validateCiudadSeleccionada(req, data, previous);
-
     // Serializa toda activación del árbol del empleado con los envíos de
     // ausencias, incluidos cambios profundos de contratos y saldos.
     const empleadoID = keyFrom(req);
@@ -587,6 +605,11 @@ module.exports = cds.service.impl(function () {
       "ciudad",
       "barrio",
       "alergias",
+      "lugarExpedicionDocumento",
+      "direccionTributaria",
+      "ciudadTributaria",
+      "actividadEconomicaCiiu",
+      "tratamientoRetencion",
     ]);
 
     if (req.data.correoPersonal) {
@@ -603,7 +626,6 @@ module.exports = cds.service.impl(function () {
 
     validateAfiliaciones(req, data, true);
     await validateCiudadSeleccionada(req, data, previous);
-
     if (data.fechaNacimiento && data.fechaNacimiento > today()) {
       error(
         req,
@@ -730,6 +752,37 @@ module.exports = cds.service.impl(function () {
       );
     }
 
+    if (![1, 16].includes(Number(data.diaInicioCuentaCobro ?? 1))) {
+      error(
+        req,
+        "CICLO_CUENTA_COBRO_INVALIDO",
+        "El ciclo de cuenta de cobro debe iniciar el día 1 (mes calendario) o el día 16 (ciclo 16-15).",
+        "diaInicioCuentaCobro",
+      );
+    }
+
+    // La fecha de corte sólo puede retrasar el arranque dentro del vínculo,
+    // nunca abrir periodos anteriores al contrato mismo.
+    if (data.fechaCorteCuentaCobro && data.fechaInicio &&
+        data.fechaCorteCuentaCobro < data.fechaInicio) {
+      error(
+        req,
+        "CORTE_CUENTA_COBRO_INVALIDO",
+        "La fecha desde la que se cobra no puede ser anterior al inicio del contrato.",
+        "fechaCorteCuentaCobro",
+      );
+    }
+
+    if (data.fechaCorteCuentaCobro && data.fechaFin &&
+        data.fechaCorteCuentaCobro > data.fechaFin) {
+      error(
+        req,
+        "CORTE_CUENTA_COBRO_INVALIDO",
+        "La fecha desde la que se cobra no puede ser posterior al fin del contrato.",
+        "fechaCorteCuentaCobro",
+      );
+    }
+
     if (data.empleado_ID && data.fechaInicio) {
       const employeeContracts = await SELECT.from(Contratos).where({
         empleado_ID: data.empleado_ID,
@@ -777,6 +830,80 @@ module.exports = cds.service.impl(function () {
     if (contrato.empleado_ID) {
       await bloquearEmpleadoParaReglas(req, contrato.empleado_ID);
     }
+  });
+
+  // ----------------------------------------------------------
+  // DATOS PARA PAGOS Y CUENTAS DE COBRO
+  // ----------------------------------------------------------
+  this.before("NEW", CuentasBancariasSrv.drafts, async (req) => {
+    const empleadoID = (req.params || []).find((param) => param?.ID)?.ID;
+    if (!empleadoID) return;
+
+    let empleado;
+    if (EmpleadosSrv.drafts) {
+      empleado = await SELECT.one
+        .from(EmpleadosSrv.drafts)
+        .columns("nombreCompleto", "tipoDocumento", "numeroDocumento")
+        .where({ ID: empleadoID });
+    }
+    empleado ||= await SELECT.one
+      .from(Empleados)
+      .columns("nombreCompleto", "tipoDocumento", "numeroDocumento")
+      .where({ ID: empleadoID });
+
+    if (!empleado) return;
+    req.data.titularNombre ??= empleado.nombreCompleto;
+    req.data.titularTipoDocumento ??= empleado.tipoDocumento;
+    req.data.titularNumeroDocumento ??= empleado.numeroDocumento;
+    req.data.moneda ??= "COP";
+    req.data.activa ??= true;
+  });
+
+  this.before(["CREATE", "UPDATE"], CuentasBancariasSrv, async (req) => {
+    normalizeText(req.data, [
+      "banco", "tipoCuenta", "numeroCuenta", "titularNombre",
+      "titularTipoDocumento", "titularNumeroDocumento", "moneda", "observaciones",
+    ]);
+    if (req.data.moneda) req.data.moneda = req.data.moneda.toUpperCase();
+    const previous = req.event === "UPDATE" ? await currentRow(CuentasBancarias, req) : {};
+    const data = { ...previous, ...req.data };
+    const ID = data.ID || keyFrom(req);
+    if (data.moneda && !/^[A-Z]{3}$/.test(data.moneda))
+      error(req, "MONEDA_INVALIDA", "La moneda debe ser un código ISO de tres letras, por ejemplo COP.", "moneda");
+    if (data.principal && data.empleado_ID) {
+      const other = (await SELECT.from(CuentasBancarias).where({
+        empleado_ID: data.empleado_ID, principal: true, activa: true,
+      })).find((row) => row.ID !== ID);
+      if (other)
+        error(req, "CUENTA_PRINCIPAL_EXISTENTE", "El empleado ya tiene otra cuenta bancaria principal activa.", "principal");
+    }
+  });
+
+  this.before(["CREATE", "UPDATE"], DependientesTributariosSrv, async (req) => {
+    normalizeText(req.data, ["nombre", "numeroDocumento", "parentesco", "observaciones"]);
+    const previous = req.event === "UPDATE" ? await currentRow(DependientesTributarios, req) : {};
+    const data = { ...previous, ...req.data };
+    if (data.vigenteDesde && data.vigenteHasta && data.vigenteHasta < data.vigenteDesde)
+      error(req, "VIGENCIA_DEPENDIENTE_INVALIDA", "La fecha final no puede ser anterior a la inicial.", "vigenteHasta");
+    if (data.fechaNacimiento && data.fechaNacimiento > today())
+      error(req, "NACIMIENTO_DEPENDIENTE_FUTURO", "La fecha de nacimiento no puede estar en el futuro.", "fechaNacimiento");
+  });
+
+  this.before(["CREATE", "UPDATE"], DocumentosEmpleadoSrv, async (req) => {
+    normalizeText(req.data, ["tipo_codigo", "nombre", "observaciones", "estado"]);
+    const previous = req.event === "UPDATE" ? await currentRow(DocumentosEmpleado, req) : {};
+    const data = { ...previous, ...req.data };
+    if (data.vigenteDesde && data.vigenteHasta && data.vigenteHasta < data.vigenteDesde)
+      error(req, "VIGENCIA_DOCUMENTO_INVALIDA", "La fecha final no puede ser anterior a la inicial.", "vigenteHasta");
+    if (data.contrato_ID) {
+      const contract = await SELECT.one.from(Contratos).columns("ID", "empleado_ID").where({ ID: data.contrato_ID });
+      if (!contract || contract.empleado_ID !== data.empleado_ID)
+        error(req, "CONTRATO_DOCUMENTO_INVALIDO", "El contrato seleccionado no pertenece a este empleado.", "contrato_ID");
+    }
+  });
+
+  this.before("DELETE", DocumentosEmpleadoSrv, (req) => {
+    req.reject(405, "Los documentos del expediente no se eliminan. Cámbialos a Anulado o Reemplazado para conservar la trazabilidad.");
   });
 
   // Si se marca nuevamente como vigente,
@@ -2027,6 +2154,7 @@ module.exports = cds.service.impl(function () {
   function calcularDiasHabilesColombia(fechaInicio, fechaFin) {
     return absenceRules.calcularDiasHabilesColombia(fechaInicio, fechaFin);
   }
+
 
   function round2(value) {
     return Math.round((value + Number.EPSILON) * 100) / 100;

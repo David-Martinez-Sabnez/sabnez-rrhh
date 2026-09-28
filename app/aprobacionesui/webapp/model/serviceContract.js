@@ -15,6 +15,7 @@ sap.ui.define([], function () {
       saveDelegation: "guardarDelegacion",
       revokeDelegation: "revocarDelegacion",
       downloadAbsenceAttachment: "descargarSoporteAusencia",
+      downloadCollectionAccountDocument: "descargarDocumentoCuentaCobro",
     }),
     taskRoles: Object.freeze({
       owner: "PRIMARY",

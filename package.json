@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@cap-js/attachments": "^3.13.1",
+    "@cap-js/notifications": "^1.1.0",
     "@cap-js/postgres": "^2.3.0",
     "@sap/cds": "^9.9.2",
     "@sap/xssec": "^4",
@@ -16,12 +17,13 @@
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
-    "openai": "^7.4.0"
+    "openai": "^7.4.0",
+    "pdfmake": "^0.3.11"
   },
   "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
     "@cap-js/sqlite": "^2.4.0",
     "@sap/cds-dk": "^10",
-    "mbt": "^1.2.29",
     "rimraf": "^5.0.5"
   },
   "scripts": {
@@ -30,7 +32,10 @@
     "watch": "cds watch",
     "deploy:sqlite": "cds deploy --profile development",
     "reset:sqlite": "node scripts/reset-sqlite.js",
+    "migrate:sqlite": "node scripts/sync-sqlite-schema.js",
+    "migrate:billing": "node scripts/migrate-billing-targets.js",
     "seed:time-demo": "node scripts/seed-time-demo.js",
+    "seed:collection-training": "node scripts/seed-collection-account-training.js",
     "compile": "cds compile db srv app --to csn",
     "env:production": "cds env requires.db --for production",
     "watch-empleadosui": "cds watch --open empleadosui/webapp/index.html?sap-ui-xx-viewCache=false",
@@ -40,9 +45,20 @@
     "watch-tiemposadminui": "cds watch --open tiemposadminui/webapp/index.html?sap-ui-xx-viewCache=false",
     "watch-tiemposempleadoui": "cds watch --open tiemposempleadoui/webapp/index.html?sap-ui-xx-viewCache=false",
     "undeploy": "cf undeploy sabnez-rrhh --delete-services --delete-service-keys --delete-service-brokers",
-    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "clean:build": "node scripts/clean-build-artifacts.js --all",
+    "clean:gen": "node scripts/clean-build-artifacts.js",
+    "build": "npm run clean:build && mbt build --mtar archive",
     "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
-    "watch-homeofficeadminui": "cds watch --open homeofficeadminui/webapp/index.html?sap-ui-xx-viewCache=false"
+    "watch-homeofficeadminui": "cds watch --open homeofficeadminui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-cuentascobroui": "cds watch --open cuentascobroui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "migrate:classification": "node scripts/migrate-commercial-classification.js",
+    "verify:ui": "node scripts/verify-ui5-app.js app/finanzasui/webapp && node scripts/verify-ui5-app.js app/tiemposadminui/webapp",
+    "sync:trm": "node scripts/sync-trm.js",
+    "migrate:collection-approvals": "node scripts/migrate-collection-account-approvals.js",
+    "migrate:accounting": "node scripts/migrate-accounting-dispatch.js",
+    "watch-cuentascobrorrhhui": "cds watch --open cuentascobrorrhhui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "watch-configuracionui": "cds watch --open configuracionui/webapp/index.html?sap-ui-xx-viewCache=false"
+    ,"cards:build": "node cards/workzone/build.js"
   },
   "cds": {
     "requires": {
@@ -102,7 +118,9 @@
                 "Editor",
                 "Admin",
                 "TimeAdmin",
-                "TimeFinance"
+                "TimeFinance",
+                "CollectionAccountHR",
+                "CollectionAccountJob"
               ],
               "attr": {
                 "email": "legacy.validation@sabnez.test"
@@ -115,7 +133,9 @@
                 "Editor",
                 "Admin",
                 "TimeAdmin",
-                "TimeFinance"
+                "TimeFinance",
+                "CollectionAccountHR",
+                "CollectionAccountJob"
               ],
               "attr": {
                 "email": "david.martinez@sabnez.com"
@@ -127,7 +147,9 @@
                 "authenticated-user",
                 "ApprovalAdmin",
                 "TimeAdmin",
-                "TimeFinance"
+                "TimeFinance",
+                "CollectionAccountHR",
+                "CollectionAccountJob"
               ],
               "attr": {
                 "email": "camila.sabogal@sabnez.com"
@@ -147,7 +169,10 @@
                 "Admin",
                 "TimeAdmin",
                 "TimeFinance",
-                "TimeDeliverables"
+                "TimeDeliverables",
+                "TimeApprovalReassign",
+                "CollectionAccountHR",
+                "CollectionAccountJob"
               ],
               "attr": {
                 "email": "david.martinez@sabnez.com"
@@ -158,7 +183,9 @@
               "roles": [
                 "authenticated-user",
                 "TimeAdmin",
-                "TimeFinance"
+                "TimeFinance",
+                "CollectionAccountHR",
+                "CollectionAccountJob"
               ],
               "attr": {
                 "email": "camila.sabogal@sabnez.com"
@@ -213,7 +240,12 @@
       },
       "destinations": true,
       "html5-repo": true,
-      "workzone": true
+      "workzone": true,
+      "notifications": {
+        "destination": "SAP_Notifications",
+        "prefix": "sabnez-rrhh",
+        "types": "srv/notification-types.json"
+      }
     },
     "features": {
       "assert_integrity": "db"

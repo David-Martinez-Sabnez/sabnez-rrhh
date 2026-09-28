@@ -1,0 +1,162 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sabnez.com.finanzasui",
+    "type": "application",
+    "i18n": {
+      "bundleUrl": "i18n/i18n.properties",
+      "supportedLocales": [
+        ""
+      ],
+      "fallbackLocale": ""
+    },
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "dataSources": {
+      "mainService": {
+        "uri": "finanzas/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "Finanzas-display": {
+          "semanticObject": "Finanzas",
+          "action": "display",
+          "title": "{{appTitle}}",
+          "subTitle": "{{appSubtitle}}",
+          "icon": "sap-icon://money-bills",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.150.0",
+      "libs": {
+        "sap.f": {},
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.ui.layout": {},
+        "sap.uxap": {}
+      }
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "sabnez.com.finanzasui.i18n.i18n",
+          "supportedLocales": [
+            ""
+          ],
+          "fallbackLocale": ""
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "rootView": {
+      "viewName": "sabnez.com.finanzasui.view.App",
+      "type": "XML",
+      "id": "App",
+      "async": true
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.f.routing.Router",
+        "controlAggregation": "beginColumnPages",
+        "controlId": "fcl",
+        "type": "View",
+        "viewType": "XML",
+        "path": "sabnez.com.finanzasui.view",
+        "async": true,
+        "transition": "slide"
+      },
+      "routes": [
+        {
+          "name": "dashboard",
+          "pattern": "",
+          "target": [
+            "dashboard"
+          ],
+          "layout": "OneColumn"
+        },
+        {
+          "name": "invoices",
+          "pattern": "facturas",
+          "target": [
+            "invoiceList"
+          ],
+          "layout": "OneColumn"
+        },
+        {
+          "name": "invoiceDetail",
+          "pattern": "facturas/{invoiceId}",
+          "target": [
+            "invoiceList",
+            "invoiceDetail"
+          ],
+          "layout": "TwoColumnsMidExpanded"
+        },
+        {
+          "name": "settings",
+          "pattern": "configuracion",
+          "target": [
+            "settings"
+          ],
+          "layout": "OneColumn"
+        }
+      ],
+      "targets": {
+        "dashboard": {
+          "id": "dashboard",
+          "name": "Dashboard",
+          "controlAggregation": "beginColumnPages"
+        },
+        "invoiceList": {
+          "id": "invoiceList",
+          "name": "InvoiceList",
+          "controlAggregation": "beginColumnPages"
+        },
+        "invoiceDetail": {
+          "id": "invoiceDetail",
+          "name": "InvoiceDetail",
+          "controlAggregation": "midColumnPages"
+        },
+        "settings": {
+          "id": "settings",
+          "name": "Settings",
+          "controlAggregation": "beginColumnPages"
+        }
+      }
+    }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "sabnezrrhh.service"
+  }
+}

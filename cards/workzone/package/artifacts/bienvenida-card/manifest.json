@@ -1,0 +1,23 @@
+{
+  "_version": "1.27.0",
+  "_generator": "sabnez-content-package",
+  "sap.artifact": {
+    "id": "com.sabnez.cards.bienvenida",
+    "type": "card",
+    "i18n": "i18n/i18n.properties",
+    "title": "Bienvenida",
+    "subTitle": "Saludo personalizado del portal",
+    "shortTitle": "Bienvenida",
+    "info": "Saludo personalizado del portal",
+    "description": "Saludo personalizado del portal",
+    "tags": {
+      "keywords": [
+        "Sabnez",
+        "Portal"
+      ]
+    },
+    "artifactVersion": {
+      "version": "1.4.9"
+    }
+  }
+}

@@ -28,9 +28,6 @@
               class="absenceEmployeeName" />
           </VBox>
         </f:heading>
-        <f:expandedContent>
-          <Text id="pageSubtitle" text="{i18n>pageSubtitle}" />
-        </f:expandedContent>
         <f:snappedContent>
           <Text
             id="snappedSummary"
@@ -55,7 +52,7 @@
     </f:title>
 
     <f:header>
-      <f:DynamicPageHeader id="summaryHeader" pinnable="true">
+      <f:DynamicPageHeader id="summaryHeader" pinnable="true" class="absenceSummaryHeader">
         <f:content>
           <VBox id="summaryContent" width="100%">
             <MessageStrip
@@ -136,9 +133,21 @@
               </VBox>
 
               <VBox id="birthdayCard" class="absenceKpiCard kpiBirthday">
-                <HBox id="birthdayHeader" alignItems="Center" class="absenceKpiHeader">
-                  <core:Icon id="birthdayIcon" src="sap-icon://birthday" decorative="true" />
-                  <Label id="birthdayLabel" text="{i18n>birthdayBenefit}" />
+                <HBox id="birthdayHeader" width="100%" alignItems="Center"
+                  justifyContent="SpaceBetween" class="absenceKpiHeader">
+                  <HBox id="birthdayTitleGroup" alignItems="Center" class="absenceKpiTitleGroup">
+                    <core:Icon id="birthdayIcon" src="sap-icon://birthday" decorative="true" />
+                    <Label id="birthdayLabel" text="{i18n>birthdayBenefit}" />
+                  </HBox>
+                  <core:Icon
+                    id="birthdayInfo"
+                    src="sap-icon://hint"
+                    decorative="false"
+                    useIconTooltip="false"
+                    tooltip="{view>/summary/birthdayWeekLabel}"
+                    visible="{= !!${view>/summary/birthdayWeekLabel} }"
+                    press=".onShowBirthdayInfo"
+                    class="absenceBirthdayInfo" />
                 </HBox>
                 <ObjectNumber
                   id="birthdayNumber"
@@ -146,13 +155,6 @@
                   unit="{i18n>hoursUnit}"
                   state="Success" />
                 <Text id="birthdayDetail" text="{view>/summary/birthdayDetail}" wrapping="true" />
-                <ObjectStatus
-                  id="birthdayWeek"
-                  text="{view>/summary/birthdayWeekLabel}"
-                  icon="sap-icon://calendar"
-                  state="Information"
-                  visible="{= !!${view>/summary/birthdayWeekLabel} }"
-                  class="sapUiTinyMarginTop" />
               </VBox>
             </FlexBox>
           </VBox>

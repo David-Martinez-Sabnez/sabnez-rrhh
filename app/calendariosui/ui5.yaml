@@ -1,0 +1,19 @@
+specVersion: "3.1"
+metadata:
+  name: sabnez.com.calendariosui
+type: application
+framework:
+  name: SAPUI5
+  version: "1.150.0"
+  libraries:
+    - name: sap.m
+    - name: sap.ui.core
+    - name: sap.fe.templates
+    - name: sap.ushell
+builder:
+  customTasks:
+    - name: ui5-task-zipper
+      afterTask: generateComponentPreload
+      configuration:
+        archiveName: sabnezcomcalendariosui
+        relativePaths: true

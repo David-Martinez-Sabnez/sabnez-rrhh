@@ -1,0 +1,91 @@
+<mvc:View
+  controllerName="sabnez.com.finanzasui.controller.Settings"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  height="100%">
+  <Page showHeader="false" class="pageContent" busy="{view>/busy}" busyIndicatorDelay="300">
+    <content>
+      <VBox class="sapUiSmallMargin">
+
+        <MessageStrip type="Error" showIcon="true" showCloseButton="true"
+          class="sapUiSmallMarginBottom"
+          visible="{= !!${view>/error} }" text="{view>/error}" close=".onDismissError"/>
+
+        <!-- ============ RETENCIONES ============ -->
+        <Table id="withholdingProfileTable" items="{view>/retenciones}" sticky="ColumnHeaders"
+          noDataText="Ningún cliente tiene retenciones configuradas. Sin esto, las facturas salen sin descontar lo que el cliente retiene y la proyección de caja queda alta.">
+          <headerToolbar>
+            <Toolbar class="tableToolbar">
+              <Title text="Qué retiene cada cliente" level="H4"/>
+              <Text class="resultCount" text="{= ${view>/retenciones/length} + ' regla(s)' }"/>
+              <ToolbarSpacer/>
+              <Button text="Nueva retención" icon="sap-icon://add" press=".onAddWithholding"/>
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="Cliente"/></Column>
+            <Column><Text text="Retención"/></Column>
+            <Column minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Sobre"/></Column>
+            <Column hAlign="End" width="7rem"><Text text="Tarifa"/></Column>
+            <Column minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Vigencia"/></Column>
+            <Column hAlign="End" width="6rem"><Text text="Acciones"/></Column>
+          </columns>
+          <items>
+            <ColumnListItem vAlign="Middle">
+              <cells>
+                <Text text="{path: 'view>client_ID', formatter: '.nombreCliente'}"/>
+                <ObjectIdentifier
+                  title="{= ${view>label} || '' }"
+                  text="{path: 'view>type', formatter: '.formatter.tipoRetencion'}"/>
+                <Text text="{= ${view>base} === 'TAX' ? 'El IVA' : 'El valor del servicio' }"/>
+                <Text class="finNumero" text="{path: 'view>rate', formatter: '.formatter.porcentaje'}"/>
+                <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                <HBox justifyContent="End">
+                  <Button icon="sap-icon://edit" type="Transparent" tooltip="Editar" press=".onEditWithholding"/>
+                </HBox>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+        <Text class="finHint sapUiSmallMarginBottom"
+          text="Las tarifas dependen de si el cliente es autorretenedor o gran contribuyente y del municipio donde se presta el servicio, y cambian cada año. Confírmalas con tu contadora: acá se corrigen sin tocar código."/>
+
+        <!-- ============ TRM ============ -->
+        <Table id="ratesTable" items="{view>/tasas}" sticky="ColumnHeaders"
+          noDataText="No hay TRM cargada. Sincronízala o regístrala a mano antes de emitir una factura en dólares.">
+          <headerToolbar>
+            <Toolbar class="tableToolbar">
+              <Title text="Tasa de cambio" level="H4"/>
+              <Text class="resultCount" text="{= ${view>/tasas/length} + ' día(s)' }"/>
+              <ToolbarSpacer/>
+              <Button text="Sincronizar" icon="sap-icon://synchronize" press=".onSyncRates"/>
+              <Button text="Registrar a mano" icon="sap-icon://add" press=".onAddRate"/>
+            </Toolbar>
+          </headerToolbar>
+          <columns>
+            <Column><Text text="Vigencia"/></Column>
+            <Column width="6rem"><Text text="Moneda"/></Column>
+            <Column hAlign="End" width="10rem"><Text text="Valor"/></Column>
+            <Column width="10rem"><Text text="Origen"/></Column>
+          </columns>
+          <items>
+            <ColumnListItem vAlign="Middle">
+              <cells>
+                <Text text="{parts: ['view>validFrom', 'view>validTo'], formatter: '.formatter.vigencia'}"/>
+                <Text text="{view>currency}"/>
+                <Text class="finNumero" text="{path: 'view>rate', formatter: '.formatter.tasa'}"/>
+                <ObjectStatus
+                  text="{= ${view>source} === 'MANUAL' ? 'Digitada' : 'Oficial' }"
+                  state="{= ${view>source} === 'MANUAL' ? 'Warning' : 'Success' }"/>
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+        <Text class="finHint"
+          text="La oficial la publica la Superintendencia Financiera. Una digitada a mano queda marcada para que nadie la confunda con el dato oficial."/>
+
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

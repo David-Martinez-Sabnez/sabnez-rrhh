@@ -82,9 +82,17 @@
                                     width="18rem"
                                     placeholder="Todos los clientes"
                                     showValueHelp="true"
+                                    showSuggestion="true"
+                                    filterSuggests="true"
+                                    suggestionItemSelected=".onClientSuggestionSelected"
+                                    suggestionItems="{lookups>/clients}"
                                     enableMultiLineMode="true"
                                     valueHelpRequest=".onClientValueHelp"
-                                    tokenUpdate=".onClientTokenUpdate" />
+                                    tokenUpdate=".onClientTokenUpdate">
+                                    <suggestionItems>
+                                        <core:Item key="{lookups>ID}" text="{lookups>legalName}" />
+                                    </suggestionItems>
+                                </MultiInput>
                             </VBox>
 
                             <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
@@ -94,9 +102,17 @@
                                     width="18rem"
                                     placeholder="Todos los proyectos"
                                     showValueHelp="true"
+                                    showSuggestion="true"
+                                    filterSuggests="true"
+                                    suggestionItemSelected=".onProjectSuggestionSelected"
+                                    suggestionItems="{lookups>/filteredProjects}"
                                     enableMultiLineMode="true"
                                     valueHelpRequest=".onProjectValueHelp"
-                                    tokenUpdate=".onProjectTokenUpdate" />
+                                    tokenUpdate=".onProjectTokenUpdate">
+                                    <suggestionItems>
+                                        <core:Item key="{lookups>ID}" text="{lookups>name}" />
+                                    </suggestionItems>
+                                </MultiInput>
                             </VBox>
 
                             <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
@@ -106,9 +122,17 @@
                                     width="18rem"
                                     placeholder="Todos los empleados"
                                     showValueHelp="true"
+                                    showSuggestion="true"
+                                    filterSuggests="true"
+                                    suggestionItemSelected=".onEmployeeSuggestionSelected"
+                                    suggestionItems="{lookups>/employees}"
                                     enableMultiLineMode="true"
                                     valueHelpRequest=".onEmployeeValueHelp"
-                                    tokenUpdate=".onEmployeeTokenUpdate" />
+                                    tokenUpdate=".onEmployeeTokenUpdate">
+                                    <suggestionItems>
+                                        <core:Item key="{lookups>ID}" text="{lookups>employeeName}" />
+                                    </suggestionItems>
+                                </MultiInput>
                             </VBox>
 
                             <VBox class="sabnezFilterField sapUiTinyMarginEnd sapUiTinyMarginBottom">
@@ -118,9 +142,17 @@
                                     width="18rem"
                                     placeholder="Todos los estados"
                                     showValueHelp="true"
+                                    showSuggestion="true"
+                                    filterSuggests="true"
+                                    suggestionItemSelected=".onStatusSuggestionSelected"
+                                    suggestionItems="{lookups>/statuses}"
                                     enableMultiLineMode="true"
                                     valueHelpRequest=".onStatusValueHelp"
-                                    tokenUpdate=".onStatusTokenUpdate" />
+                                    tokenUpdate=".onStatusTokenUpdate">
+                                    <suggestionItems>
+                                        <core:Item key="{lookups>key}" text="{lookups>text}" />
+                                    </suggestionItems>
+                                </MultiInput>
                             </VBox>
 
                             <Button
@@ -230,7 +262,7 @@
                                                 class="sabnezExecutiveKpiCardHint sabnezKpiFootText" />
                                             <core:Icon
                                                 src="sap-icon://information"
-                                                tooltip="{= 'Avance frente al objetivo mensual de ' + ${executive>/monthlyTargetHours} + ' h registradas' }"
+                                                tooltip="{= ${executive>/monthlyTargetHours} > 0 ? 'Capacidad facturable: ' + ${executive>/billableResources} + ' recurso(s) x mes completo = ' + ${executive>/monthlyTargetHours} + ' h. Quedan ' + ${executive>/unsoldCapacity} + ' h sin vender. Las ' + ${executive>/internalHours} + ' h internas no cuentan como facturación.' : 'Sin objetivo calculado' }"
                                                 class="sabnezKpiInfoIcon" />
                                         </HBox>
                                     </VBox>
@@ -382,10 +414,15 @@
                                     <VBox
                                         width="49.25%"
                                         class="sabnezExecutiveCard sabnezExecutiveCardV2">
-                                        <Title
-                                            text="Horas por cliente"
-                                            level="H3"
-                                            class="sabnezExecutiveCardTitle" />
+                                        <HBox width="100%" justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
+                                            <Title
+                                                text="Horas por cliente"
+                                                level="H3"
+                                                class="sabnezExecutiveCardTitle" />
+                                            <Text
+                                                text="{executive>/clientRankingText}"
+                                                class="sabnezExecutiveCardHint" />
+                                        </HBox>
 
                                         <HBox
                                             width="100%"
@@ -490,7 +527,7 @@
                                                 level="H3"
                                                 class="sabnezExecutiveCardTitle" />
                                             <Text
-                                                text="Horas del periodo"
+                                                text="{executive>/projectRankingText}"
                                                 class="sabnezExecutiveCardHint" />
                                         </HBox>
 
@@ -564,7 +601,7 @@
                                                 level="H3"
                                                 class="sabnezExecutiveCardTitle" />
                                             <Text
-                                                text="Comparación relativa"
+                                                text="{executive>/employeeRankingText}"
                                                 class="sabnezExecutiveCardHint" />
                                         </HBox>
 
@@ -771,9 +808,7 @@
                                             id="dailyDetailsTable"
                                             width="100%"
                                             items="{report>/dailyDetails}"
-                                            growing="true"
-                                            growingThreshold="50"
-                                            growingScrollToLoad="true"
+                                            growing="false"
                                             sticky="ColumnHeaders"
                                             fixedLayout="true"
                                             autoPopinMode="true"
@@ -1456,12 +1491,19 @@
                                         <Toolbar class="sabnezDeliverablesActions">
                                             <ToolbarSpacer />
                                             <Button
+                                                id="previewDeliverableButton"
+                                                text="Consultar conceptos"
+                                                icon="sap-icon://search"
+                                                busy="{deliverables>/previewBusy}"
+                                                press=".onPreviewDeliverableConcepts"
+                                                enabled="{= !!${deliverables>/selectedClientID} &amp;&amp; ${deliverables>/selectedProjectIDs}.length > 0 }" />
+                                            <Button
                                                 id="generateDeliverableButton"
                                                 text="Generar entregable"
                                                 icon="sap-icon://download"
                                                 type="Emphasized"
                                                 press=".onGenerateDeliverable"
-                                                enabled="{= !!${deliverables>/selectedClientID} &amp;&amp; ${deliverables>/selectedProjectIDs}.length > 0 }" />
+                                                enabled="{= ${deliverables>/previewVisible} &amp;&amp; ${deliverables>/selectedCount} > 0 }" />
                                         </Toolbar>
                                     </VBox>
 
@@ -1508,10 +1550,86 @@
                                                 showIcon="true"
                                                 showCloseButton="false"
                                                 class="sapUiSmallMarginTop" />
+                                            <ObjectStatus
+                                                visible="{deliverables>/previewVisible}"
+                                                text="{= ${deliverables>/selectedCount} + ' concepto(s) incluidos' }"
+                                                icon="sap-icon://multi-select"
+                                                state="Success"
+                                                class="sapUiSmallMarginTop" />
                                         </VBox>
                                     </VBox>
 
                                 </HBox>
+
+                                <VBox
+                                    visible="{deliverables>/previewVisible}"
+                                    busy="{deliverables>/previewBusy}"
+                                    class="sabnezDeliverablesCard sabnezDeliverablesConceptCard sapUiMediumMarginTop">
+                                    <Toolbar class="sabnezDeliverablesConceptHeader">
+                                        <Title text="Vista previa de conceptos" level="H3" />
+                                        <ToolbarSpacer />
+                                        <ObjectStatus
+                                            text="{deliverables>/previewSummary}"
+                                            state="Information" />
+                                    </Toolbar>
+                                    <MessageStrip
+                                        text="Desmarque los conceptos que correspondan a otro corte de facturación. El archivo descargable incluirá únicamente las filas seleccionadas."
+                                        type="Information"
+                                        showIcon="true"
+                                        showCloseButton="false"
+                                        class="sabnezDeliverablesSelectionInfo" />
+                                    <Table
+                                        id="deliverableConceptTable"
+                                        mode="MultiSelect"
+                                        includeItemInSelection="true"
+                                        growing="true"
+                                        growingThreshold="20"
+                                        sticky="ColumnHeaders,HeaderToolbar"
+                                        selectionChange=".onDeliverableConceptSelectionChange"
+                                        items="{deliverables>/previewRows}"
+                                        noDataText="No se encontraron conceptos para los criterios seleccionados.">
+                                        <columns>
+                                            <Column minScreenWidth="Tablet" demandPopin="true">
+                                                <Text text="Proyecto" />
+                                            </Column>
+                                            <Column>
+                                                <Text text="Recurso" />
+                                            </Column>
+                                            <Column minScreenWidth="Tablet" demandPopin="true">
+                                                <Text text="Concepto / rol" />
+                                            </Column>
+                                            <Column minScreenWidth="Desktop" demandPopin="true">
+                                                <Text text="Registros encontrados" />
+                                            </Column>
+                                            <Column hAlign="End">
+                                                <Text text="Horas registradas" />
+                                            </Column>
+                                            <Column hAlign="End">
+                                                <Text text="Horas facturables" />
+                                            </Column>
+                                            <Column minScreenWidth="Desktop" demandPopin="true">
+                                                <Text text="Estado" />
+                                            </Column>
+                                        </columns>
+                                        <items>
+                                            <ColumnListItem selected="{deliverables>selected}" vAlign="Middle">
+                                                <cells>
+                                                    <ObjectIdentifier
+                                                        title="{deliverables>projectName}"
+                                                        text="{deliverables>projectCode}" />
+                                                    <Text text="{deliverables>employeeName}" />
+                                                    <Text text="{deliverables>role}" />
+                                                    <ObjectIdentifier
+                                                        title="{= ${deliverables>firstDate} + ' – ' + ${deliverables>lastDate} }"
+                                                        text="{= ${deliverables>entryCount} + ' registro(s)' }" />
+                                                    <ObjectNumber number="{deliverables>registeredHours}" unit="h" />
+                                                    <ObjectNumber number="{deliverables>billableHours}" unit="h" emphasized="true" />
+                                                    <ObjectStatus text="{deliverables>statuses}" state="Information" />
+                                                </cells>
+                                            </ColumnListItem>
+                                        </items>
+                                    </Table>
+                                </VBox>
                             </VBox>
                         </IconTabFilter>
                     </items>

@@ -1,0 +1,43 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+  <Dialog title="{= ${view>/assignmentForm/ID} ? 'Editar asignación' : 'Asignar persona' }"
+    contentWidth="30rem" resizable="true" draggable="true" class="formDialog">
+    <content>
+      <f:SimpleForm editable="true" layout="ResponsiveGridLayout" columnsL="1" columnsM="1"
+        labelSpanL="4" labelSpanM="4" adjustLabelSpan="false" class="dialogForm">
+        <Label text="Persona" required="true"/>
+        <ComboBox selectedKey="{view>/assignmentForm/employeeID}" items="{view>/employees}"
+          placeholder="Elige a la persona">
+          <core:Item key="{view>ID}" text="{view>nombreCompleto}"/>
+        </ComboBox>
+
+        <Label text="Rol"/>
+        <Input value="{view>/assignmentForm/role}" maxLength="100" placeholder="Consultor, Dllo. NET…"/>
+
+        <Label text="Inicio" required="true"/>
+        <DatePicker value="{view>/assignmentForm/validFrom}" valueFormat="yyyy-MM-dd" displayFormat="dd/MM/yyyy"/>
+
+        <Label text="Ciclo de facturación" visible="{= ${view>/current/modality} !== 'INTERNAL' }"/>
+        <ComboBox selectedKey="{view>/assignmentForm/reportingCycleID}" items="{view>/currentCycles}"
+          placeholder="Elige 1-fin de mes, 16-15…" showClearIcon="true"
+          visible="{= ${view>/current/modality} !== 'INTERNAL' }">
+          <core:Item key="{view>ID}" text="{view>name}"/>
+        </ComboBox>
+
+        <Label text="Dedicación"/>
+        <StepInput value="{view>/assignmentForm/commercialAllocation}" min="0" max="100" step="5" description="%"/>
+
+        <Label text="Principal"/>
+        <CheckBox selected="{view>/assignmentForm/isPrimary}" text="Es su proyecto principal"/>
+
+      </f:SimpleForm>
+      <MessageStrip class="dialogHint" showIcon="true" type="Information"
+        visible="{= ${view>/current/modality} !== 'INTERNAL' }"
+        text="El ciclo define cómo se agrupa la mensualidad de este recurso. Puede ser diferente al de otras personas del mismo proyecto."/>
+    </content>
+    <beginButton><Button text="Cancelar" press=".onAssignmentCancel"/></beginButton>
+    <endButton>
+      <Button text="{= ${view>/assignmentForm/ID} ? 'Guardar cambios' : 'Asignar' }"
+        type="Emphasized" press=".onAssignmentSave"/>
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>
