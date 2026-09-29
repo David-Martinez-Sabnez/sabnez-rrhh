@@ -14,6 +14,12 @@ const {
 } = require("./lib/billing-targets");
 const { classifyEntry } = require("./lib/commercial-classification");
 const { queueTimeNotification } = require("./lib/time-notification-outbox");
+const {
+  nextMonthlyCutoff,
+  previousMonthlyCutoff,
+  daysBetween,
+  cutoffCyclesForDate,
+} = require("./lib/time-cutoff-policy");
 
 const { SELECT, INSERT, UPDATE, DELETE } = cds.ql;
 
@@ -31,6 +37,7 @@ module.exports = cds.service.impl(function () {
     TimeBulkCopyItems,
     TimeEntries,
     ProjectBillingRules,
+    TimeEntryCutoffBreaches,
   } = times;
 
   // Las reglas de facturabilidad del proyecto. Se cargan una vez por
@@ -272,87 +279,210 @@ module.exports = cds.service.impl(function () {
   this.on("enviarRecordatoriosCorte", async (req) => {
     const referenceDate = normalizeDate(req.data?.fecha) || todayISOInTimeZone("America/Bogota");
     const tx = cds.tx(req);
-    const projects = await SELECT.from(Projects)
-      .columns("ID", "name", "timeEntryCutoffDay", "workCalendar_ID")
-      .where({ status: "ACTIVE", modality: { "!=": "INTERNAL" } });
-    const dueProjects = projects.filter((project) =>
-      daysBetween(referenceDate, nextMonthlyCutoff(referenceDate, project.timeEntryCutoffDay || 31)) === 3,
+    const [projects, breachRows] = await Promise.all([
+      tx.run(
+        SELECT.from(Projects)
+          .columns("ID", "name", "status", "timeEntryCutoffDay", "workCalendar_ID")
+          .where({ modality: { "!=": "INTERNAL" } }),
+      ),
+      tx.run(SELECT.from(TimeEntryCutoffBreaches)),
+    ]);
+    const breachByKey = new Map(
+      breachRows.map((row) => [`${row.assignment_ID}:${row.cutoffDate}`, row]),
     );
-    const calendars = await loadCalendars(dueProjects.map((project) => project.workCalendar_ID));
-    const pendingByEmployee = new Map();
+    const openCutoffsByProject = new Map();
+    const openBreaches = new Set();
+    for (const row of breachRows) {
+      if (row.status !== "OPEN") continue;
+      openBreaches.add(row.ID);
+      const cutoffs = openCutoffsByProject.get(row.project_ID) || new Set();
+      cutoffs.add(row.cutoffDate);
+      openCutoffsByProject.set(row.project_ID, cutoffs);
+    }
 
-    for (const project of dueProjects) {
-      const cutoff = nextMonthlyCutoff(referenceDate, project.timeEntryCutoffDay || 31);
+    const projectCycles = [];
+    for (const project of projects) {
+      const cycles = cutoffCyclesForDate({
+        referenceDate,
+        cutoffDay: project.timeEntryCutoffDay || 31,
+        projectActive: project.status === "ACTIVE",
+        openCutoffs: [...(openCutoffsByProject.get(project.ID) || [])],
+      });
+      for (const cycle of cycles) projectCycles.push({ project, ...cycle });
+    }
+
+    const calendars = await loadCalendars(
+      [...new Set(projectCycles.map(({ project }) => project.workCalendar_ID).filter(Boolean))],
+    );
+    const upcomingByEmployee = new Map();
+    const overdueByEmployee = new Map();
+    const evaluatedProjects = new Set();
+    const now = new Date().toISOString();
+
+    for (const { project, cutoff, phase } of projectCycles) {
+      evaluatedProjects.add(project.ID);
       const cycleStart = addDays(previousMonthlyCutoff(cutoff, project.timeEntryCutoffDay || 31), 1);
-      const assignments = await SELECT.from(ProjectAssignments)
-        .columns(
-          "ID", "employee_ID", "commercialAllocation", "validFrom", "validTo",
-          "employee.nombreCompleto as employeeName",
-          "employee.correoCorporativo as employeeEmail",
-          "employee.estado_codigo as employeeStatus",
-        )
-        .where({ project_ID: project.ID, status: "ACTIVE" });
+      const assignments = await tx.run(
+        SELECT.from(ProjectAssignments)
+          .columns(
+            "ID", "status", "employee_ID", "commercialAllocation", "validFrom", "validTo",
+            "employee.nombreCompleto as employeeName",
+            "employee.correoCorporativo as employeeEmail",
+            "employee.estado_codigo as employeeStatus",
+          )
+          .where({ project_ID: project.ID }),
+      );
       const calendar = calendars.get(project.workCalendar_ID);
 
       for (const assignment of assignments) {
-        if (assignment.employeeStatus !== "AC" || !assignment.employeeEmail) continue;
+        if (phase === "UPCOMING" && assignment.status !== "ACTIVE") continue;
         const from = assignment.validFrom > cycleStart ? assignment.validFrom : cycleStart;
-        // Sólo se exigen las horas que ya debieron trabajarse al día del
-        // recordatorio; nunca se marca como pendiente tiempo futuro.
-        const upperBound = referenceDate < cutoff ? referenceDate : cutoff;
+        // Antes del corte sólo se exigen las horas ya trabajadas. Una vez
+        // vencido se compara el ciclo completo contra el cierre definitivo.
+        const upperBound = phase === "OVERDUE" ? cutoff : referenceDate;
         const to = assignment.validTo && assignment.validTo < upperBound ? assignment.validTo : upperBound;
         if (from > to) continue;
+
         let businessDays = 0;
         for (let day = from; day <= to; day = addDays(day, 1)) {
           if (isWorkingDay(calendar, day)) businessDays += 1;
         }
         const expected = businessDays * Number(calendar?.hoursPerDay || 8)
           * (Number(assignment.commercialAllocation ?? 100) / 100);
-        const entries = await SELECT.from(TimeEntries)
-          .columns("durationHours", "status")
-          .where({ assignment_ID: assignment.ID, workDate: { between: from, and: to } });
+        const entries = await tx.run(
+          SELECT.from(TimeEntries)
+            .columns("durationHours", "status")
+            .where({ assignment_ID: assignment.ID, workDate: { between: from, and: to } }),
+        );
         const actual = entries
-          .filter((entry) => entry.status !== "CANCELLED")
+          .filter((entry) => !["CANCELLED", "VOIDED"].includes(entry.status))
           .reduce((sum, entry) => sum + Number(entry.durationHours || 0), 0);
-        if (actual + 0.01 >= expected) continue;
-        const block = pendingByEmployee.get(assignment.employee_ID) || {
+        const pending = Math.max(0, expected - actual);
+        const breachKey = `${assignment.ID}:${cutoff}`;
+        const existingBreach = breachByKey.get(breachKey);
+
+        if (pending <= 0.01) {
+          if (existingBreach?.status === "OPEN") {
+            await tx.run(
+              UPDATE(TimeEntryCutoffBreaches)
+                .set({
+                  registeredHours: actual,
+                  pendingHours: 0,
+                  status: "RESOLVED",
+                  lastDetectedAt: now,
+                  resolvedAt: now,
+                })
+                .where({ ID: existingBreach.ID }),
+            );
+            openBreaches.delete(existingBreach.ID);
+            existingBreach.status = "RESOLVED";
+          }
+          continue;
+        }
+
+        const canNotify = assignment.employeeStatus === "AC" && Boolean(assignment.employeeEmail);
+        if (phase === "OVERDUE") {
+          const daysOverdue = Math.max(1, daysBetween(cutoff, referenceDate));
+          if (existingBreach) {
+            await tx.run(
+              UPDATE(TimeEntryCutoffBreaches)
+                .set({
+                  expectedHours: expected,
+                  registeredHours: actual,
+                  pendingHours: pending,
+                  status: "OPEN",
+                  lastDetectedAt: now,
+                  resolvedAt: null,
+                  maximumDaysOverdue: Math.max(daysOverdue, Number(existingBreach.maximumDaysOverdue || 0)),
+                  reminderCount: Number(existingBreach.reminderCount || 0) + (canNotify ? 1 : 0),
+                  lastReminderOn: canNotify ? referenceDate : existingBreach.lastReminderOn,
+                })
+                .where({ ID: existingBreach.ID }),
+            );
+            openBreaches.add(existingBreach.ID);
+            existingBreach.status = "OPEN";
+          } else {
+            const breachID = cds.utils.uuid();
+            const breach = {
+              ID: breachID,
+              project_ID: project.ID,
+              assignment_ID: assignment.ID,
+              employee_ID: assignment.employee_ID,
+              cycleStart,
+              cutoffDate: cutoff,
+              expectedHours: expected,
+              registeredHours: actual,
+              pendingHours: pending,
+              status: "OPEN",
+              firstDetectedAt: now,
+              lastDetectedAt: now,
+              maximumDaysOverdue: daysOverdue,
+              reminderCount: canNotify ? 1 : 0,
+              lastReminderOn: canNotify ? referenceDate : null,
+            };
+            await tx.run(INSERT.into(TimeEntryCutoffBreaches).entries(breach));
+            breachByKey.set(breachKey, breach);
+            openBreaches.add(breachID);
+          }
+        }
+
+        if (!canNotify) continue;
+        const destination = phase === "OVERDUE" ? overdueByEmployee : upcomingByEmployee;
+        const block = destination.get(assignment.employee_ID) || {
           employeeName: assignment.employeeName,
           employeeEmail: assignment.employeeEmail,
           projects: [],
         };
-        block.projects.push({ name: project.name, cutoff, actual, expected });
-        pendingByEmployee.set(assignment.employee_ID, block);
+        block.projects.push({
+          name: project.name,
+          cutoff,
+          actual,
+          expected,
+          pending,
+          daysOverdue: phase === "OVERDUE" ? daysBetween(cutoff, referenceDate) : 0,
+        });
+        destination.set(assignment.employee_ID, block);
       }
     }
 
     let created = 0;
-    for (const [employeeID, block] of pendingByEmployee) {
-      const totalPending = block.projects.reduce((sum, item) => sum + item.expected - item.actual, 0);
+    let urgentCreated = 0;
+    for (const [employeeID, block] of upcomingByEmployee) {
+      const totalPending = block.projects.reduce((sum, item) => sum + item.pending, 0);
       await queueTimeNotification(tx, {
         type: "TIME_ENTRY_CUTOFF",
         recipientID: block.employeeEmail,
-        idempotencyKey: `time-cutoff:${employeeID}:${referenceDate}`,
-        payload: {
-          recipientName: block.employeeName,
-          titulo: block.projects.map((item) => item.name).join(", "),
-          resumen: `Tienes ${totalPending.toFixed(1)} horas pendientes en ${block.projects.length} proyecto(s).`,
-          facts: block.projects.map((item, index) => ({
-            etiqueta: item.name,
-            valor: `${item.actual.toFixed(1)} de ${item.expected.toFixed(1)} h · corte ${item.cutoff}`,
-            orden: index + 1,
-          })),
-        },
+        idempotencyKey: `time-cutoff-upcoming:${employeeID}:${referenceDate}`,
+        payload: cutoffNotificationPayload(block, totalPending),
       });
       created += 1;
     }
+    for (const [employeeID, block] of overdueByEmployee) {
+      const totalPending = block.projects.reduce((sum, item) => sum + item.pending, 0);
+      await queueTimeNotification(tx, {
+        type: "TIME_ENTRY_CUTOFF_OVERDUE",
+        recipientID: block.employeeEmail,
+        idempotencyKey: `time-cutoff-overdue:${employeeID}:${referenceDate}`,
+        payload: cutoffNotificationPayload(block, totalPending, true),
+      });
+      created += 1;
+      urgentCreated += 1;
+    }
+
+    const pendingEmployees = new Set([
+      ...upcomingByEmployee.keys(),
+      ...overdueByEmployee.keys(),
+    ]);
 
     return {
       exito: true,
       fecha: referenceDate,
-      proyectosEvaluados: dueProjects.length,
-      colaboradoresPendientes: pendingByEmployee.size,
+      proyectosEvaluados: evaluatedProjects.size,
+      colaboradoresPendientes: pendingEmployees.size,
       notificacionesCreadas: created,
-      mensaje: `Se evaluaron ${dueProjects.length} proyecto(s) y se prepararon ${created} recordatorio(s).`,
+      notificacionesUrgentes: urgentCreated,
+      incumplimientosAbiertos: openBreaches.size,
+      mensaje: `Se evaluaron ${evaluatedProjects.size} proyecto(s), se prepararon ${created} recordatorio(s) y ${urgentCreated} fueron urgentes.`,
     };
   });
 
@@ -1795,26 +1925,22 @@ function addMonths(value, months) {
   return date.toISOString().slice(0, 10);
 }
 
-function cutoffInMonth(value, requestedDay) {
-  const source = new Date(`${value}T00:00:00Z`);
-  const year = source.getUTCFullYear();
-  const month = source.getUTCMonth();
-  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const day = Math.min(Math.max(Number(requestedDay) || 31, 1), lastDay);
-  return new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10);
-}
-
-function nextMonthlyCutoff(value, requestedDay) {
-  const current = cutoffInMonth(value, requestedDay);
-  return value <= current ? current : cutoffInMonth(addMonths(value, 1), requestedDay);
-}
-
-function previousMonthlyCutoff(cutoff, requestedDay) {
-  return cutoffInMonth(addMonths(monthStart(cutoff), -1), requestedDay);
-}
-
-function daysBetween(from, to) {
-  return Math.round((new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000);
+function cutoffNotificationPayload(block, totalPending, overdue = false) {
+  return {
+    recipientName: block.employeeName,
+    titulo: block.projects.map((item) => item.name).join(", "),
+    resumen: overdue
+      ? `El periodo ya cerró y tienes ${totalPending.toFixed(1)} horas pendientes en ${block.projects.length} proyecto(s).`
+      : `Tienes ${totalPending.toFixed(1)} horas pendientes en ${block.projects.length} proyecto(s).`,
+    facts: block.projects.map((item, index) => ({
+      etiqueta: item.name,
+      valor: overdue
+        ? `${item.pending.toFixed(1)} h pendientes · corte vencido ${item.cutoff} · ${item.daysOverdue} día(s) de atraso`
+        : `${item.actual.toFixed(1)} de ${item.expected.toFixed(1)} h · corte ${item.cutoff}`,
+      orden: index + 1,
+      semanticColor: overdue ? "ERROR" : "WARNING",
+    })),
+  };
 }
 
 function isDateWithin(value, from, to) {

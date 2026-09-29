@@ -30,6 +30,7 @@ const TIPOS = [
   "COLLECTION_ACCOUNT_CORRECTION_REQUESTED",
   "COLLECTION_ACCOUNT_CORRECTION_RESOLVED",
   "TIME_ENTRY_CUTOFF",
+  "TIME_ENTRY_CUTOFF_OVERDUE",
   "TIME_SUBMITTED",
   "TIME_DECIDED",
   "APPROVAL_ASSIGNED",
@@ -86,6 +87,33 @@ test("el correo de corte lleva al registro de tiempos y conserva el detalle por 
     html.indexOf("Codelco HCM") < html.indexOf("Hola, Camila."),
     "los datos accionables van antes del texto",
   );
+});
+
+test("el correo de corte vencido conserva la plantilla y comunica la urgencia", () => {
+  const { subject, html } = notificationContent(
+    {
+      ...base,
+      tipo: "TIME_ENTRY_CUTOFF_OVERDUE",
+      titulo: "Codelco HCM",
+      resumen: "El periodo ya cerró y tienes 8.0 horas pendientes.",
+      facts: [
+        {
+          etiqueta: "Codelco HCM",
+          valor: "8.0 h pendientes · corte vencido 2026-09-30 · 1 día(s) de atraso",
+          orden: 1,
+          semanticColor: "ERROR",
+        },
+      ],
+    },
+    URLS,
+  );
+
+  assert.match(subject, /Urgente: el periodo cerró/);
+  assert.match(html, /Cierre incumplido/);
+  assert.match(html, /#C0392B/, "la urgencia usa la semántica roja del formato corporativo");
+  assert.match(html, /El incumplimiento ya quedó registrado/);
+  assert.match(html, /tiemposempleadoui/);
+  assert.match(html, /src="cid:sabnez-logo"/, "conserva la plantilla corporativa vigente");
 });
 
 test("el resultado de la cuenta cambia según la decisión de RR. HH.", () => {

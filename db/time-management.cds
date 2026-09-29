@@ -90,6 +90,11 @@ type TratamientoComercial : String(25) enum {
   PENDING            = 'PENDING';
 };
 
+type EstadoIncumplimientoCorte : String(15) enum {
+  OPEN     = 'OPEN';
+  RESOLVED = 'RESOLVED';
+};
+
 @assert.unique: {
   taxId       : [taxIdentification],
   projectPrefix: [projectCodePrefix]
@@ -288,6 +293,29 @@ entity WeeklyTimeApprovalEvents : cuid, managed {
   targetEmployee         : Association to Empleados;
   detail                 : String(1000);
   occurredAt             : Timestamp @mandatory;
+}
+
+// Histórico de personas que llegaron al cierre de un ciclo con horas
+// pendientes. Una fila representa una asignación y un corte; los correos
+// diarios actualizan la misma fila para conservar una trazabilidad útil en
+// evaluaciones posteriores sin inflar el historial con un registro por email.
+@assert.unique: {assignmentCutoff: [assignment, cutoffDate]}
+entity TimeEntryCutoffBreaches : cuid, managed {
+  project                 : Association to Projects @mandatory;
+  assignment              : Association to ProjectAssignments @mandatory;
+  employee                : Association to Empleados @mandatory;
+  cycleStart              : Date @mandatory;
+  cutoffDate              : Date @mandatory;
+  expectedHours           : Decimal(9, 2) @mandatory;
+  registeredHours         : Decimal(9, 2) @mandatory;
+  pendingHours            : Decimal(9, 2) @mandatory;
+  status                  : EstadoIncumplimientoCorte default 'OPEN';
+  firstDetectedAt         : Timestamp @mandatory;
+  lastDetectedAt          : Timestamp @mandatory;
+  resolvedAt              : Timestamp;
+  maximumDaysOverdue      : Integer default 1;
+  reminderCount           : Integer default 0;
+  lastReminderOn          : Date;
 }
 
 entity TimeBulkCopyOperations : cuid, managed {

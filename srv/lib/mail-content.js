@@ -212,7 +212,7 @@ function notificationContent(data, urls = {}, options = {}) {
           accion: { texto: "Completar mis tiempos", url: urls.tiempos },
           llamadoFinal: "¿Completamos tus tiempos?",
           cuerpo: [
-            "Faltan tres días para el corte de uno o más proyectos y todavía tienes horas pendientes por registrar.",
+            "El corte de uno o más proyectos está próximo y todavía tienes horas pendientes por registrar.",
           ],
           secciones: [
             {
@@ -224,6 +224,35 @@ function notificationContent(data, urls = {}, options = {}) {
           ],
           // Sin `resumen`: la tarjeta ya trae el detalle por proyecto y
           // repetirlo abajo no agrega nada.
+        }),
+      };
+
+    case "TIME_ENTRY_CUTOFF_OVERDUE":
+      return {
+        subject: `Urgente: el periodo cerró y tus tiempos siguen incompletos · ${data.titulo}`,
+        html: buildHtml({
+          ...base,
+          app: APPS.TIEMPOS,
+          titulo: "El periodo ya cerró y todavía tienes horas pendientes",
+          estado: "Cierre incumplido",
+          semantica: "ERROR",
+          llamado: "Revisa y completa hoy mismo los registros pendientes. El incumplimiento ya quedó registrado en el historial del periodo.",
+          accion: { texto: "Corregir mis tiempos ahora", url: urls.tiempos },
+          llamadoFinal: "¿Corregimos los tiempos pendientes?",
+          cuerpo: [
+            "La fecha de corte ya pasó y el periodo continúa incompleto. Esta revisión es urgente porque afecta el cierre operativo y administrativo del proyecto.",
+            "Mientras existan horas pendientes recibirás este recordatorio diariamente. La fecha de regularización también quedará registrada cuando completes el periodo.",
+          ],
+          secciones: [
+            {
+              titulo: "Qué debes hacer",
+              puntos: [
+                "Abre Gestión de Tiempos y revisa cada proyecto indicado.",
+                "Completa las horas faltantes y envía los periodos que correspondan.",
+                "Si encuentras una inconsistencia en tu asignación, repórtala de inmediato a la persona responsable del proyecto.",
+              ],
+            },
+          ],
         }),
       };
 

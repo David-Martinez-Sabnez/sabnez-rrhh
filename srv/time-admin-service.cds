@@ -86,6 +86,34 @@ service TimeAdminService @(
   entity Asignaciones   as projection on times.ProjectAssignments;
   entity Aprobadores    as projection on times.ProjectApprovers;
 
+  // Evidencia de cierres incumplidos para consultas administrativas y
+  // evaluaciones posteriores. El historial no se edita desde la interfaz.
+  @readonly
+  entity IncumplimientosCorte as projection on times.TimeEntryCutoffBreaches {
+    key ID,
+        employee.ID             as employee_ID,
+        employee.nombreCompleto as employeeName,
+        employee.codigoInterno  as employeeCode,
+        project.ID              as project_ID,
+        project.code            as projectCode,
+        project.name            as projectName,
+        assignment.ID           as assignment_ID,
+        cycleStart,
+        cutoffDate,
+        expectedHours,
+        registeredHours,
+        pendingHours,
+        status,
+        firstDetectedAt,
+        lastDetectedAt,
+        resolvedAt,
+        maximumDaysOverdue,
+        reminderCount,
+        lastReminderOn,
+        createdAt,
+        modifiedAt
+  };
+
   // Qué se le puede cobrar al cliente en cada proyecto, por tipo de tiempo.
   entity ReglasFacturacion as projection on times.ProjectBillingRules;
 

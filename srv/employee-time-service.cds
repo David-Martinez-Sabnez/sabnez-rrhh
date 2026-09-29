@@ -70,6 +70,8 @@ service EmployeeTimeService @(
     proyectosEvaluados    : Integer;
     colaboradoresPendientes: Integer;
     notificacionesCreadas : Integer;
+    notificacionesUrgentes: Integer;
+    incumplimientosAbiertos: Integer;
     mensaje               : String(500);
   }
 
